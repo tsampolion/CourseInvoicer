@@ -18,6 +18,8 @@ android {
     }
 
     buildTypes {
+        // MARKED FOR DELETION (D9): no Play Store release. See docs/PRODUCT_SPEC.md §8 before deleting:
+        // this is also the only small (R8) build.
         release {
             isMinifyEnabled = true
             isShrinkResources = true
