@@ -132,7 +132,7 @@ class SqlLessonRepository(private val db: EduDatabase) : LessonRepository {
             ids.distinct().chunked(EduDatabase.MAX_ARGS).forEach { chunk ->
                 d.execSQL(
                     "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)})",
-                    arrayOf<Any?>(paidOn?.toString()) + chunk,
+                    arrayOf<Any?>(paidOn?.toString(), *chunk.toTypedArray()),
                 )
             }
         }
@@ -171,7 +171,7 @@ class SqlInvoiceRepository(private val db: EduDatabase) : InvoiceRepository {
                 if (paidOn != null) {
                     d.execSQL(
                         "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)}) AND paid_on IS NULL",
-                        arrayOf<Any?>(paidOn.toString()) + chunk,
+                        arrayOf<Any?>(paidOn.toString(), *chunk.toTypedArray()),
                     )
                 }
             }
