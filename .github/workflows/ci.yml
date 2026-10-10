@@ -34,6 +34,15 @@ jobs:
       - name: Android lint
         run: ./gradlew :app:lintDebug --stacktrace
 
+      # The HTML report is an artifact; print every finding into the log too so it can be read anywhere.
+      - name: Print lint findings
+        if: always()
+        run: |
+          SARIF=app/build/reports/lint-results-debug.sarif
+          [ -f "$SARIF" ] || exit 0
+          jq -r '.runs[].results[] | "\(.level) \(.ruleId): \(.message.text) @ \(.locations[0].physicalLocation.artifactLocation.uri // "?"):\(.locations[0].physicalLocation.region.startLine // "?")"' "$SARIF" | tee lint-findings.txt
+          echo "Lint findings: $(wc -l < lint-findings.txt)"
+
       - name: Assemble debug and release
         run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
 
@@ -89,17 +98,30 @@ jobs:
       - name: Build app and test APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
 
+      # Fails fast with the emulator log in the job output (artifacts are hard to read from some sandboxes).
       - name: Boot emulator and run instrumented tests
         run: |
           ADB="$ANDROID_HOME/platform-tools/adb"
-          "$ANDROID_HOME/emulator/emulator" -avd ci -no-window -no-audio -no-boot-anim -no-snapshot \
+          EMULATOR="$ANDROID_HOME/emulator/emulator"
+          ls -l /dev/kvm || true
+          "$EMULATOR" -accel-check || true
+          "$EMULATOR" -list-avds
+          "$EMULATOR" -avd ci -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none > emulator.log 2>&1 &
-          "$ADB" wait-for-device
-          for attempt in $(seq 1 120); do
-            [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
+          EMULATOR_PID=$!
+          booted=""
+          for attempt in $(seq 1 90); do
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "::error::Emulator exited before booting"; cat emulator.log; exit 1
+            fi
+            if [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+              booted=yes; break
+            fi
             sleep 5
           done
-          [ "$("$ADB" shell getprop sys.boot_completed | tr -d '\r')" = "1" ] || { tail -50 emulator.log; exit 1; }
+          if [ -z "$booted" ]; then
+            echo "::error::Emulator did not boot within 7.5 minutes"; tail -100 emulator.log; exit 1
+          fi
           for setting in window_animation_scale transition_animation_scale animator_duration_scale; do
             "$ADB" shell settings put global "$setting" 0
           done

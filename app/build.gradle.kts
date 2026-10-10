@@ -39,12 +39,6 @@ android {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 
-    lint {
-        // Print findings into the build log as well as the HTML report, so they are visible in CI logs.
-        textReport = true
-        textOutput = file("stdout")
-    }
-
     testOptions {
         // ViewModel tests touch SavedStateHandle, which references android.* stubs.
         unitTests.isReturnDefaultValues = true
