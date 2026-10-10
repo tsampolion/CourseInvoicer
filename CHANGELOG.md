@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format follows
 - Lint findings are printed into the CI log.
 
 ### Changed
+- **No Play Store release (D9).** Release-only build items are marked for deletion and listed in
+  `docs/PRODUCT_SPEC.md` §8. Nothing was removed; the build and CI are unchanged.
 - **Invoices are voided instead of deleted.** A void invoice stays listed and keeps its number, so a
   number never refers to two documents. Its lessons are released for re-invoicing.
 - Database schema version 2 (`invoices.voided_on`), with an automatic upgrade from version 1.

@@ -74,6 +74,7 @@ Version history:
 | Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
 | Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
 | Crash reporting / analytics | Dropped | No network permission by design. |
+| Google Play Store release | Dropped | Not planned. Builds are installed from CI (see README). Release-only items are marked for deletion (§8). |
 
 ## 6. Decision log
 
@@ -87,6 +88,7 @@ Version history:
 | D6 | JSON backup codec written in `:core` | No serialization dependency, and the backup round trip is unit-tested. | alpha01 |
 | D7 | Invoices are voided, not deleted | A parent may already hold the PDF, so a number must never mean two documents. | alpha02 |
 | D8 | Instrumented tests on an emulator in CI | The SQLite layer and the whole UI flow can only be verified on Android. Test-only dependencies were approved. | alpha02 |
+| D9 | No Play Store release. Release-only items are marked for deletion, not removed | The app is installed from CI builds. Marking first keeps the change reversible until the owner confirms each removal. | alpha02 |
 
 ## 7. Dependency register
 
@@ -101,7 +103,44 @@ first. Record each approval here.
 | Instrumented tests (approved alpha02) | `androidx.test:runner`, `androidx.test.ext:junit`, `androidx.compose.ui:ui-test-junit4` |
 | Awaiting approval (not added) | Room, SQLCipher, Navigation 3, Robolectric |
 
-## 8. Origin
+## 8. Marked for deletion
+
+Under D9 the app will not be released on the Google Play Store. The items below exist only to ship a
+release, so they are **marked for deletion but not removed**. The build and CI behave as before.
+Each item is tagged *marked for deletion (D9)* where it lives. To list them, run
+`git grep -i "marked for deletion"`. To delete one, remove it and its row here in the same pull
+request.
+
+| # | Item | Where | Why it is release-only | Before deleting |
+|---|------|-------|------------------------|-----------------|
+| M1 | Ignore rule for `*.aab` | `.gitignore` | App Bundles are the upload format for Google Play. Phones install APKs. | Nothing. |
+| M2 | `release` build type: R8 minify and resource shrinking | `app/build.gradle.kts` | Its output is only useful once signed and shipped. Unsigned, it cannot be installed. | It is the only small build: 1.9 MB, against 12.5 MB for debug, which is also slower. It is how the "minimal APK" goal is measured. If the app is ever shared outside Play (sideloaded), keep it and add signing instead. |
+| M3 | R8 keep rules | `app/proguard-rules.pro` | Read only by the release build type. | Delete together with M2. |
+| M4 | `assembleRelease` in CI | `.github/workflows/ci.yml`, step *Assemble debug and release* | Builds the release APK and runs `lintVitalRelease` on every pull request, about 1.5 minutes per run. | Delete with M2. Keep `assembleDebug`: it builds the APK the README installs. *Report APK sizes* then lists only the debug APK. |
+| M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 | Describe a signed release that will not happen. | Delete with M2. Keep the rule "never commit keystores or passwords". |
+
+**Related, but kept:**
+- The `.gitignore` signing patterns (`*.jks`, `*.keystore`, `keystore.properties`). They stop a key
+  from ever being committed and cost nothing.
+- `versionCode` and `versionName`. Android refuses to install an APK with a lower `versionCode` over a
+  newer one, so sideloaded debug builds still need them. Settings shows `versionName`.
+- `targetSdk`. Android still requires it. Without Play there is no yearly deadline to raise it, so the
+  `OldTargetApi` lint warning is advisory: raise it after checking the new version's behaviour changes.
+
+**Found on the legacy branches (`main`, `Rebuild`), not changed:** the v0.x app there has:
+- release signing configs read from `RELEASE_*` properties
+- a `PLAY_INTEGRITY_ENABLED` flag (`Rebuild`)
+- the `play-services-auth` dependency (`main`)
+- ABI splits for release builds (`Rebuild`)
+- the 512 px Play listing icon `app/src/main/ic_launcher-playstore.png`
+- a Privacy Policy screen, which a Play listing requires
+- `app/google-services.json` (Firebase)
+- a CI release build step (`Rebuild`)
+
+Those branches are frozen, so these items go when the branches are deleted. The repository has no
+GitHub releases. Its only tag is `v0.28.0` (v0.x).
+
+## 9. Origin
 
 This spec started as the rebuild brief written from the request: *"Rebuild the app under new
 specifications on a separate branch; Kotlin 2.x, Compose without XML layouts, ViewModel + StateFlow,
