@@ -28,7 +28,7 @@ class SaveLesson(private val lessons: LessonRepository) {
         // The invoice link is owned by CreateInvoice / delete invoice, never by the edit form.
         val updated = normalized.copy(invoiceId = existing.invoiceId)
         if (existing.isInvoiced && existing.lockedFields() != updated.lockedFields()) {
-            throw DomainException("This lesson is on an invoice; delete the invoice before changing it")
+            throw DomainException("This lesson is on an invoice; void the invoice before changing it")
         }
         return lessons.saveLesson(updated)
     }
@@ -39,7 +39,7 @@ class SaveLesson(private val lessons: LessonRepository) {
 class DeleteLesson(private val lessons: LessonRepository) {
     suspend operator fun invoke(lessonId: Long) {
         val lesson = lessons.getLesson(lessonId) ?: return
-        if (lesson.isInvoiced) throw DomainException("This lesson is on an invoice; delete the invoice first")
+        if (lesson.isInvoiced) throw DomainException("This lesson is on an invoice; void the invoice first")
         lessons.deleteLesson(lessonId)
     }
 }

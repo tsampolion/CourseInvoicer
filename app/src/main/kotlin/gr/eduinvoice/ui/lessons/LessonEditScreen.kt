@@ -89,7 +89,7 @@ fun LessonEditScreen(
             if (state.locked) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Text(
-                        "This lesson is on an invoice. Delete the invoice to change its date, length or fee.",
+                        "This lesson is on an invoice. Void the invoice to change its date, length or fee.",
                         Modifier.padding(12.dp),
                     )
                 }

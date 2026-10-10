@@ -9,7 +9,7 @@ common changes, and what to run before you push. For product behaviour, see
 ## 1. Non-negotiable rules
 
 1. **Kotlin 2.x, Jetpack Compose + Material 3. No XML layouts.** XML is allowed only for the manifest,
-   `res/values*/`, `res/xml/file_paths.xml` and launcher icons.
+   `res/values*/`, `res/xml/` (FileProvider paths, backup rules) and launcher icons.
 2. **State:** each screen has one ViewModel exposing `StateFlow<…UiState>`. Use `remember` only for
    transient UI state such as an open dialog or a text field.
 3. **Gradle Kotlin DSL** with every version in `gradle/libs.versions.toml`.

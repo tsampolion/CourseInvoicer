@@ -40,9 +40,9 @@ class LessonUseCasesTest {
         CreateInvoice(repos, repos)(maria, listOf(id), LocalDate.parse("2026-03-31"))
         val invoiced = repos.getLesson(id)!!
 
-        assertRejected("delete the invoice") { saveLesson(invoiced.copy(fee = euros("99"))) }
-        assertRejected("delete the invoice") { saveLesson(invoiced.copy(absent = true)) }
-        assertRejected("delete the invoice") { deleteLesson(id) }
+        assertRejected("void the invoice") { saveLesson(invoiced.copy(fee = euros("99"))) }
+        assertRejected("void the invoice") { saveLesson(invoiced.copy(absent = true)) }
+        assertRejected("void the invoice") { deleteLesson(id) }
 
         saveLesson(invoiced.copy(notes = "homework", paidOn = LocalDate.parse("2026-04-02"), invoiceId = null))
         val updated = repos.getLesson(id)!!

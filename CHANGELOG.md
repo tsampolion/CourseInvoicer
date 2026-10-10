@@ -17,6 +17,10 @@ All notable changes to this project are documented here. The format follows
   number never refers to two documents. Its lessons are released for re-invoicing.
 - Database schema version 2 (`invoices.voided_on`), with an automatic upgrade from version 1.
 - Backup format version 2 (`voidedOn` on invoices). Version 1 backups still import.
+- Locked lessons now say to *void* the invoice (not delete it) before changing them.
+- Android cloud backup excludes all app data (`data_extraction_rules.xml`): student data stays on the
+  phone unless the tutor exports a backup. Device-to-device transfer still works.
+- The launcher icon gained a monochrome layer for Android 13+ themed icons.
 - Documentation rewritten for day-to-day use. The rebuild brief became `docs/PRODUCT_SPEC.md`, the
   living spec with business rules R1–R11, decisions and the dependency register.
 
