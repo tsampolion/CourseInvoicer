@@ -72,6 +72,8 @@ jobs:
     timeout-minutes: 45
     env:
       SYSTEM_IMAGE: system-images;android-35;google_apis;x86_64
+      # avdmanager and the emulator default to different AVD folders; pin both to one place.
+      ANDROID_AVD_HOME: ${{ github.workspace }}/.avd
     steps:
       - uses: actions/checkout@v6
 
@@ -91,9 +93,11 @@ jobs:
       - name: Install emulator and system image
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          mkdir -p "$ANDROID_AVD_HOME"
           yes | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" "emulator" "platform-tools" "$SYSTEM_IMAGE" > /dev/null
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n ci -k "$SYSTEM_IMAGE" --force
+          ls "$ANDROID_AVD_HOME"
 
       - name: Build app and test APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
