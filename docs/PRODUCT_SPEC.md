@@ -1,164 +1,109 @@
-# EduInvoice v2 — Rebuild Brief
+# EduInvoice: Product specification
 
-This is the optimized version of the original rebuild request. It is written as a self-contained brief
-that an engineer or coding agent can execute without further context, and it doubles as the record of
-the decisions taken for v2.
+This is the reference for **what the app does and why**. When behaviour changes, update this file in
+the same pull request. Engineering rules (how to build it) live in [`AGENTS.md`](../AGENTS.md).
 
-> **Original request:** "This is a very old app and the way it was created is now deprecated. Rebuild it
-> under new specifications on a separate branch (like `Rebuild_v2`). Kotlin 2.x, Jetpack Compose (no XML
-> layouts), simple Compose state / ViewModel + StateFlow, Gradle Kotlin DSL, no external dependencies
-> unless approved, minimal APK, avoid Hilt (Koin or constructor injection)."
+## 1. Purpose
 
----
+EduInvoice is a single-user, offline Android app for a private tutor:
 
-## 1. Context
+1. Keep a register of students and groups.
+2. Log lessons.
+3. See who owes what.
+4. Record payments.
+5. Issue invoices as PDFs.
+6. Back the data up.
 
-EduInvoice is a single-user Android app for a private tutor: keep a register of students and groups,
-log lessons, see who owes what, record payments and issue PDF invoices.
+Nothing leaves the device unless the tutor shares an invoice or exports a backup.
 
-The v0.x code base (branches `Rebuild` and `main`) has ~31k lines across three modules, Groovy Gradle,
-Hilt, Room + SQLCipher, Firebase and many "enterprise" layers (sync, conflict resolution, concurrency
-controllers, retry managers). It targets a 2025 toolchain (AGP 8.8, Kotlin 2.1). Much of it no longer
-matches current Android guidance, and it has billing bugs (see §5). **Rebuild from a clean slate. Keep
-the business behaviour, not the code.**
+## 2. Business rules
 
-## 2. Goal
+These rules are enforced in `:core` and covered by tests. The rule numbers are referenced from code
+comments and PRs.
 
-Ship a lean v2 that a tutor can use end-to-end:
+| # | Rule | Enforced in |
+|---|------|-------------|
+| R1 | **Billing:** `HOURLY` fee = rate × minutes ÷ 60. `PER_LESSON` fee = rate. Money is integer cents, rounded half-up. | `Rate.feeFor` |
+| R2 | **Fee snapshot:** a lesson stores its fee when it is logged. Changing a rate never rewrites past lessons. | `Lesson.fee`, `SaveLesson` |
+| R3 | **Group lessons:** one row per member, billed at the *group* rate. Absent members get an `absent` row that is never charged. | `LogGroupLesson` |
+| R4 | **Invoices:** one student per invoice. Only lessons that are not invoiced and not absent can be added. A lesson is on at most one invoice. The database guards this in the same transaction. | `CreateInvoice`, `SqlInvoiceRepository` |
+| R5 | **Numbering:** invoice numbers run `YYYY-NNNN` per calendar year. They are **never reused**. | `InvoiceNumbering` |
+| R6 | **Voiding:** an invoice is voided, never deleted. Voiding releases its lessons so they can be invoiced again. The void invoice and its number stay visible. A void invoice cannot be shared. | `VoidInvoice` |
+| R7 | **Locking:** while a lesson is on an invoice, its student, date, time, duration, fee and attendance are read-only, and it cannot be deleted. Notes and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
+| R8 | **Rescheduling:** several lessons can move to a new date and start time in one step, but only if none of them is paid or invoiced. Duration and fee are kept. | `RescheduleLessons` |
+| R9 | **Outstanding** = sum of fees of lessons that are unpaid and not absent. | `Reports` |
+| R10 | **Archiving:** archived students and groups leave lists and pickers but keep their history. A student can be deleted only if they have no lessons. | `DeleteStudent` |
+| R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction. A malformed file changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
 
-> add students → log individual or group lessons → see what is owed → record payments →
-> issue and share a PDF invoice → back up and restore the data.
+## 3. Data model
 
-## 3. Hard rules (Lightweight Android Project Rules)
+| Entity | Key fields | Notes |
+|--------|-----------|-------|
+| Student | name, class, guardian, phone, email, rate (cents + type), notes, archived | |
+| StudentGroup | name, class, rate, member ids, archived | Members are stored in `group_members` |
+| Lesson | student, group?, date, start time, minutes, fee, absent, notes, paidOn?, invoice? | `paidOn` is the payment record |
+| Invoice | number, student, issue date, total, notes, voidedOn? | Never deleted (R6) |
+| AppSettings | business details, currency, default lesson length, theme, invoice footer | SharedPreferences |
 
-| Rule | How v2 satisfies it |
-|------|---------------------|
-| Kotlin 2.x | Kotlin 2.4.21 via AGP 9 built-in Kotlin |
-| Jetpack Compose, no XML layouts | Compose + Material 3 only. XML is limited to the manifest, `values/` resources, the FileProvider path file and launcher icons |
-| Simple Compose state / ViewModel + StateFlow | One ViewModel per screen exposing `StateFlow<UiState>`; `remember` for transient UI state |
-| Gradle Kotlin DSL | `*.gradle.kts` + `gradle/libs.versions.toml` |
-| No external dependencies unless approved | Only the baseline in §4. Framework APIs replace libraries (table below) |
-| Minimal APK | R8 + resource shrinking on release, no native libs, no icon packs, no analytics SDKs |
-| Avoid Hilt; Koin or constructor injection | Constructor injection through a hand-written `AppContainer`. Koin is not used (it would need approval) |
+Version history:
+- Database schema (`EduDatabase.VERSION`):
+  - 1 = 2.0.0-alpha01
+  - 2 = `invoices.voided_on` (2.0.0-alpha02)
+- Backup format (`BackupCodec.VERSION`):
+  - 1 = alpha01
+  - 2 = adds `voidedOn`. v1 files still import.
 
-**Framework replacements for libraries that would otherwise need approval:**
+## 4. Features
 
-| Need | v0.x used | v2 uses (zero dependencies) |
-|------|-----------|-----------------------------|
-| Persistence | Room + SQLCipher | `SQLiteOpenHelper` + `Flow` invalidation |
-| Settings | DataStore | `SharedPreferences` behind a `StateFlow` |
-| Navigation | Navigation Compose | ~150-line typed back stack with per-entry `ViewModelStore` and saveable state |
-| DI | Hilt | `AppContainer` + constructor injection |
-| JSON backup | kotlinx.serialization | Small JSON codec in `:core` |
-| PDF | PdfDocument (kept) | `android.graphics.pdf.PdfDocument` |
-| Icons | material-icons-extended | A handful of hand-built `ImageVector`s |
-| Crash reporting | Firebase | None (no network permission at all) |
+| Area | What the tutor can do |
+|------|-----------------------|
+| Home | See the month's lessons, hours, earned, paid and unpaid amounts. See the all-time outstanding total and who owes. |
+| Students | Search, filter active or archived, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start an invoice. Archive or delete. |
+| Groups | Create a group with members and a rate. Log a group lesson with attendance. |
+| Lessons | Browse by month and filter by all, unpaid or not invoiced. Add, edit or delete a lesson. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
+| Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Void it. |
+| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Export or import a JSON backup. |
 
-## 4. Approved dependency baseline
+## 5. Out of scope and backlog
 
-Runtime: Kotlin stdlib, kotlinx-coroutines (transitive), `androidx.core:core-ktx`,
-`androidx.activity:activity-compose`, `androidx.lifecycle:lifecycle-{viewmodel,runtime}-compose`,
-Compose BOM (`ui`, `foundation`, `material3`, `ui-tooling-preview`).
-Debug-only: `ui-tooling`. Test-only: JUnit 4, `kotlinx-coroutines-test`.
+| Item | Status | Why |
+|------|--------|-----|
+| Multi-user login, roles, password reset | Dropped | Single-user device app. Android's lock screen protects the device. |
+| Database encryption | Backlog | Needs SQLCipher, an approved dependency, and a key-management design. |
+| Cloud sync / multi-device | Backlog | Needs a backend. Use backups to move data for now. |
+| Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
+| Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
+| Crash reporting / analytics | Dropped | No network permission by design. |
 
-Anything else must be proposed with its size and benefit, and approved before it is added. Candidates
-held back for v2.x: Room (type-safe SQL, migrations), SQLCipher (encryption at rest), Navigation 3,
-Robolectric (JVM tests for the SQLite layer).
+## 6. Decision log
 
-## 5. Business rules (preserved, and fixed where v0.x was wrong)
+| # | Decision | Reason | Since |
+|---|----------|--------|-------|
+| D1 | Rebuild from scratch rather than migrate v0.x | The v0.x toolchain and enterprise layers were deprecated and heavy. No users had shipped data. | alpha01 |
+| D2 | Framework `SQLiteOpenHelper` instead of Room | Rule: no unapproved dependencies. The schema is small. Migrations are hand-written and tested on an emulator. | alpha01 |
+| D3 | A small typed back stack instead of Navigation Compose | Same rule. It gives a ViewModel store per screen and survives process death. | alpha01 |
+| D4 | Constructor injection via `AppContainer` (no Hilt or Koin) | Project rule. The object graph is about 15 objects. | alpha01 |
+| D5 | Money as `Long` cents, fees snapshotted | Correctness. v0.x used `Double` and recalculated history. | alpha01 |
+| D6 | JSON backup codec written in `:core` | No serialization dependency, and the backup round trip is unit-tested. | alpha01 |
+| D7 | Invoices are voided, not deleted | A parent may already hold the PDF, so a number must never mean two documents. | alpha02 |
+| D8 | Instrumented tests on an emulator in CI | The SQLite layer and the whole UI flow can only be verified on Android. Test-only dependencies were approved. | alpha02 |
 
-1. **Billing**: `HOURLY` → fee = rate × minutes / 60; `PER_LESSON` → fee = rate. Money is stored as
-   integer cents, rounded HALF_UP. *(v0.x used `Double`, and its revenue screen ignored `PER_LESSON`.)*
-2. **Fee snapshot**: each lesson stores its fee when it is logged. Changing a student's rate never
-   rewrites past lessons. *(v0.x recomputed history from the current rate.)*
-3. **Group lessons**: one lesson row per member, billed at the group's rate. Absent members get a row
-   marked `absent` that is never charged, so attendance history is kept.
-4. **Invoices**: one student per invoice. Only lessons that are not invoiced and not absent can go on
-   an invoice. Numbers are sequential per year (`2026-0001`). A lesson belongs to at most one invoice.
-   Deleting an invoice releases its lessons. Issuing can optionally mark the lessons as paid.
-5. **Locking**: an invoiced lesson cannot be deleted, and its student, date, duration, fee and
-   attendance cannot change. Notes and the paid flag can still change.
-6. **Archiving**: archived students and groups disappear from pickers but keep their history. A
-   student can be deleted only when they have no lessons.
-7. **Outstanding balance** = sum of fees of lessons that are unpaid and not absent.
+## 7. Dependency register
 
-## 6. Scope
+Runtime dependencies are the only ones that ship in the APK. Anything not listed needs approval
+first. Record each approval here.
 
-**In v2.0**
+| Scope | Dependencies |
+|-------|--------------|
+| Runtime (approved) | Kotlin stdlib, kotlinx-coroutines, `androidx.core:core-ktx`, `androidx.activity:activity-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose` / `-runtime-compose`, Compose BOM (`ui`, `foundation`, `material3`, `ui-tooling-preview`) |
+| Debug only | `androidx.compose.ui:ui-tooling` |
+| Unit tests (approved) | JUnit 4, `kotlinx-coroutines-test` |
+| Instrumented tests (approved alpha02) | `androidx.test:runner`, `androidx.test.ext:junit`, `androidx.compose.ui:ui-test-junit4` |
+| Awaiting approval (not added) | Room, SQLCipher, Navigation 3, Robolectric |
 
-- **Home**: month selector, lessons/hours, earned/paid/unpaid for the month, total outstanding,
-  list of students who owe.
-- **Students**: search, active/archived filter, balance per student. Detail screen with contact
-  details, rate, balance, lessons, invoices and actions (log lesson, record payment, create invoice,
-  edit, archive, delete).
-- **Groups**: create or edit name, class, rate and members. Log a group lesson with attendance.
-- **Lessons**: list per month with filters (all, unpaid, not invoiced). Add, edit or delete, toggle paid.
-- **Invoices**: create from a student's open lessons, list, share PDF, delete.
-- **Settings**: business details printed on invoices, currency, default lesson length, theme,
-  export or import a JSON backup.
+## 8. Origin
 
-**Dropped or deferred** (documented, not forgotten): multi-user login and password reset
-(single-user device app), database encryption (needs SQLCipher approval), cloud sync and conflict
-resolution, Firebase, bulk reschedule, "enterprise" infrastructure, localisation (English first;
-strings are ready to be extracted).
-
-## 7. Architecture
-
-```
-:core  (pure Kotlin/JVM, no Android)          :app  (Android)
-  model/      Money, Student, Lesson, ...       data/      SQLite repositories, prefs, backup, PDF
-  billing/    fee rules                         ui/        Compose screens + ViewModels
-  report/     summaries, balances               ui/nav/    back stack + per-entry ViewModelStore
-  invoice/    numbering, document builder       AppContainer (constructor injection)
-  usecase/    rules that span repositories
-  repository/ interfaces
-  backup/     snapshot + JSON codec
-  testFixtures/ in-memory repositories
-```
-
-- `:core` holds every business rule and is unit-tested without an emulator.
-- `:app` depends on `:core`. ViewModels stay thin: they map repository flows into UI state and call
-  use cases.
-- Data flows one way: repositories expose `Flow`, ViewModels expose `StateFlow<UiState>`, and
-  screens send events back as lambda calls.
-
-## 8. Toolchain
-
-AGP 9.4.0 · Gradle 9.6.1 · Kotlin 2.4.21 (built-in Kotlin) · Compose BOM 2026.09.00 ·
-compileSdk 37 · targetSdk 36 · minSdk 26 · JDK 17+.
-
-## 9. Process
-
-1. Branch `Rebuild_v2` from `Rebuild`. Do the work on a feature branch and open a PR into `Rebuild_v2`.
-2. Remove the v0.x sources from the branch. They stay in git history and on `Rebuild` and `main`.
-3. Build `:core` first, test-driven. Then the data layer, then the UI.
-4. Verify on every push with CI (`.github/workflows/ci.yml`):
-   `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`.
-5. Update the docs: `README.md`, `AGENTS.md` (new rules), `CHANGELOG.md` (`2.0.0-alpha01`) and this file.
-
-## 10. Definition of done
-
-- [ ] All §6 v2.0 features work end-to-end on a device or emulator.
-- [ ] `:core` unit tests cover billing, reports, invoice numbering, use-case rules and the backup round trip.
-- [ ] CI is green: unit tests, lint and debug assemble.
-- [ ] No dependency outside §4. No XML layouts. No Hilt or Koin.
-- [ ] README, AGENTS and CHANGELOG describe v2 and agree on the version.
-
-## 11. Parity map (v0.x → v2)
-
-| v0.x feature | v2 |
-|--------------|----|
-| Students CRUD, archive, search | ✅ |
-| Classes screen | Class is a student field with suggestions, filterable in search |
-| Groups with members and rate | ✅ |
-| Group lessons with absences | ✅ (absences kept as non-billable lesson rows) |
-| Lesson CRUD, paid flag | ✅ (fee snapshot, locking) |
-| Payment batches | "Record payment" marks a student's open lessons paid on a date |
-| Reschedule batches | ❌ deferred. Edit lessons individually |
-| Invoice creation + PDF + share | ✅ (sequential numbering, business header) |
-| Past invoices, edit invoice master | List, share and delete. Edit = delete and re-issue |
-| Revenue dashboard, debts, earnings by class | Home: month summary + outstanding by student |
-| Settings: theme, currency, PDF theme | Theme, currency, business details, default duration |
-| JSON backup / restore | ✅ |
-| Users, login, roles, password reset | ❌ dropped (single-user app) |
-| SQLCipher, Firebase, sync, enterprise infra | ❌ dropped |
+This spec started as the rebuild brief written from the request: *"Rebuild the app under new
+specifications on a separate branch; Kotlin 2.x, Compose without XML layouts, ViewModel + StateFlow,
+Gradle Kotlin DSL, no external dependencies unless approved, minimal APK, no Hilt."* The original
+brief is in git history (commit `39cfa78a`). The v0.x app remains on the `Rebuild` and `main` branches.

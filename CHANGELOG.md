@@ -3,10 +3,31 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
 
-## [2.0.0-alpha01] - Unreleased
+## [2.0.0-alpha02] - Unreleased
 
-Ground-up rebuild on `Rebuild_v2` under the Lightweight Android Project Rules. See
-[`docs/REBUILD_V2.md`](docs/REBUILD_V2.md) for the brief, decisions and the v0.x parity map.
+### Added
+- **Bulk actions in Lessons:** long-press lessons to select several, then *Mark paid* or *Reschedule*
+  them to a new date and start time. Only unpaid, uninvoiced lessons can move; length and fee are kept.
+- **Emulator tests in CI:** SQL repositories, the schema 1→2 migration and an end-to-end flow
+  (add student → log lesson → invoice → void) run on an API 35 emulator.
+- Lint findings are printed into the CI log.
+
+### Changed
+- **Invoices are voided instead of deleted.** A void invoice stays listed and keeps its number, so a
+  number never refers to two documents. Its lessons are released for re-invoicing.
+- Database schema version 2 (`invoices.voided_on`), with an automatic upgrade from version 1.
+- Backup format version 2 (`voidedOn` on invoices). Version 1 backups still import.
+- Documentation rewritten for day-to-day use. The rebuild brief became `docs/PRODUCT_SPEC.md`, the
+  living spec with business rules R1–R11, decisions and the dependency register.
+
+### Dependencies
+- Approved test-only: `androidx.test:runner` 1.7.0, `androidx.test.ext:junit` 1.3.0 and
+  `androidx.compose.ui:ui-test-junit4` (Compose BOM). Nothing new ships in the APK.
+
+## [2.0.0-alpha01] - 2026-10-10
+
+Ground-up rebuild on `Rebuild_v2` under the Lightweight Android Project Rules
+([#349](https://github.com/tsampolion/EduInvoiceApp/pull/349)).
 
 ### Added
 - `:core` pure-Kotlin module with models, billing, reports, invoice numbering, use cases and a
