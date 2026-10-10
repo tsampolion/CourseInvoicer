@@ -116,7 +116,8 @@ fun StudentDetailScreen(
             if (student != null && !student.archived) {
                 ExtendedFloatingActionButton(
                     onClick = onAddLesson,
-                    icon = { Icon(AppIcons.Add, contentDescription = null) },
+                    // The extended FAB hides its text from accessibility, so the icon carries the label.
+                    icon = { Icon(AppIcons.Add, contentDescription = "Log lesson") },
                     text = { Text("Log lesson") },
                 )
             }

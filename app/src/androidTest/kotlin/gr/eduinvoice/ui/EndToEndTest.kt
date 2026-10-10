@@ -42,7 +42,7 @@ class EndToEndTest {
         waitFor("Record payment")
         compose.onNodeWithText(name).assertExists()
 
-        compose.onNodeWithText("Log lesson").performClick()
+        compose.onNodeWithContentDescription("Log lesson").performClick()
         waitFor("20.00")
         compose.onNodeWithText("Save").performClick()
         waitFor("Lessons (1)")
