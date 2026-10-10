@@ -1,60 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AndroidManifest.xml defines your app's identity, permissions, and components
-     This is the corrected version that fixes all the issues -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Network permissions for sync functionality -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-
+    <!-- No permissions: all data stays on the device. -->
     <application
         android:name=".EduInvoiceApplication"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EduInvoice"
-        android:networkSecurityConfig="@xml/network_security_config"
-        android:enableOnBackInvokedCallback="true"
-        tools:targetApi="34">
+        tools:targetApi="33">
 
-        <!-- Firebase Performance Monitoring -->
-        <meta-data
-            android:name="firebase_performance_logcat_enabled"
-            android:value="true"/>
-
-        <!-- MainActivity is the entry point of your app -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.EduInvoice">
-            <!-- This intent filter makes this activity the launcher -->
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- Shares generated invoice PDFs from the cache directory. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <!-- Optional: AndroidX Startup provider if needed later for lazy inits -->
-        <!-- <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="remove" /> -->
-
     </application>
-
 </manifest>
