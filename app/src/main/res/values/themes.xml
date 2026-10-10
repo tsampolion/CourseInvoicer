@@ -1,43 +1,5 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Base theme for light mode (when device is in light theme) -->
-    <style name="Theme.EduInvoice" parent="Theme.Material3.Light.NoActionBar">
-        <!-- Primary brand color - used for key UI elements like app bars -->
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorOnPrimary">@color/on_primary</item>
-
-        <!-- Secondary brand color - used for less prominent UI elements -->
-        <item name="colorSecondary">@color/secondary</item>
-        <item name="colorOnSecondary">@color/on_secondary</item>
-
-        <!-- Status bar color -->
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
-
-        <!-- Enable edge-to-edge display for modern Android -->
-        <item name="android:windowTranslucentStatus">false</item>
-        <item name="android:windowTranslucentNavigation">false</item>
-
-        <!-- This is required for Compose UI -->
-        <item name="android:windowSoftInputMode">adjustResize</item>
-    </style>
-
-    <!-- Dark theme variant (when device is in dark mode) -->
-    <style name="Theme.EduInvoice.Dark" parent="Theme.Material3.Dark.NoActionBar">
-        <!-- Dark theme colors -->
-        <item name="colorPrimary">@color/primary_dark</item>
-        <item name="colorOnPrimary">@color/on_primary_dark</item>
-
-        <item name="colorSecondary">@color/secondary_dark</item>
-        <item name="colorOnSecondary">@color/on_secondary_dark</item>
-
-        <!-- Dark status bar -->
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
-
-        <!-- Edge-to-edge for dark mode too -->
-        <item name="android:windowTranslucentStatus">false</item>
-        <item name="android:windowTranslucentNavigation">false</item>
-
-        <item name="android:windowSoftInputMode">adjustResize</item>
-    </style>
-
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window theme only (shown before Compose draws). Framework parent: no AppCompat or Material Components. -->
+    <style name="Theme.EduInvoice" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

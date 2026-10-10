@@ -1,108 +1,33 @@
-# Android/Gradle build files
+# Gradle / build output
 .gradle/
+.kotlin/
 build/
-# local.properties is often used for SDK location or sensitive keys in Android
 local.properties
 
-# IDE / Editor specific
+# IDE
 .idea/
-.vscode/  # Consider committing .vscode/settings.json if you want to share editor settings
-*.project
-.settings/
-*.sublime-workspace
+.vscode/
 *.iml
-*.ipr
-*.iws
-out/ # Default output directory for IntelliJ
+captures/
 
-# Kotlin specific (if applicable beyond Android/Gradle)
-.kotlin/
-# .kotlin/sessions/
-
-# Android Studio / Mobile specific
+# Android artifacts
 *.apk
 *.aab
 *.ap_
-*.aar
 *.dex
-captures/
 
-# Keystore files
-release.jks
-*.keystore
+# Signing (never commit)
 *.jks
-
-# Additional Android build artifacts
-*.log
-*.hprof
-*.pid
-*.orig
-*.rej
-*.swp
-*.swo
-*~
-
-# Generated files
-bin/
-gen/
-out/
-release/
-
-# Room schema exports (keep directory tracked, allow JSON files)
-!data/schemas/
-!data/schemas/**/
-!data/schemas/**.json
-
-# Gradle wrapper jar file
-gradle/wrapper/gradle-wrapper.jar
-
-# MacOS
-.DS_Store
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Linux
-*~
-
-# Temporary files
-*.tmp
-*.temp
-
-# Test reports
-test-reports/
-reports/
-
-# Coverage reports
-coverage/
-*.coverage
-
-# Firebase
-google-services.json
-GoogleService-Info.plist
-
-# Crashlytics
-crashlytics.properties
-
-# Proguard
-proguard/
-
-# NDK
-obj/
-.externalNativeBuild
-.cxx/
-
-# Fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
-
-# Bundle artifacts
-*.bundle
-
-# Additional sensitive files
-secrets.properties
+*.keystore
 keystore.properties
+secrets.properties
+
+# Legacy v0.x Firebase config
+google-services.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.log

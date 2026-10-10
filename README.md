@@ -1,273 +1,59 @@
-# EduInvoiceApp
+# EduInvoice
 
-A professional Android application for managing tutoring sessions and generating invoices. Built with modern Android development practices, featuring enterprise-grade security, comprehensive error handling, and offline-first architecture.
+A lean Android app for private tutors: keep a register of students and groups, log lessons, see who
+owes what, record payments and send PDF invoices. Everything stays on the device.
 
-## 🚀 Features
+**Version:** 2.0.0-alpha01 · **Branch:** `Rebuild_v2` (ground-up rebuild; v0.x lives on `Rebuild` and `main`)
 
-### 🔐 Authentication & Security
-- **Secure User Management** - BCrypt password hashing with automatic upgrades
-- **Multi-User Support** - Complete data isolation between users
-- **Password Reset** - Secure password recovery with verification
-- **Database Encryption** - SQLCipher encryption with secure key storage
-- **Automatic Backup** - Secure backup and restore functionality
+## Features
 
-### 👥 Student Management
-- **Student Profiles** - Complete student information management
-- **Class Organization** - Group students by classes for better organization
-- **Student Groups** - Create and manage student groups for group lessons
-- **Archive System** - Archive inactive students while preserving data
-- **Search & Filter** - Advanced search and filtering capabilities
+- **Home**: monthly earned / paid / unpaid totals, total outstanding, and who owes.
+- **Students**: search, archive, contact shortcuts, per-student balance, lessons and invoices.
+- **Groups**: members, a group rate, and one-tap logging of a group lesson with attendance.
+- **Lessons**: monthly list with filters, quick "paid" toggle, fee calculated from the rate.
+- **Invoices**: sequential numbering (`2026-0001`), A4 PDF with your business details, share sheet.
+- **Settings**: business details, currency, default lesson length, theme, JSON backup and restore.
 
-### 📚 Lesson Tracking
-- **Lesson Scheduling** - Schedule individual and group lessons
-- **Billing Types** - Support for different billing models (hourly, fixed, etc.)
-- **Lesson History** - Complete lesson history with payment status
-- **Group Lessons** - Manage lessons for student groups
-- **Payment Tracking** - Track paid and unpaid lessons
+Billing rules (hourly vs per-lesson, fee snapshots, absences, invoice locking) are documented in
+[`docs/REBUILD_V2.md`](docs/REBUILD_V2.md#5-business-rules-preserved-and-fixed-where-v0x-was-wrong).
 
-### 💰 Financial Management
-- **Revenue Dashboard** - Real-time revenue overview and analytics
-- **Debt Tracking** - Monitor outstanding payments per student
-- **Invoice Generation** - Professional PDF invoice creation
-- **Payment History** - Complete payment and invoice history
-- **Financial Reports** - Detailed financial reporting
+## Tech stack
 
-### 📄 Invoice System
-- **Professional PDFs** - Generate professional-looking invoices
-- **Customizable Templates** - Flexible invoice templates
-- **Batch Processing** - Generate invoices for multiple lessons
-- **Invoice History** - Complete invoice management and tracking
-- **Payment Status** - Track invoice payment status
+| | |
+|---|---|
+| Language | Kotlin 2.4 (AGP built-in Kotlin) |
+| UI | Jetpack Compose + Material 3, no XML layouts |
+| State | ViewModel + `StateFlow` |
+| DI | Constructor injection via `AppContainer` (no Hilt or Koin) |
+| Storage | Framework SQLite + SharedPreferences |
+| PDF | `android.graphics.pdf.PdfDocument` |
+| Build | Gradle 9.6 Kotlin DSL, version catalog, AGP 9.4 |
+| SDK | min 26 · target 36 · compile 37 |
 
-### 🔄 Data Management
-- **Backup & Restore** - Complete data backup to JSON format
-- **Data Migration** - Automatic migration from legacy databases
-- **Offline Support** - Work without internet with automatic sync
-- **Conflict Resolution** - Intelligent data conflict resolution
-- **Data Validation** - Comprehensive data integrity checks
+Runtime dependencies are limited to AndroidX core, activity-compose, lifecycle-compose and the Compose
+BOM (see [`gradle/libs.versions.toml`](gradle/libs.versions.toml)).
 
-### 🛡️ Error Handling & Resilience
-- **Error Boundaries** - Graceful error handling throughout the app
-- **Automatic Retry** - Intelligent retry mechanisms for failed operations
-- **Error Reporting** - Comprehensive error reporting and analytics
-- **Recovery Mechanisms** - Automatic recovery from various failure scenarios
-- **User-Friendly Messages** - Clear error messages with recovery suggestions
-
-### ⚡ Performance & Optimization
-- **Large Dataset Handling** - Efficient handling of large student/lesson datasets
-- **Memory Management** - Advanced memory monitoring and optimization
-- **Background Processing** - Heavy operations run in background
-- **Pagination** - Efficient data loading with pagination
-- **Caching** - Intelligent caching for improved performance
-
-### 🌐 Network Resilience
-- **Offline-First Architecture** - Primary functionality works offline
-- **Automatic Sync** - Data synchronization when network is available
-- **Network Monitoring** - Real-time network connectivity monitoring
-- **Conflict Resolution** - Intelligent handling of data conflicts
-- **Exponential Backoff** - Smart retry strategies for network operations
-
-### 🔒 Concurrency Safety
-- **Thread-Safe Operations** - All database operations are thread-safe
-- **Transaction Management** - ACID-compliant transaction handling
-- **Resource Locking** - Efficient resource management with deadlock prevention
-- **Operation Queuing** - Prioritized operation processing
-- **Concurrency Monitoring** - Real-time concurrency health monitoring
-
-## 🏗️ Technology Stack
-
-- **Language:** Kotlin 2.1.10
-- **UI Framework:** Jetpack Compose with Material 3 Design
-- **Architecture:** MVVM with Clean Architecture principles
-- **Database:** Room with SQLCipher encryption
-- **Dependency Injection:** Hilt
-- **Navigation:** Jetpack Navigation Compose
-- **State Management:** StateFlow and LiveData
-- **Testing:** JUnit, Robolectric, and Compose Testing
-
-## 📱 Screenshots
-
-*Screenshots will be added here*
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **JDK 17 or newer** installed and available on your `PATH`
-- **Android SDK** with API level 35 and build tools
-- 64-bit device/emulator requirement for SQLCipher: use x86_64 emulator system images or an arm64 device. 32-bit x86 emulators are not supported.
-- **Firebase API key** configured in `local.properties`
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/EduInvoiceApp.git
-   cd EduInvoiceApp
-   ```
-
-2. **Setup Android SDK:**
-   ```bash
-   bash setup-android-sdk.sh
-   source ~/.profile
-   ```
-
-3. **Configure Firebase:**
-   - Download `google-services.json` from Firebase Console
-   - Place it in the `app/` directory
-   - Add your Firebase API key to `local.properties`
-
-4. **Build and run (encrypted-only builds):**
-   ```bash
-   ./gradlew clean
-   ./gradlew assemble
-   ./gradlew test
-   ./gradlew lintDebug
-   ```
-
-## 📚 Documentation
-
-Comprehensive documentation is available in the [`docs/`](docs/) directory:
-
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation overview
-- **[Project Overview](docs/PROJECT_OVERVIEW.md)** - High-level overview of the application
-- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
-- **[User Manual](docs/USER_MANUAL.md)** - Complete user guide
-- **[Development Guide](docs/DEVELOPMENT.md)** - Development setup and guidelines
-- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Comprehensive testing approach
-- **[API Reference](docs/API_REFERENCE.md)** - Technical API documentation
-
-### Database schema (Room) – Development policy
-
-- We have re-baselined the Room database to version 1 during development (no shipped users). This removes all historical migrations and snapshots to simplify iteration.
-- Entities define the complete schema; `@Database(version = 1)` is the current baseline and Room exports `1.json` under `data/schemas/` on build.
-- For local development, destructive migration is enabled in debug builds so schema edits rebuild the DB automatically. Before releasing, this will be disabled and proper migrations will be added starting from v1.
-
-How to regenerate schemas:
-```bash
-./gradlew :data:kspDebugKotlin :data:testDebugUnitTest
-```
-Outputs to: `data/schemas/gr.eduinvoice.data.database.EduInvoiceDatabase/1.json`.
-
-## 🏗️ Project Structure
+## Project layout
 
 ```
-EduInvoiceApp/
-├── app/                    # UI layer (Compose screens, ViewModels)
-├── domain/                 # Business logic layer (Use cases, entities)
-├── data/                   # Data layer (Database, repositories, DAOs)
-├── docs/                   # Documentation
-├── scripts/                # Build and utility scripts
-└── gradle/                 # Gradle wrapper
+core/   Pure Kotlin: models, billing, reports, invoice numbering, use cases, backup codec (+ tests)
+app/    Android: SQLite repositories, PDF, Compose screens, ViewModels, navigation
+docs/   REBUILD_V2.md: brief, decisions, parity map with v0.x
 ```
 
-## 🔧 Development
+## Build and test
 
-### Building the Project
+Requires JDK 17+ and an Android SDK (`ANDROID_HOME` or `local.properties` with `sdk.dir`).
 
 ```bash
-./gradlew clean             # Clean build cache
-./gradlew assemble          # Compile debug & release variants
-./gradlew test              # Run unit tests
-./gradlew lintDebug         # Run Android Lint
+./gradlew :core:test                 # business rules, no Android needed
+./gradlew :app:testDebugUnitTest     # ViewModel and navigation tests
+./gradlew :app:lintDebug
+./gradlew :app:assembleDebug         # app/build/outputs/apk/debug/
 ```
 
-### Code Quality
+CI (`.github/workflows/ci.yml`) runs all of the above on every pull request.
 
-- **Formatting:** Uses `ktfmt` for consistent code formatting
-- **Linting:** Android Lint with custom rules
-- **Testing:** Comprehensive test coverage with JUnit and Robolectric
-- **Static Analysis:** Detekt for Kotlin code analysis
+## License
 
-#### Ratchet Policy
-
-- Spotless is configured to ratchet from `origin/main`; avoid reformatting unrelated files.
-- Detekt baseline only covers legacy code. When you touch a file, fix its Detekt issues or add a scoped suppression with clear rationale; do not add new entries to the baseline.
-- CI may optionally run Detekt on changed files only as an early failure gate.
-
-### Testing
-
-```bash
-./gradlew test              # Unit tests
-./gradlew connectedAndroidTest  # Instrumentation tests (requires emulator)
-./gradlew lintDebug         # Code quality checks
-```
-
-## 📊 Current Status
-
-**Version:** 0.29.0  
-**Last Updated:** January 2025  
-**Status:** Production Ready with Enterprise Features
-
-### ✅ Completed Features
-- Complete authentication and user management system
-- Comprehensive student and lesson management
-- Professional invoice generation and financial tracking
-- Enterprise-grade security with SQLCipher encryption
-- Offline-first architecture with automatic synchronization
-- Advanced error handling and recovery mechanisms
-- Performance optimization for large datasets
-- Thread-safe concurrency management
-
-### 🚧 In Progress
-- Enhanced UI/UX with Material 3 components
-- Advanced analytics and reporting features
-- Performance monitoring and optimization
-
-## 🔒 Security Features
-
-- **Database Encryption:** SQLCipher encryption with secure key storage
-- **Password Security:** BCrypt hashing with automatic upgrades
-- **Data Isolation:** Complete multi-user data separation
-- **Secure Backup:** Encrypted backup and restore functionality
-- **Error Reporting:** Secure error reporting to Firebase Crashlytics
-
-## 🌐 Network & Offline Support
-
-- **Offline-First:** Primary functionality works without internet
-- **Automatic Sync:** Data synchronization when network is available
-- **Conflict Resolution:** Intelligent handling of data conflicts
-- **Network Monitoring:** Real-time connectivity monitoring
-- **Exponential Backoff:** Smart retry strategies
-
-## 📈 Performance Features
-
-- **Large Dataset Handling:** Efficient pagination and lazy loading
-- **Memory Management:** Advanced memory monitoring and optimization
-- **Background Processing:** Heavy operations run in background
-- **Caching:** Intelligent caching for improved performance
-- **Concurrency Safety:** Thread-safe operations with transaction management
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
-
-### Development Guidelines
-
-- Follow the existing code style and architecture
-- Write comprehensive tests for new features
-- Update documentation for any API changes
-- Ensure all tests pass before submitting PRs
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](docs/LICENSE.md) file for details.
-
-## 🆘 Support
-
-- **Documentation:** [docs/](docs/)
-- **Issues:** [GitHub Issues](https://github.com/your-username/EduInvoiceApp/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/your-username/EduInvoiceApp/discussions)
-- **Email:** support@eduinvoice.com
-
-## 📋 Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a complete history of changes.
-
-## 🎯 Roadmap
-
-See our [Strategic Plan](STRATEGIC_PLAN_MASTER_INDEX.md) for detailed development roadmap and future features.
-
----
-
-**EduInvoiceApp** - Professional tutoring business management made simple.
+MIT. See [LICENSE](LICENSE).
