@@ -1,12 +1,14 @@
 package gr.eduinvoice.ui.lessons
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,7 +22,8 @@ import gr.eduinvoice.ui.common.ChipTone
 import gr.eduinvoice.ui.common.LocalFormats
 import gr.eduinvoice.ui.common.StatusChip
 
-/** One lesson with its status and a quick "paid" toggle. */
+/** One lesson with its status and a quick "paid" toggle. A long press starts multi-selection. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LessonRow(
     lesson: Lesson,
@@ -28,9 +31,16 @@ fun LessonRow(
     onClick: () -> Unit,
     onPaidChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val formats = LocalFormats.current
     ListItem(
+        colors = if (selected) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            ListItemDefaults.colors()
+        },
         headlineContent = { Text(title) },
         supportingContent = {
             Column {
@@ -60,6 +70,6 @@ fun LessonRow(
                 }
             }
         },
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     )
 }

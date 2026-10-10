@@ -55,6 +55,9 @@ interface LessonRepository {
     /** Inserts all lessons atomically. */
     suspend fun insertLessons(lessons: List<Lesson>): List<Long>
 
+    /** Updates all lessons (matched by id) atomically. */
+    suspend fun updateLessons(lessons: List<Lesson>)
+
     suspend fun deleteLesson(id: Long)
 
     /** Sets (or clears, when [paidOn] is null) the payment date of the given lessons. */
@@ -74,8 +77,11 @@ interface InvoiceRepository {
      */
     suspend fun createInvoice(invoice: Invoice, lessonIds: Collection<Long>, paidOn: LocalDate?): Long
 
-    /** Atomically deletes the invoice and releases its lessons so they can be invoiced again. */
-    suspend fun deleteInvoice(id: Long)
+    /**
+     * Atomically marks the invoice void on [on] and releases its lessons so they can be invoiced again.
+     * The invoice row (and therefore its number) is kept.
+     */
+    suspend fun voidInvoice(id: Long, on: LocalDate)
 }
 
 interface SettingsRepository {

@@ -39,6 +39,14 @@ class BackupCodecTest {
         ),
         invoices = listOf(
             Invoice(id = 6, number = "2026-0001", studentId = 1, issueDate = LocalDate.parse("2026-03-31"), total = euros("20")),
+            Invoice(
+                id = 7,
+                number = "2026-0002",
+                studentId = 2,
+                issueDate = LocalDate.parse("2026-04-01"),
+                total = euros("15"),
+                voidedOn = LocalDate.parse("2026-04-03"),
+            ),
         ),
     )
 
@@ -52,9 +60,22 @@ class BackupCodecTest {
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("""{"hello": 1}""") }
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("[1, 2]") }
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("not json") }
-        val future = BackupCodec.encode(snapshot).replace("\"version\": 1", "\"version\": 2")
+        val future = BackupCodec.encode(snapshot).replace("\"version\": 2", "\"version\": 3")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(future) }
         assertTrue(error.message!!.contains("newer"))
+    }
+
+    @Test
+    fun `reads version 1 backups written before invoices could be voided`() {
+        val v1 = BackupCodec.encode(snapshot)
+            .replace("\"version\": 2", "\"version\": 1")
+            .replace(Regex(",\\s*\"voidedOn\": (null|\"[0-9-]+\")"), "")
+        assertTrue("fixture must not mention voidedOn", "voidedOn" !in v1)
+
+        val decoded = BackupCodec.decode(v1)
+
+        assertEquals(snapshot.invoices.map { it.copy(voidedOn = null) }, decoded.invoices)
+        assertEquals(snapshot.lessons, decoded.lessons)
     }
 
     @Test
@@ -70,6 +91,6 @@ class BackupCodecTest {
         repos.replaceAll(snapshot)
         val restored = repos.readAll()
         assertEquals(snapshot.copy(exportedAt = restored.exportedAt), restored)
-        assertEquals(7L, repos.saveStudent(student()))
+        assertEquals(8L, repos.saveStudent(student()))
     }
 }

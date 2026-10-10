@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
 
 class LessonUseCasesTest {
     private val repos = InMemoryRepositories()
@@ -76,5 +77,43 @@ class LessonUseCasesTest {
         val mariaLessons = repos.lessons.filter { it.studentId == maria }
         assertEquals(listOf(today, today, null, LocalDate.parse("2026-01-01")), mariaLessons.map { it.paidOn })
         assertNull(repos.lessons.single { it.studentId == nikos }.paidOn)
+    }
+
+    @Test
+    fun `reschedule moves open lessons and keeps their fee and length`() = runTest {
+        val maria = repos.saveStudent(student())
+        val nikos = repos.saveStudent(student(firstName = "Nikos"))
+        val a = repos.saveLesson(lesson(maria, date = "2026-03-10", fee = "20"))
+        val b = repos.saveLesson(lesson(nikos, date = "2026-03-10", fee = "15", minutes = 90))
+        val untouched = repos.saveLesson(lesson(maria, date = "2026-03-11"))
+        val newDate = LocalDate.parse("2026-03-17")
+
+        val moved = RescheduleLessons(repos)(listOf(a, b), newDate, LocalTime.of(18, 30))
+
+        assertEquals(2, moved)
+        repos.getLessons(listOf(a, b)).forEach {
+            assertEquals(newDate, it.date)
+            assertEquals(LocalTime.of(18, 30), it.startTime)
+        }
+        assertEquals(euros("15"), repos.getLesson(b)?.fee)
+        assertEquals(90, repos.getLesson(b)?.durationMinutes)
+        assertEquals(LocalDate.parse("2026-03-11"), repos.getLesson(untouched)?.date)
+    }
+
+    @Test
+    fun `reschedule refuses paid, invoiced or missing lessons and changes nothing`() = runTest {
+        val maria = repos.saveStudent(student())
+        val open = repos.saveLesson(lesson(maria))
+        val paid = repos.saveLesson(lesson(maria, paidOn = "2026-03-10"))
+        val invoiced = repos.saveLesson(lesson(maria))
+        CreateInvoice(repos, repos)(maria, listOf(invoiced), LocalDate.parse("2026-03-31"))
+        val reschedule = RescheduleLessons(repos)
+        val date = LocalDate.parse("2026-05-01")
+
+        assertRejected("Paid") { reschedule(listOf(open, paid), date, LocalTime.NOON) }
+        assertRejected("Invoiced") { reschedule(listOf(open, invoiced), date, LocalTime.NOON) }
+        assertRejected("no longer exist") { reschedule(listOf(open, 999), date, LocalTime.NOON) }
+        assertRejected("at least one") { reschedule(emptyList(), date, LocalTime.NOON) }
+        assertEquals(LocalDate.parse("2026-03-10"), repos.getLesson(open)?.date)
     }
 }

@@ -170,11 +170,13 @@ fun StudentDetailScreen(
                 item { SectionHeader("Invoices") }
                 items(state.invoices, key = { "invoice-${it.id}" }) { invoice ->
                     ListItem(
-                        headlineContent = { Text(invoice.number) },
+                        headlineContent = { Text(invoice.number + if (invoice.isVoid) " (void)" else "") },
                         supportingContent = { Text(formats.date(invoice.issueDate)) },
                         trailingContent = { Text(formats.money(invoice.total)) },
-                        leadingContent = { Icon(AppIcons.Share, contentDescription = "Share") },
-                        modifier = Modifier.clickable { shareInvoice(invoice.id) },
+                        leadingContent = {
+                            if (!invoice.isVoid) Icon(AppIcons.Share, contentDescription = "Share")
+                        },
+                        modifier = Modifier.clickable(enabled = !invoice.isVoid) { shareInvoice(invoice.id) },
                     )
                 }
             }

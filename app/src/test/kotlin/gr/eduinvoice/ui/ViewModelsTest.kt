@@ -9,11 +9,14 @@ import gr.eduinvoice.core.testing.InMemoryRepositories
 import gr.eduinvoice.core.usecase.CreateInvoice
 import gr.eduinvoice.ui.home.HomeViewModel
 import gr.eduinvoice.ui.lessons.LessonEditViewModel
+import gr.eduinvoice.ui.lessons.LessonsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -107,5 +110,34 @@ class ViewModelsTest {
         viewModel.save()
         assertEquals("homework", repos.getLesson(id)?.notes)
         assertEquals(60, repos.getLesson(id)?.durationMinutes)
+    }
+
+    @Test
+    fun `lessons selection reschedules and marks paid in bulk`() = runTest {
+        val maria = addStudent("Maria")
+        val a = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val b = repos.saveLesson(lesson(maria, "2026-03-12", 2000))
+        val viewModel = LessonsViewModel(repos, repos, repos, today = { LocalDate.parse("2026-03-15") })
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        viewModel.toggleSelection(a)
+        viewModel.toggleSelection(b)
+        assertEquals(setOf(a, b), viewModel.state.value.selected)
+        assertTrue(viewModel.state.value.canReschedule)
+
+        viewModel.rescheduleSelected(LocalDate.parse("2026-03-20"), LocalTime.of(9, 0))
+        assertEquals(emptySet<Long>(), viewModel.state.value.selected)
+        assertEquals(setOf(LocalDate.parse("2026-03-20")), repos.lessons.map { it.date }.toSet())
+        assertEquals(setOf(LocalTime.of(9, 0)), repos.lessons.map { it.startTime }.toSet())
+
+        viewModel.toggleSelection(a)
+        viewModel.markSelectedPaid()
+        assertEquals(LocalDate.parse("2026-03-15"), repos.getLesson(a)?.paidOn)
+        assertNull(repos.getLesson(b)?.paidOn)
+
+        viewModel.toggleSelection(a)
+        assertFalse("paid lessons cannot be rescheduled", viewModel.state.value.canReschedule)
+        viewModel.previousMonth()
+        assertEquals(emptySet<Long>(), viewModel.state.value.selected)
     }
 }

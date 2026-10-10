@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 enum class Table { STUDENTS, GROUPS, LESSONS, INVOICES }
 
 /**
- * Framework SQLite database (no Room, see docs/REBUILD_V2.md). Reads and writes run on [io];
+ * Framework SQLite database (no Room, see docs/PRODUCT_SPEC.md D2). Reads and writes run on [io];
  * every committed write bumps the version of the tables it touched so `observe` flows re-query.
  */
 class EduDatabase(
@@ -38,7 +38,8 @@ class EduDatabase(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the v2 baseline. Add migrations here when the schema changes.
+        // Each step upgrades exactly one version; never drop user data.
+        if (oldVersion < 2) Schema.migrateTo2.forEach(db::execSQL)
     }
 
     fun <T> observe(vararg tables: Table, query: (SQLiteDatabase) -> T): Flow<T> =
@@ -66,7 +67,8 @@ class EduDatabase(
 
     companion object {
         const val NAME = "eduinvoice_v2.db"
-        const val VERSION = 1
+        /** 1: v2 baseline. 2: invoices.voided_on (invoices are voided, never deleted). */
+        const val VERSION = 2
 
         /** SQLite on API 26 allows at most 999 bound arguments per statement. */
         const val MAX_ARGS = 500
@@ -115,7 +117,8 @@ internal object Schema {
             student_id INTEGER NOT NULL REFERENCES students (id) ON DELETE RESTRICT,
             issue_date TEXT NOT NULL,
             total_cents INTEGER NOT NULL,
-            notes TEXT NOT NULL DEFAULT ''
+            notes TEXT NOT NULL DEFAULT '',
+            voided_on TEXT
         )
         """,
         "CREATE INDEX idx_invoices_student ON invoices (student_id)",
@@ -139,6 +142,8 @@ internal object Schema {
         "CREATE INDEX idx_lessons_group ON lessons (group_id)",
         "CREATE INDEX idx_lessons_invoice ON lessons (invoice_id)",
     ).map { it.trimIndent() }
+
+    val migrateTo2 = listOf("ALTER TABLE invoices ADD COLUMN voided_on TEXT")
 }
 
 internal fun Cursor.long(column: String): Long = getLong(getColumnIndexOrThrow(column))
