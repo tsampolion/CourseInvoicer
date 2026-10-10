@@ -6,12 +6,14 @@ import gr.eduinvoice.core.model.Invoice
 import gr.eduinvoice.core.repository.InvoiceRepository
 import gr.eduinvoice.core.repository.LessonRepository
 import gr.eduinvoice.core.repository.StudentRepository
+import gr.eduinvoice.core.usecase.VoidInvoice
 import gr.eduinvoice.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
 
 data class InvoiceItem(val invoice: Invoice, val studentName: String, val paid: Boolean)
 
@@ -22,11 +24,13 @@ data class InvoicesUiState(
 )
 
 class InvoicesViewModel(
-    private val invoices: InvoiceRepository,
+    invoices: InvoiceRepository,
     students: StudentRepository,
     lessons: LessonRepository,
+    private val today: () -> LocalDate = LocalDate::now,
 ) : ViewModel() {
     private val message = MutableStateFlow<String?>(null)
+    private val voidInvoice = VoidInvoice(invoices)
 
     val state: StateFlow<InvoicesUiState> = combine(
         invoices.observeInvoices(),
@@ -40,15 +44,19 @@ class InvoicesViewModel(
             loading = false,
             items = invoiceList.map { invoice ->
                 val linked = lessonsByInvoice[invoice.id].orEmpty()
-                InvoiceItem(invoice, names[invoice.studentId].orEmpty(), linked.isNotEmpty() && linked.all { it.isPaid })
+                InvoiceItem(
+                    invoice = invoice,
+                    studentName = names[invoice.studentId].orEmpty(),
+                    paid = !invoice.isVoid && linked.isNotEmpty() && linked.all { it.isPaid },
+                )
             },
             message = currentMessage,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InvoicesUiState())
 
-    fun delete(invoice: Invoice) = launchCatching({ message.value = it }) {
-        invoices.deleteInvoice(invoice.id)
-        message.value = "Invoice ${invoice.number} deleted. Its lessons can be invoiced again."
+    fun markVoid(invoice: Invoice) = launchCatching({ message.value = it }) {
+        voidInvoice(invoice.id, today())
+        message.value = "Invoice ${invoice.number} voided. Its lessons can be invoiced again."
     }
 
     fun showMessage(text: String) {

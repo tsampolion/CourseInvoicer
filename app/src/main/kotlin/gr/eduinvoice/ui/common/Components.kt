@@ -41,6 +41,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -73,6 +74,8 @@ fun ScreenScaffold(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    backIcon: ImageVector = AppIcons.Back,
+    backLabel: String = "Back",
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
@@ -86,7 +89,7 @@ fun ScreenScaffold(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) { Icon(AppIcons.Back, contentDescription = "Back") }
+                        IconButton(onClick = onBack) { Icon(backIcon, contentDescription = backLabel) }
                     }
                 },
                 actions = actions,

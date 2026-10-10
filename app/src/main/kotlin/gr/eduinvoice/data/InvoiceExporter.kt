@@ -23,6 +23,7 @@ class InvoiceExporter(
 ) {
     suspend fun exportPdf(invoiceId: Long): Uri {
         val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Invoice not found")
+        if (invoice.isVoid) throw DomainException("Invoice ${invoice.number} is void and cannot be shared")
         val student = students.getStudent(invoice.studentId) ?: throw DomainException("Student not found")
         val appSettings = settings.settings.value
         val document = InvoiceDocumentBuilder.build(

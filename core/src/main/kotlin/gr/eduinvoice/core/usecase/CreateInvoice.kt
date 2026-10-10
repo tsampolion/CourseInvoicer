@@ -38,3 +38,11 @@ class CreateInvoice(
         return draft.copy(id = id)
     }
 }
+
+class VoidInvoice(private val invoices: InvoiceRepository) {
+    suspend operator fun invoke(invoiceId: Long, on: LocalDate) {
+        val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Invoice not found")
+        if (invoice.isVoid) throw DomainException("Invoice ${invoice.number} is already void")
+        invoices.voidInvoice(invoiceId, on)
+    }
+}

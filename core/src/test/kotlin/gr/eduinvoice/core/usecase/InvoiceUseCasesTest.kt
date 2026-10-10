@@ -74,16 +74,28 @@ class InvoiceUseCasesTest {
     }
 
     @Test
-    fun `deleting an invoice releases its lessons`() = runTest {
+    fun `voiding an invoice releases its lessons and retires its number`() = runTest {
         val maria = repos.saveStudent(student())
         val id = repos.saveLesson(lesson(maria))
         val invoice = createInvoice(maria, listOf(id), issueDate)
+        val voidDate = LocalDate.parse("2026-04-02")
 
-        repos.deleteInvoice(invoice.id)
+        VoidInvoice(repos)(invoice.id, voidDate)
 
-        assertNull(repos.getInvoice(invoice.id))
+        assertEquals(voidDate, repos.getInvoice(invoice.id)?.voidedOn)
         assertNull(repos.getLesson(id)?.invoiceId)
-        assertEquals("2026-0001", createInvoice(maria, listOf(id), issueDate).number)
+        assertEquals("2026-0002", createInvoice(maria, listOf(id), issueDate).number)
+    }
+
+    @Test
+    fun `void is rejected twice and for unknown invoices`() = runTest {
+        val maria = repos.saveStudent(student())
+        val invoice = createInvoice(maria, listOf(repos.saveLesson(lesson(maria))), issueDate)
+        val voidInvoice = VoidInvoice(repos)
+        voidInvoice(invoice.id, issueDate)
+
+        assertRejected("already void") { voidInvoice(invoice.id, issueDate) }
+        assertRejected("not found") { voidInvoice(999, issueDate) }
     }
 }
 

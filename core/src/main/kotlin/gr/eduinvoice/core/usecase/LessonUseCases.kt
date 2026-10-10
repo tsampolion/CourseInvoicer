@@ -7,6 +7,7 @@ import gr.eduinvoice.core.model.sumOfMoney
 import gr.eduinvoice.core.repository.LessonRepository
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import java.time.LocalTime
 
 const val MAX_LESSON_MINUTES = 12 * 60
 
@@ -27,7 +28,7 @@ class SaveLesson(private val lessons: LessonRepository) {
         // The invoice link is owned by CreateInvoice / delete invoice, never by the edit form.
         val updated = normalized.copy(invoiceId = existing.invoiceId)
         if (existing.isInvoiced && existing.lockedFields() != updated.lockedFields()) {
-            throw DomainException("This lesson is on an invoice; delete the invoice before changing it")
+            throw DomainException("This lesson is on an invoice; void the invoice before changing it")
         }
         return lessons.saveLesson(updated)
     }
@@ -38,7 +39,7 @@ class SaveLesson(private val lessons: LessonRepository) {
 class DeleteLesson(private val lessons: LessonRepository) {
     suspend operator fun invoke(lessonId: Long) {
         val lesson = lessons.getLesson(lessonId) ?: return
-        if (lesson.isInvoiced) throw DomainException("This lesson is on an invoice; delete the invoice first")
+        if (lesson.isInvoiced) throw DomainException("This lesson is on an invoice; void the invoice first")
         lessons.deleteLesson(lessonId)
     }
 }
@@ -52,5 +53,22 @@ class RecordPayment(private val lessons: LessonRepository) {
         if (open.isEmpty()) return PaymentResult(0, Money.ZERO)
         lessons.setPaid(open.map { it.id }, paidOn)
         return PaymentResult(open.size, open.sumOfMoney { it.charge })
+    }
+}
+
+/**
+ * Moves several lessons (for example a whole group session) to a new date and start time in one step.
+ * Only unpaid, uninvoiced lessons can move; duration and fee are kept.
+ */
+class RescheduleLessons(private val lessons: LessonRepository) {
+    suspend operator fun invoke(lessonIds: Collection<Long>, date: LocalDate, startTime: LocalTime): Int {
+        val ids = lessonIds.toSet()
+        if (ids.isEmpty()) throw DomainException("Select at least one lesson")
+        val selected = lessons.getLessons(ids)
+        if (selected.size != ids.size) throw DomainException("Some lessons no longer exist")
+        if (selected.any { it.isInvoiced }) throw DomainException("Invoiced lessons cannot be rescheduled")
+        if (selected.any { it.isPaid }) throw DomainException("Paid lessons cannot be rescheduled")
+        lessons.updateLessons(selected.map { it.copy(date = date, startTime = startTime) })
+        return selected.size
     }
 }

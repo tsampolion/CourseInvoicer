@@ -135,6 +135,11 @@ class InMemoryRepositories :
 
     override suspend fun insertLessons(lessons: List<Lesson>): List<Long> = lessons.map { saveLesson(it.copy(id = 0)) }
 
+    override suspend fun updateLessons(lessons: List<Lesson>) {
+        check(lessons.all { it.id in data.value.lessons }) { "Unknown lesson" }
+        data.update { d -> d.copy(lessons = d.lessons + lessons.associateBy { it.id }) }
+    }
+
     override suspend fun deleteLesson(id: Long) {
         data.update { it.copy(lessons = it.lessons - id) }
     }
@@ -169,10 +174,11 @@ class InMemoryRepositories :
         return id
     }
 
-    override suspend fun deleteInvoice(id: Long) {
+    override suspend fun voidInvoice(id: Long, on: LocalDate) {
         data.update { d ->
+            val invoice = d.invoices[id] ?: return@update d
             d.copy(
-                invoices = d.invoices - id,
+                invoices = d.invoices + (id to invoice.copy(voidedOn = invoice.voidedOn ?: on)),
                 lessons = d.lessons.mapValues { (_, l) -> if (l.invoiceId == id) l.copy(invoiceId = null) else l },
             )
         }

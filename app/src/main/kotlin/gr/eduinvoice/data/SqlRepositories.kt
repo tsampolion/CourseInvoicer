@@ -123,6 +123,15 @@ class SqlLessonRepository(private val db: EduDatabase) : LessonRepository {
         lessons.map { d.insertOrThrow("lessons", null, it.toValues()) }
     }
 
+    override suspend fun updateLessons(lessons: List<Lesson>) {
+        db.write(Table.LESSONS) { d ->
+            lessons.forEach { lesson ->
+                val updated = d.update("lessons", lesson.toValues(), "id = ?", arrayOf(lesson.id.toString()))
+                check(updated == 1) { "Lesson ${lesson.id} no longer exists" }
+            }
+        }
+    }
+
     override suspend fun deleteLesson(id: Long) {
         db.write(Table.LESSONS) { d -> d.delete("lessons", "id = ?", arrayOf(id.toString())) }
     }
@@ -178,10 +187,13 @@ class SqlInvoiceRepository(private val db: EduDatabase) : InvoiceRepository {
             invoiceId
         }
 
-    override suspend fun deleteInvoice(id: Long) {
+    override suspend fun voidInvoice(id: Long, on: LocalDate) {
         db.write(Table.INVOICES, Table.LESSONS) { d ->
             d.execSQL("UPDATE lessons SET invoice_id = NULL WHERE invoice_id = ?", arrayOf(id))
-            d.delete("invoices", "id = ?", arrayOf(id.toString()))
+            d.execSQL(
+                "UPDATE invoices SET voided_on = ? WHERE id = ? AND voided_on IS NULL",
+                arrayOf<Any?>(on.toString(), id),
+            )
         }
     }
 }

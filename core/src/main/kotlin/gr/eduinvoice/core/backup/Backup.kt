@@ -36,7 +36,8 @@ interface BackupRepository {
 /** Versioned JSON format for [BackupSnapshot]. */
 object BackupCodec {
     const val FORMAT = "eduinvoice-backup"
-    const val VERSION = 1L
+    /** 2: invoices gained `voidedOn`. Version 1 files are still accepted. */
+    const val VERSION = 2L
 
     fun encode(snapshot: BackupSnapshot): String = Json.write(
         mapOf(
@@ -175,6 +176,7 @@ object BackupCodec {
         "issueDate" to issueDate.toString(),
         "totalCents" to total.cents,
         "notes" to notes,
+        "voidedOn" to voidedOn?.toString(),
     )
 
     private fun Map<*, *>.toInvoice() = Invoice(
@@ -184,6 +186,7 @@ object BackupCodec {
         issueDate = date("issueDate"),
         total = Money(long("totalCents")),
         notes = string("notes"),
+        voidedOn = if (containsKey("voidedOn")) dateOrNull("voidedOn") else null,
     )
 
     private fun Map<*, *>.field(key: String): Any? =

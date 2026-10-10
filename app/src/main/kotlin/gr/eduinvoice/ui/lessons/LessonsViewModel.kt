@@ -8,7 +8,9 @@ import gr.eduinvoice.core.model.sumOfMoney
 import gr.eduinvoice.core.repository.GroupRepository
 import gr.eduinvoice.core.repository.LessonRepository
 import gr.eduinvoice.core.repository.StudentRepository
+import gr.eduinvoice.core.usecase.RescheduleLessons
 import gr.eduinvoice.ui.common.launchCatching
+import gr.eduinvoice.ui.common.plural
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 
 enum class LessonFilter(val label: String) {
@@ -35,6 +38,25 @@ data class LessonsUiState(
     val items: List<LessonItem> = emptyList(),
     val total: Money = Money.ZERO,
     val message: String? = null,
+    /** Lessons picked with a long press; non-empty means the screen is in selection mode. */
+    val selected: Set<Long> = emptySet(),
+) {
+    private val selectedLessons: List<Lesson> get() = items.map { it.lesson }.filter { it.id in selected }
+
+    /** Reschedule needs every selected lesson to be unpaid and not invoiced (see RescheduleLessons). */
+    val canReschedule: Boolean get() = selectedLessons.isNotEmpty() && selectedLessons.none { it.isPaid || it.isInvoiced }
+
+    val canMarkPaid: Boolean get() = selectedLessons.any { it.isOutstanding }
+
+    /** Date and time to pre-fill the reschedule dialog with: the earliest selected lesson. */
+    val firstSelected: Lesson? get() = selectedLessons.minWithOrNull(compareBy({ it.date }, { it.startTime }))
+}
+
+private data class Controls(
+    val month: YearMonth,
+    val filter: LessonFilter,
+    val message: String?,
+    val selected: Set<Long>,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,15 +69,18 @@ class LessonsViewModel(
     private val month = MutableStateFlow(YearMonth.from(today()))
     private val filter = MutableStateFlow(LessonFilter.ALL)
     private val message = MutableStateFlow<String?>(null)
+    private val selection = MutableStateFlow<Set<Long>>(emptySet())
+    private val rescheduleLessons = RescheduleLessons(lessons)
 
     private val monthLessons = month.flatMapLatest { lessons.observeLessonsBetween(it.atDay(1), it.atEndOfMonth()) }
 
     val state: StateFlow<LessonsUiState> = combine(
-        combine(month, filter, message) { m, f, msg -> Triple(m, f, msg) },
+        combine(month, filter, message, selection) { m, f, msg, sel -> Controls(m, f, msg, sel) },
         monthLessons,
         students.observeStudents(),
         groups.observeGroups(),
-    ) { (selectedMonth, selectedFilter, currentMessage), lessonList, studentList, groupList ->
+    ) { controls, lessonList, studentList, groupList ->
+        val (selectedMonth, selectedFilter, currentMessage, selectedIds) = controls
         val names = studentList.associate { it.id to it.fullName }
         val groupNames = groupList.associate { it.id to it.name }
         val visible = lessonList.filter {
@@ -75,15 +100,49 @@ class LessonsViewModel(
             },
             total = visible.sumOfMoney { it.charge },
             message = currentMessage,
+            // Lessons that left the list (filtered out or deleted) silently leave the selection.
+            selected = selectedIds.filterTo(mutableSetOf()) { id -> visible.any { it.id == id } },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LessonsUiState(month = YearMonth.from(today())))
 
-    fun previousMonth() = month.update { it.minusMonths(1) }
+    fun previousMonth() {
+        clearSelection()
+        month.update { it.minusMonths(1) }
+    }
 
-    fun nextMonth() = month.update { it.plusMonths(1) }
+    fun nextMonth() {
+        clearSelection()
+        month.update { it.plusMonths(1) }
+    }
 
     fun setFilter(value: LessonFilter) {
+        clearSelection()
         filter.value = value
+    }
+
+    fun toggleSelection(lessonId: Long) = selection.update { if (lessonId in it) it - lessonId else it + lessonId }
+
+    fun clearSelection() {
+        selection.value = emptySet()
+    }
+
+    /** Marks the selected lessons that are still owed as paid today. */
+    fun markSelectedPaid() {
+        val owed = state.value.items.map { it.lesson }.filter { it.id in state.value.selected && it.isOutstanding }
+        launchCatching({ message.value = it }) {
+            lessons.setPaid(owed.map { it.id }, today())
+            clearSelection()
+            message.value = "Marked ${plural(owed.size, "lesson")} as paid"
+        }
+    }
+
+    fun rescheduleSelected(date: LocalDate, startTime: LocalTime) {
+        val ids = state.value.selected
+        launchCatching({ message.value = it }) {
+            val moved = rescheduleLessons(ids, date, startTime)
+            clearSelection()
+            message.value = "Moved ${plural(moved, "lesson")}"
+        }
     }
 
     fun setPaid(lesson: Lesson, paid: Boolean) = launchCatching({ message.value = it }) {

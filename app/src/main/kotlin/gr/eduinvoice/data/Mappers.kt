@@ -97,6 +97,7 @@ internal fun Cursor.toInvoice() = Invoice(
     issueDate = LocalDate.parse(string("issue_date")),
     total = Money(long("total_cents")),
     notes = string("notes"),
+    voidedOn = stringOrNull("voided_on")?.let(LocalDate::parse),
 )
 
 internal fun Invoice.toValues(includeId: Boolean = false) = ContentValues().apply {
@@ -106,4 +107,5 @@ internal fun Invoice.toValues(includeId: Boolean = false) = ContentValues().appl
     put("issue_date", issueDate.toString())
     put("total_cents", total.cents)
     put("notes", notes)
+    put("voided_on", voidedOn?.toString())
 }

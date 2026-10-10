@@ -1,7 +1,6 @@
 package gr.eduinvoice.ui.students
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.ui.common.AppIcons
@@ -116,7 +116,8 @@ fun StudentDetailScreen(
             if (student != null && !student.archived) {
                 ExtendedFloatingActionButton(
                     onClick = onAddLesson,
-                    icon = { Icon(AppIcons.Add, contentDescription = null) },
+                    // The extended FAB hides its text from accessibility, so the icon carries the label.
+                    icon = { Icon(AppIcons.Add, contentDescription = "Log lesson") },
                     text = { Text("Log lesson") },
                 )
             }
@@ -170,11 +171,13 @@ fun StudentDetailScreen(
                 item { SectionHeader("Invoices") }
                 items(state.invoices, key = { "invoice-${it.id}" }) { invoice ->
                     ListItem(
-                        headlineContent = { Text(invoice.number) },
+                        headlineContent = { Text(invoice.number + if (invoice.isVoid) " (void)" else "") },
                         supportingContent = { Text(formats.date(invoice.issueDate)) },
                         trailingContent = { Text(formats.money(invoice.total)) },
-                        leadingContent = { Icon(AppIcons.Share, contentDescription = "Share") },
-                        modifier = Modifier.clickable { shareInvoice(invoice.id) },
+                        leadingContent = {
+                            if (!invoice.isVoid) Icon(AppIcons.Share, contentDescription = "Share")
+                        },
+                        modifier = Modifier.clickable(enabled = !invoice.isVoid) { shareInvoice(invoice.id) },
                     )
                 }
             }
@@ -218,12 +221,12 @@ private fun StudentDetails(student: Student, modifier: Modifier = Modifier) {
         if (student.guardianName.isNotBlank()) Text("Parent/guardian: ${student.guardianName}")
         if (student.phone.isNotBlank()) {
             TextButton(onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${student.phone}"))) }
+                runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, "tel:${student.phone}".toUri())) }
             }) { Text("Call ${student.phone}") }
         }
         if (student.email.isNotBlank()) {
             TextButton(onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${student.email}"))) }
+                runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, "mailto:${student.email}".toUri())) }
             }) { Text("Email ${student.email}") }
         }
         if (student.notes.isNotBlank()) {

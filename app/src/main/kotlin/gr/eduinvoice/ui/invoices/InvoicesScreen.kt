@@ -49,7 +49,7 @@ fun InvoicesScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val formats = LocalFormats.current
     val snackbar = remember { SnackbarHostState() }
-    var toDelete by remember { mutableStateOf<Invoice?>(null) }
+    var toVoid by remember { mutableStateOf<Invoice?>(null) }
     val shareInvoice = rememberInvoiceSharer(viewModel::showMessage)
     MessageEffect(state.message, snackbar, viewModel::messageShown)
 
@@ -75,10 +75,10 @@ fun InvoicesScreen(
                         supportingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(formats.date(item.invoice.issueDate), Modifier.padding(end = 8.dp))
-                                if (item.paid) {
-                                    StatusChip("Paid", ChipTone.Good)
-                                } else {
-                                    StatusChip("Unpaid", ChipTone.Warning)
+                                when {
+                                    item.invoice.isVoid -> StatusChip("Void", ChipTone.Neutral)
+                                    item.paid -> StatusChip("Paid", ChipTone.Good)
+                                    else -> StatusChip("Unpaid", ChipTone.Warning)
                                 }
                             }
                         },
@@ -87,13 +87,17 @@ fun InvoicesScreen(
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(formats.money(item.invoice.total), style = MaterialTheme.typography.titleSmall)
                                 }
-                                IconButton(onClick = { toDelete = item.invoice }) {
-                                    Icon(AppIcons.Delete, contentDescription = "Delete invoice ${item.invoice.number}")
+                                if (!item.invoice.isVoid) {
+                                    IconButton(onClick = { toVoid = item.invoice }) {
+                                        Icon(AppIcons.Close, contentDescription = "Void invoice ${item.invoice.number}")
+                                    }
                                 }
                             }
                         },
-                        leadingContent = { Icon(AppIcons.Share, contentDescription = "Share") },
-                        modifier = Modifier.clickable { shareInvoice(item.invoice.id) },
+                        leadingContent = {
+                            if (!item.invoice.isVoid) Icon(AppIcons.Share, contentDescription = "Share")
+                        },
+                        modifier = Modifier.clickable(enabled = !item.invoice.isVoid) { shareInvoice(item.invoice.id) },
                     )
                     HorizontalDivider()
                 }
@@ -102,13 +106,14 @@ fun InvoicesScreen(
         }
     }
 
-    toDelete?.let { invoice ->
+    toVoid?.let { invoice ->
         ConfirmDialog(
-            title = "Delete invoice ${invoice.number}",
-            text = "The invoice is removed and its lessons can be invoiced again. Payment records are kept.",
-            confirmLabel = "Delete",
-            onConfirm = { viewModel.delete(invoice) },
-            onDismiss = { toDelete = null },
+            title = "Void invoice ${invoice.number}",
+            text = "The invoice stays in the list as void and its number is never reused. Its lessons can be " +
+                "invoiced again. Payment records are kept.",
+            confirmLabel = "Void",
+            onConfirm = { viewModel.markVoid(invoice) },
+            onDismiss = { toVoid = null },
         )
     }
 }

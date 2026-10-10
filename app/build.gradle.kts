@@ -12,8 +12,9 @@ android {
         minSdk = 26
         targetSdk = 36
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 200
-        versionName = "2.0.0-alpha01"
+        versionCode = 201
+        versionName = "2.0.0-alpha02"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -50,7 +51,7 @@ kotlin {
     }
 }
 
-// Approved baseline only; see docs/REBUILD_V2.md §4 before adding anything.
+// Approved dependencies only; see docs/PRODUCT_SPEC.md §7 (dependency register) before adding anything.
 dependencies {
     implementation(project(":core"))
 
@@ -68,4 +69,11 @@ dependencies {
     testImplementation(testFixtures(project(":core")))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(testFixtures(project(":core")))
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
