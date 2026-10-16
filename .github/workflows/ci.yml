@@ -1,12 +1,12 @@
 name: CI
 
-# Every branch push runs CI, so a branch is tested before it has a pull request. A pull request from a
-# branch of this repository is already covered by its push run, so the pull_request run of each job is
-# skipped there; pull requests from forks still run here. Tag pushes do not run CI.
+# CI runs once per branch push, so a branch is tested before it has a pull request, and a pull request
+# shows the checks of its head commit's push run: nothing runs twice and nothing is skipped. There is
+# no pull_request trigger: pull requests come only from this repository's own branches (the code is
+# proprietary, no forks). Tag pushes do not run CI.
 on:
   push:
     branches: ['**']
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +16,6 @@ concurrency:
 jobs:
   build:
     name: Test, lint and assemble
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -130,7 +129,6 @@ jobs:
 
   emulator:
     name: Emulator tests
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

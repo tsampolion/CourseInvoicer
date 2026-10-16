@@ -80,11 +80,11 @@ throwaway database, but Gradle uninstalls the app when they finish, which delete
 
 ## CI and releases
 
-- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every branch push, on pull requests
-  from forks and on manual dispatch. One job runs the unit tests and lint, builds the debug APK and
-  the minified release APK, signs both with the owner's key and checks the key, writes their sizes
-  to the job summary and uploads them as the `app-debug` and `app-release` artifacts. A second job
-  runs the emulator tests on API 35, then installs the minified APK and smoke-tests it.
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs once on every branch push, and on
+  manual dispatch. One job runs the unit tests and lint, builds the debug APK and the minified
+  release APK, signs both with the owner's key and checks the key, writes their sizes to the job
+  summary and uploads them as the `app-debug` and `app-release` artifacts. A second job runs the
+  emulator tests on API 35, then installs the minified APK and smoke-tests it.
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) runs after CI passes on
   `Rebuild_v2`. When the `CHANGELOG.md` section for the current `versionName` has a date, it tags
   `vX.Y.Z` and publishes a GitHub release with that section as notes and the minified APK attached.

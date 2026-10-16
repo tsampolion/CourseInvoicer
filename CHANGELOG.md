@@ -20,7 +20,7 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
-## [2.0.0-alpha03] - Unreleased
+## [2.0.0-alpha03] - 2026-10-16
 
 Fixes from a full audit of the app, GitHub releases, CI on every branch, Android 17 as the target,
 and documentation reorganised for contributors.
@@ -31,9 +31,9 @@ and documentation reorganised for contributors.
   section is dated. The release notes are that section, and the signed `eduinvoice-<version>.apk` is
   attached. The workflow won't publish an APK signed with any other key, and it marks versions with
   a suffix such as `-alpha03` as pre-releases (D12).
-- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Pull requests
-  from this repository reuse their branch's push run instead of running everything twice. Pull
-  requests from forks still run their own checks.
+- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Each push runs
+  CI once, and a pull request shows the checks of its head commit's push run, so nothing runs twice
+  and no check shows as skipped.
 - **`docs/ROADMAP.md`:** 13 improvements adapted from the sibling app Coursebook Pacer, each with
   its current state in the code, tasks, a definition of done and a suggested order.
 - **`CLAUDE.md`** imports `AGENTS.md`, so Claude Code reads the same guide as every other agent.
