@@ -58,8 +58,10 @@ and documentation reorganised for contributors.
     Maven nothing builds, not even `:core`.
   - `docs/PRODUCT_SPEC.md` corrects R6, R7, R9, R10 and R11 and the Groups and Invoices features,
     and puts the version history in one table. It adds build plugins to the register and D13. §8 now
-    describes release and distribution and opens with the outstanding Firebase key action. The
-    removed Play Store items moved to an appendix.
+    describes release and distribution. The removed Play Store items moved to an appendix.
+- **Legacy Firebase key retired.** The owner deleted the v0.x Firebase project (`eduinvoiceapp`), so
+  the API key in the history of `main` and `Rebuild` no longer works. Those branches are kept as
+  history.
   - The templates ask for `Schema.statements` and spec updates. Code comments cite the right rules
     (R12, R13, D10).
 

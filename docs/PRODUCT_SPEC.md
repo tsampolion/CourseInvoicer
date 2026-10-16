@@ -113,12 +113,6 @@ first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
 
 ## 8. Release and distribution
 
-### Open actions
-
-- Delete or restrict the Firebase API key in Google Cloud (project `eduinvoiceapp`). It comes from
-  `app/google-services.json` on the legacy `main` and `Rebuild` branches and is in the git history.
-  v2 does not use Firebase, so nothing replaces it.
-
 ### Current state
 
 - **No Google Play Store release (D9).** There is no release build type. CI builds only the debug
@@ -174,10 +168,12 @@ than a Play one.
 - ABI splits for release builds (`Rebuild`)
 - the same 512 px Play listing icon as M6
 - a Privacy Policy screen, which a Play listing requires
-- `app/google-services.json` (Firebase project `eduinvoiceapp`), whose API key is in the git
-  history (see *Open actions* in §8)
+- `app/google-services.json` (Firebase project `eduinvoiceapp`). The owner deleted that project in
+  October 2026, which also deletes its API key, so the key left in the git history no longer works.
+  v2 does not use Firebase.
 - a CI release build step (`Rebuild`)
 
-Those branches are frozen, so these items go when the branches are deleted. Before v2 the
+The owner keeps those branches, frozen, as the history of v0.x; nothing on them is built or
+shipped. Before v2 the
 repository had no GitHub releases and one tag, `v0.28.0` (v0.x). v2 releases are tagged and
 published by `.github/workflows/release.yml` (D12).
