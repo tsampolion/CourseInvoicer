@@ -280,8 +280,9 @@ colour applies on Android 12 and later.
 
 These came up during the comparison but aren't among the 13 items.
 
-- [ ] **Security.** A Firebase API key from v0.x is in the git history of `main` and `Rebuild`
-      (`app/google-services.json`). Delete or restrict it in Google Cloud. v2 doesn't use Firebase.
+- [x] **Security.** A Firebase API key from v0.x is in the git history of `main` and `Rebuild`
+      (`app/google-services.json`). The owner deleted the Firebase project, and its key with it, in
+      October 2026. The legacy branches stay as history.
 - [ ] A test for R3 in `:core` once `MarkPaid` exists (item 1).
 - [ ] **Third-party notices.** The APK bundles Apache-2.0 libraries (Kotlin, AndroidX, Compose).
       Giving the APK to anyone else requires passing on their licence and notices. Add an
