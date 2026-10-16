@@ -103,7 +103,7 @@ confirmation dialogs for those actions are removed.
 
 **Today.** `ui/nav/Navigation.kt` has a typed `Route` with string `encode`/`decode`, a `Navigator`
 that survives process death, and a ViewModel store per entry. `NavigatorTest` covers the round trip,
-tab reset, `replace` and restore. Gaps:
+Home → section → Back, `replace` and restore (Home always at the bottom). Gaps:
 - the stack rules are methods on a stateful ViewModel, not pure functions;
 - `navigate` has no guard against a double tap stacking the same screen twice;
 - nothing removes screens whose entity was deleted or restored away. Today: StudentDetail says "no
@@ -111,8 +111,8 @@ tab reset, `replace` and restore. Gaps:
   and then fails on the members' foreign key.
 
 **Tasks**
-- [ ] Move the stack rules into a pure `object BackStack` (`push`, `pop`, `replace`, `selectTab`,
-      `prune`) over `List<Route>`. `Navigator` keeps only the ViewModel stores and saved state.
+- [ ] Move the stack rules into a pure `object BackStack` (`push`, `pop`, `replace`, `prune`) over
+      `List<Route>`. `Navigator` keeps only the ViewModel stores and saved state.
 - [ ] `push` ignores a route equal to the top one.
 - [ ] `prune(stack, exists: (Route) -> Boolean)` drops entries whose entity is gone. Call it after
       deletes, after a backup import, and on restore after process death.
@@ -125,8 +125,8 @@ JVM test.
 
 ## 4. Problems that link to the screen that fixes them
 
-**Today.** Home shows the month's figures, the outstanding total and who owes. Nothing flags setup
-gaps. Blank business details are silently left off invoices (`InvoiceDocumentBuilder`).
+**Today.** Home is a launcher with a live figure per section; Dashboard shows the month's figures,
+the outstanding total and who owes. Nothing flags setup gaps. Blank business details are silently left off invoices (`InvoiceDocumentBuilder`).
 
 **Tasks**
 - [ ] Add a pure `core/report/Problems.kt`: `fun problems(input): List<Problem>`, where `Problem`

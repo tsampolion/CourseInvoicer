@@ -1,125 +1,185 @@
 package gr.edusuite.invoicer.ui.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.ui.common.AppIcons
+import gr.edusuite.invoicer.ui.common.HomeButton
 import gr.edusuite.invoicer.ui.common.LocalFormats
-import gr.edusuite.invoicer.ui.common.MetricCard
-import gr.edusuite.invoicer.ui.common.MonthSwitcher
-import gr.edusuite.invoicer.ui.common.ScreenScaffold
-import gr.edusuite.invoicer.ui.common.SectionHeader
+import gr.edusuite.invoicer.ui.common.Logo
+import gr.edusuite.invoicer.ui.common.SuiteTone
 import gr.edusuite.invoicer.ui.common.appViewModel
+import gr.edusuite.invoicer.ui.common.plural
+import gr.edusuite.invoicer.ui.theme.Invoicer
 
+/**
+ * The launcher: the EduSuite home header, then one button per section with a live subtitle. A section that
+ * has nothing yet shows its button dimmed, and the button still opens it so the first item can be added.
+ */
 @Composable
 fun HomeScreen(
-    onOpenStudent: (Long) -> Unit,
-    onAddLesson: () -> Unit,
+    onOpenDashboard: () -> Unit,
+    onOpenStudents: () -> Unit,
+    onOpenGroups: () -> Unit,
+    onOpenLessons: () -> Unit,
+    onOpenStatements: () -> Unit,
     onOpenSettings: () -> Unit,
-    bottomBar: @Composable () -> Unit,
+    onLogLesson: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = appViewModel { HomeViewModel(it.studentRepository, it.lessonRepository) },
+    viewModel: HomeViewModel = appViewModel {
+        HomeViewModel(it.studentRepository, it.groupRepository, it.lessonRepository, it.invoiceRepository)
+    },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val formats = LocalFormats.current
-    ScreenScaffold(
-        title = "Course Invoicer",
+    // Until the counts load, subtitles stay blank rather than showing zeros.
+    fun subtitle(text: () -> String): String = if (state.loading) "" else text()
+
+    Scaffold(
         modifier = modifier,
-        actions = {
-            IconButton(onClick = onOpenSettings) { Icon(AppIcons.Settings, contentDescription = "Settings") }
-        },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddLesson,
-                // The extended FAB hides its text from accessibility, so the icon carries the label.
-                icon = { Icon(AppIcons.Add, contentDescription = "Log lesson") },
-                text = { Text("Log lesson") },
-            )
+            if (state.canLogLesson) {
+                ExtendedFloatingActionButton(
+                    onClick = onLogLesson,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    // The extended FAB hides its text from accessibility, so the icon carries the label.
+                    icon = { Icon(AppIcons.Add, contentDescription = "Log lesson") },
+                    text = { Text("Log lesson") },
+                )
+            }
         },
-        bottomBar = bottomBar,
     ) { padding ->
-        LazyColumn(Modifier.padding(padding)) {
-            item {
-                MonthSwitcher(state.month, viewModel::previousMonth, viewModel::nextMonth, Modifier.padding(8.dp))
-            }
-            item {
-                val summary = state.summary
-                val hours = formats.duration(summary.minutes)
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    MetricCard("Earned", formats.money(summary.earned), Modifier.weight(1f))
-                    MetricCard("Lessons", "${summary.lessonCount} · $hours", Modifier.weight(1f))
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp, 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    MetricCard(
-                        "Paid",
-                        formats.money(summary.paid),
-                        Modifier.weight(1f),
-                        valueColor = MaterialTheme.colorScheme.tertiary,
-                    )
-                    MetricCard("Unpaid", formats.money(summary.unpaid), Modifier.weight(1f))
-                }
-            }
-            item {
-                MetricCard(
-                    "Total outstanding (all time)",
-                    formats.money(state.outstanding),
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    valueColor = if (state.outstanding.isPositive) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(
+                Modifier
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.height(40.dp))
+                Logo()
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Welcome to Course Invoicer",
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { heading() },
                 )
-            }
-            item { SectionHeader("Who owes") }
-            if (!state.loading && state.debtors.isEmpty()) {
-                item {
-                    Text(
-                        if (state.activeStudents == 0) "Add your first student in the Students tab." else "Everyone is paid up.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "part of EduSuite apps",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = Invoicer.colors.muted,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(24.dp))
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HomeButton(
+                        title = "Dashboard",
+                        subtitle = subtitle {
+                            when {
+                                state.outstanding.isPositive -> "${formats.money(state.outstanding)} outstanding"
+                                state.lessonsEmpty -> "Earnings and who owes"
+                                else -> "Everyone is paid up"
+                            }
+                        },
+                        icon = AppIcons.Dashboard,
+                        onClick = onOpenDashboard,
+                    )
+                    HomeButton(
+                        title = "Students",
+                        subtitle = subtitle {
+                            if (state.studentsEmpty) {
+                                "Add your first student"
+                            } else {
+                                plural(state.activeStudents, "student")
+                            }
+                        },
+                        icon = AppIcons.Person,
+                        onClick = onOpenStudents,
+                        empty = state.studentsEmpty,
+                    )
+                    HomeButton(
+                        title = "Groups",
+                        subtitle = subtitle {
+                            if (state.groupsEmpty) {
+                                "One lesson for several students"
+                            } else {
+                                plural(state.activeGroups, "group")
+                            }
+                        },
+                        icon = AppIcons.Group,
+                        onClick = onOpenGroups,
+                        empty = state.groupsEmpty,
+                    )
+                    HomeButton(
+                        title = "Lessons",
+                        subtitle = subtitle {
+                            when {
+                                state.lessonsEmpty -> "Log your first lesson"
+                                state.uninvoicedLessons == 0 -> "All invoiced"
+                                else -> "${state.uninvoicedLessons} not invoiced"
+                            }
+                        },
+                        icon = AppIcons.Calendar,
+                        onClick = onOpenLessons,
+                        empty = state.lessonsEmpty,
+                    )
+                    HomeButton(
+                        title = "Statements",
+                        subtitle = subtitle {
+                            when {
+                                state.statementsEmpty -> "Bill a student's lessons"
+                                state.unpaidStatements == 0 -> "All paid"
+                                else -> "${state.unpaidStatements} unpaid"
+                            }
+                        },
+                        icon = AppIcons.Invoice,
+                        onClick = onOpenStatements,
+                        empty = state.statementsEmpty,
+                    )
+                    HomeButton(
+                        title = "Settings",
+                        subtitle = "Your details, theme and backup",
+                        icon = AppIcons.Settings,
+                        onClick = onOpenSettings,
+                        tone = SuiteTone.Neutral,
                     )
                 }
+                // Room for the floating button, so it never covers the last button.
+                Spacer(Modifier.height(88.dp))
             }
-            items(state.debtors, key = { it.studentId }) { debtor ->
-                ListItem(
-                    headlineContent = { Text(debtor.name) },
-                    supportingContent = { Text("${debtor.lessons} unpaid lesson" + if (debtor.lessons == 1) "" else "s") },
-                    trailingContent = {
-                        Text(
-                            formats.money(debtor.amount),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    modifier = Modifier.clickable { onOpenStudent(debtor.studentId) },
-                )
-            }
-            item { Spacer(Modifier.height(88.dp)) }
         }
     }
 }

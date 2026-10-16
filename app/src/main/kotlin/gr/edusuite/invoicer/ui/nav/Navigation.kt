@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 /** Every destination in the app. Arguments are plain ids so routes survive process death as strings. */
 sealed interface Route {
     data object Home : Route
+    data object Dashboard : Route
     data object Students : Route
     data object Groups : Route
     data object Lessons : Route
@@ -29,10 +30,9 @@ sealed interface Route {
     data class CreateInvoice(val studentId: Long = 0) : Route
 
     companion object {
-        val tabs = listOf(Home, Students, Groups, Lessons, Invoices)
-
         fun encode(route: Route): String = when (route) {
             Home -> "home"
+            Dashboard -> "dashboard"
             Students -> "students"
             Groups -> "groups"
             Lessons -> "lessons"
@@ -51,6 +51,7 @@ sealed interface Route {
             val ids = parts.drop(1).map { it.toLongOrNull() ?: return null }
             return when (parts.first()) {
                 "home" -> Home
+                "dashboard" -> Dashboard
                 "students" -> Students
                 "groups" -> Groups
                 "lessons" -> Lessons
@@ -84,13 +85,13 @@ class Navigator(private val savedState: SavedStateHandle) : ViewModel() {
             val id = saved.substringBefore('|')
             Route.decode(saved.substringAfter('|'))?.let { Entry(id, it) }
         }
-        addAll(restored.ifEmpty { listOf(newEntry(Route.Home)) })
+        addAll(restored)
+        // Home is the launcher, so it is always at the bottom: Back from any screen ends there, even when a
+        // saved entry could not be decoded.
+        if (firstOrNull()?.route != Route.Home) add(0, newEntry(Route.Home))
     }
 
     val current: Entry get() = backStack.last()
-
-    /** The bottom-bar tab that owns the current screen. */
-    val currentTab: Route get() = backStack.lastOrNull { it.route in Route.tabs }?.route ?: Route.Home
 
     fun navigate(route: Route) {
         backStack += newEntry(route)
@@ -110,18 +111,6 @@ class Navigator(private val savedState: SavedStateHandle) : ViewModel() {
         stores.remove(removed.id)?.clear()
         persist()
         return true
-    }
-
-    /** Switching tabs resets the stack to Home (+ the tab), so Back from any tab returns Home. */
-    fun selectTab(tab: Route) {
-        val target = if (tab == Route.Home) listOf(Route.Home) else listOf(Route.Home, tab)
-        if (backStack.map { it.route } == target) return
-        while (backStack.size > 1) {
-            val removed = backStack.removeAt(backStack.lastIndex)
-            stores.remove(removed.id)?.clear()
-        }
-        if (tab != Route.Home) backStack += newEntry(tab)
-        persist()
     }
 
     fun storeFor(entry: Entry): ViewModelStore = stores.getOrPut(entry.id) { ViewModelStore() }

@@ -13,29 +13,45 @@ class NavigatorTest {
     @Test
     fun `every route survives encoding`() {
         val routes = listOf(
-            Route.Home, Route.Students, Route.Groups, Route.Lessons, Route.Invoices, Route.Settings,
+            Route.Home, Route.Dashboard, Route.Students, Route.Groups, Route.Lessons, Route.Invoices, Route.Settings,
             Route.StudentDetail(3), Route.StudentEdit(), Route.StudentEdit(4), Route.GroupEdit(5),
             Route.GroupLesson(6), Route.LessonEdit(7, 8), Route.LessonEdit(studentId = 9), Route.CreateInvoice(10),
         )
         routes.forEach { assertEquals(it, Route.decode(Route.encode(it))) }
         assertNull(Route.decode("student/abc"))
         assertNull(Route.decode("unknown"))
+        assertEquals("dashboard", Route.encode(Route.Dashboard))
     }
 
     @Test
-    fun `tabs reset the stack and back returns home`() {
+    fun `sections open from home and back returns home`() {
         val navigator = Navigator(SavedStateHandle())
-        navigator.selectTab(Route.Students)
-        navigator.navigate(Route.StudentDetail(3))
-        assertEquals(listOf(Route.Home, Route.Students, Route.StudentDetail(3)), navigator.backStack.map { it.route })
-        assertEquals(Route.Students, navigator.currentTab)
+        assertEquals(listOf(Route.Home), navigator.backStack.map { it.route })
 
-        navigator.selectTab(Route.Lessons)
-        assertEquals(listOf(Route.Home, Route.Lessons), navigator.backStack.map { it.route })
+        navigator.navigate(Route.Dashboard)
+        assertEquals(listOf(Route.Home, Route.Dashboard), navigator.backStack.map { it.route })
 
         assertTrue(navigator.pop())
-        assertFalse(navigator.pop())
         assertEquals(Route.Home, navigator.current.route)
+        assertFalse("Home is the bottom of the stack", navigator.pop())
+
+        navigator.navigate(Route.Students)
+        navigator.navigate(Route.StudentDetail(3))
+        assertTrue(navigator.pop())
+        assertTrue(navigator.pop())
+        assertEquals(Route.Home, navigator.current.route)
+    }
+
+    @Test
+    fun `a restored stack always starts at home`() {
+        val handle = SavedStateHandle()
+        handle["stack"] = arrayListOf("e7|students", "e8|no-such-route")
+        handle["next_id"] = 9L
+
+        val navigator = Navigator(handle)
+
+        assertEquals(listOf(Route.Home, Route.Students), navigator.backStack.map { it.route })
+        assertEquals(navigator.backStack.map { it.id }.distinct().size, navigator.backStack.size)
     }
 
     @Test
@@ -50,7 +66,7 @@ class NavigatorTest {
     fun `back stack is restored from saved state`() {
         val handle = SavedStateHandle()
         val navigator = Navigator(handle)
-        navigator.selectTab(Route.Invoices)
+        navigator.navigate(Route.Invoices)
         navigator.navigate(Route.CreateInvoice(2))
 
         val restored = Navigator(handle)

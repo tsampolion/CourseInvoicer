@@ -29,6 +29,7 @@ object AppIcons {
             "l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z",
     )
     val Home = icon("Home", "M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z")
+    val Dashboard = icon("Dashboard", "M3,13h8V3H3v10zM3,21h8v-6H3v6zM13,21h8V11h-8v10zM13,3v6h8V3h-8z")
     val Person = icon(
         "Person",
         "M12,12c2.21,0 4,-1.79 4,-4s-1.79,-4 -4,-4 -4,1.79 -4,4 1.79,4 4,4zM12,14c-2.67,0 -8,1.34 -8,4v2h16v-2" +

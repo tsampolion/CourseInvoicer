@@ -38,9 +38,9 @@ import gr.edusuite.invoicer.ui.common.appViewModel
 
 @Composable
 fun StudentsScreen(
+    onBack: () -> Unit,
     onOpenStudent: (Long) -> Unit,
     onAddStudent: () -> Unit,
-    bottomBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StudentsViewModel = appViewModel { StudentsViewModel(it.studentRepository, it.lessonRepository) },
 ) {
@@ -52,10 +52,10 @@ fun StudentsScreen(
     ScreenScaffold(
         title = "Students",
         modifier = modifier,
+        onBack = onBack,
         floatingActionButton = {
             FloatingActionButton(onClick = onAddStudent) { Icon(AppIcons.Add, contentDescription = "Add student") }
         },
-        bottomBar = bottomBar,
     ) { padding ->
         Column(Modifier.padding(padding)) {
             OutlinedTextField(
@@ -79,8 +79,18 @@ fun StudentsScreen(
             }
             when {
                 state.loading -> Unit
-                state.totalCount == 0 -> EmptyState("No students yet. Tap + to add your first student.")
-                state.rows.isEmpty() -> EmptyState("No matching students.")
+                state.totalCount == 0 -> EmptyState(
+                    icon = AppIcons.Person,
+                    title = "No students yet",
+                    message = "Add your first student to start logging lessons.",
+                    actionLabel = "Add a student",
+                    onAction = onAddStudent,
+                )
+                state.rows.isEmpty() -> EmptyState(
+                    icon = AppIcons.Person,
+                    title = "No matching students",
+                    message = "Try another search, or switch between Active and Archived.",
+                )
                 else -> LazyColumn {
                     items(state.rows, key = { it.student.id }) { row ->
                         ListItem(

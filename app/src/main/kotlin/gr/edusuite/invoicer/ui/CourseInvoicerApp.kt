@@ -1,13 +1,9 @@
 package gr.edusuite.invoicer.ui
 
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import gr.edusuite.invoicer.ui.common.AppIcons
+import gr.edusuite.invoicer.ui.dashboard.DashboardScreen
 import gr.edusuite.invoicer.ui.groups.GroupEditScreen
 import gr.edusuite.invoicer.ui.groups.GroupLessonScreen
 import gr.edusuite.invoicer.ui.groups.GroupsScreen
@@ -24,41 +20,47 @@ import gr.edusuite.invoicer.ui.students.StudentDetailScreen
 import gr.edusuite.invoicer.ui.students.StudentEditScreen
 import gr.edusuite.invoicer.ui.students.StudentsScreen
 
+/** Dispatches each route to its screen. Home is the launcher; every other screen has a Back arrow. */
 @Composable
 fun CourseInvoicerApp() {
     val navigator: Navigator = viewModel { Navigator(createSavedStateHandle()) }
-    val bottomBar: @Composable () -> Unit = {
-        AppBottomBar(current = navigator.currentTab, onSelect = navigator::selectTab)
-    }
     val back: () -> Unit = { navigator.pop() }
 
     NavHost(navigator) { route ->
         when (route) {
             Route.Home -> HomeScreen(
+                onOpenDashboard = { navigator.navigate(Route.Dashboard) },
+                onOpenStudents = { navigator.navigate(Route.Students) },
+                onOpenGroups = { navigator.navigate(Route.Groups) },
+                onOpenLessons = { navigator.navigate(Route.Lessons) },
+                onOpenStatements = { navigator.navigate(Route.Invoices) },
+                onOpenSettings = { navigator.navigate(Route.Settings) },
+                onLogLesson = { navigator.navigate(Route.LessonEdit()) },
+            )
+            Route.Dashboard -> DashboardScreen(
+                onBack = back,
                 onOpenStudent = { navigator.navigate(Route.StudentDetail(it)) },
                 onAddLesson = { navigator.navigate(Route.LessonEdit()) },
-                onOpenSettings = { navigator.navigate(Route.Settings) },
-                bottomBar = bottomBar,
             )
             Route.Students -> StudentsScreen(
+                onBack = back,
                 onOpenStudent = { navigator.navigate(Route.StudentDetail(it)) },
                 onAddStudent = { navigator.navigate(Route.StudentEdit()) },
-                bottomBar = bottomBar,
             )
             Route.Groups -> GroupsScreen(
+                onBack = back,
                 onOpenGroup = { navigator.navigate(Route.GroupEdit(it)) },
                 onLogLesson = { navigator.navigate(Route.GroupLesson(it)) },
                 onAddGroup = { navigator.navigate(Route.GroupEdit()) },
-                bottomBar = bottomBar,
             )
             Route.Lessons -> LessonsScreen(
+                onBack = back,
                 onOpenLesson = { navigator.navigate(Route.LessonEdit(lessonId = it)) },
                 onAddLesson = { navigator.navigate(Route.LessonEdit()) },
-                bottomBar = bottomBar,
             )
             Route.Invoices -> InvoicesScreen(
+                onBack = back,
                 onCreateInvoice = { navigator.navigate(Route.CreateInvoice()) },
-                bottomBar = bottomBar,
             )
             Route.Settings -> SettingsScreen(onBack = back)
             is Route.StudentDetail -> StudentDetailScreen(
@@ -85,27 +87,6 @@ fun CourseInvoicerApp() {
                 onDone = back,
             )
             is Route.CreateInvoice -> CreateInvoiceScreen(studentId = route.studentId, onBack = back, onDone = back)
-        }
-    }
-}
-
-@Composable
-private fun AppBottomBar(current: Route, onSelect: (Route) -> Unit) {
-    NavigationBar {
-        Route.tabs.forEach { tab ->
-            val (label, icon) = when (tab) {
-                Route.Home -> "Home" to AppIcons.Home
-                Route.Students -> "Students" to AppIcons.Person
-                Route.Groups -> "Groups" to AppIcons.Group
-                Route.Lessons -> "Lessons" to AppIcons.Calendar
-                else -> "Invoices" to AppIcons.Invoice
-            }
-            NavigationBarItem(
-                selected = current == tab,
-                onClick = { onSelect(tab) },
-                icon = { Icon(icon, contentDescription = null) },
-                label = { Text(label) },
-            )
         }
     }
 }

@@ -40,7 +40,7 @@ always export a backup first.
 | Bill a student | Student → **Invoice**, or Invoices → **+**. Choose the lessons, then **Create**, then **Share PDF**. |
 | Send an invoice again | Invoices → tap the invoice. It is the same document as the first time. |
 | Cancel an invoice | Invoices → ✕ → **Void**. The number is never reused, and the lessons can be invoiced again. |
-| See who owes what | Home → *Who owes* |
+| See the month's earnings and who owes what | Home → **Dashboard** |
 
 **Back up regularly:** Settings → *Backup* → **Export** saves a JSON file. Keep it off the phone,
 for example in cloud storage or email. **Import** replaces *all* data on the phone with the backup.
