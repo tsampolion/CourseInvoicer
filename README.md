@@ -1,9 +1,14 @@
 # EduInvoice
 
+[![CI](https://github.com/tsampolion/EduInvoiceApp/actions/workflows/ci.yml/badge.svg?branch=Rebuild_v2)](https://github.com/tsampolion/EduInvoiceApp/actions/workflows/ci.yml?query=branch%3ARebuild_v2)
+
 An offline Android app for private tutors. Keep a register of students and groups, log lessons, see
 who owes what, record payments and send PDF invoices. All data stays on the phone.
 
 **Version:** 2.0.0-alpha03 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+
+How the app should behave is in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). What changed in each
+version is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Install a test build
 
@@ -21,22 +26,6 @@ the owner's key**. If Android says *App not installed*, the builds have differen
 backup, uninstall, install the new build and import the backup. Uninstalling deletes all data, so
 always export a backup first.
 
-**Signing key setup** (repository owner, once). CI signs every `app-debug.apk` with your key and
-checks its fingerprint. In *Settings → Secrets and variables → Actions* add:
-
-| Kind | Name | Value |
-|------|------|-------|
-| Secret | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
-| Secret | `SIGNING_PASSWORD` | The keystore password |
-| Variable | `SIGNING_CERT_SHA256` | The certificate's SHA-256 fingerprint from `keytool -list -v` |
-| Variable (optional) | `SIGNING_KEY_ALIAS` | Only if your alias is not `release` |
-
-Create the key with `keytool -genkeypair -keystore eduinvoice-release.p12 -storetype PKCS12 -alias
-release -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=EduInvoice"`, keep tested backups of the
-file and the password, and never commit them. Until the secrets exist, CI warns and signs with a
-throwaway key. The job summary shows which certificate signed each build. Moving to your key needs
-one last export, uninstall and import.
-
 ## Using the app
 
 | To… | Go to |
@@ -48,6 +37,7 @@ one last export, uninstall and import.
 | Mark lessons paid | Tick the box on a lesson. Or use a student's **Record payment** to settle everything they owe. |
 | Move several lessons to another day | Lessons → long-press the lessons → **Reschedule** |
 | Bill a student | Student → **Invoice**, or Invoices → **+**. Choose the lessons, then **Create**, then **Share PDF**. |
+| Send an invoice again | Invoices → tap the invoice. It is the same document as the first time. |
 | Cancel an invoice | Invoices → ✕ → **Void**. The number is never reused, and the lessons can be invoiced again. |
 | See who owes what | Home → *Who owes* |
 
@@ -57,37 +47,113 @@ for example in cloud storage or email. **Import** replaces *all* data on the pho
 How fees, absences, locking and numbering work is described in
 [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md#2-business-rules).
 
+## Tech stack
+
+| | |
+| --- | --- |
+| Language | Kotlin 2.4.21, JVM target 17 |
+| UI | Jetpack Compose (BOM 2026.09.00), Material 3, no XML layouts |
+| Storage | Framework SQLite (`SQLiteOpenHelper`), SharedPreferences for settings |
+| Build | Gradle 9.6.1 (wrapper), Android Gradle Plugin 9.4.0, Kotlin DSL, version catalog in `gradle/libs.versions.toml` |
+| SDK | `minSdk 26`, `targetSdk 37`, `compileSdk 37` |
+| Runtime libraries | Kotlin coroutines, AndroidX `core-ktx`, `activity-compose`, `lifecycle-*-compose`, Compose. Nothing else. |
+
+Every dependency, including test-only ones, needs the owner's approval. The register is in
+[`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) §7.
+
 ## Build from source
 
 You need JDK 17 or newer and the Android SDK. Set `ANDROID_HOME`, or put `sdk.dir` in
-`local.properties`.
+`local.properties`. Android Studio provides both.
 
 ```bash
-./gradlew :core:test                    # business rules, no Android SDK needed
-./gradlew :app:testDebugUnitTest        # ViewModel and navigation tests
-./gradlew :app:lintDebug                # Android lint
-./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew :core:test                      # business rules (pure JVM)
+./gradlew :app:testDebugUnitTest          # ViewModel and navigation tests
+./gradlew :app:lintDebug                  # Android lint
+./gradlew :app:assembleDebug              # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:connectedDebugAndroidTest  # needs a running emulator
 ```
 
 Run the instrumented tests on an emulator, not on the phone you use: the tests themselves use a
 throwaway database, but Gradle uninstalls the app when they finish, which deletes its data.
 
-## Project map
+## CI and releases
 
-```
-core/   Pure Kotlin business rules: models, billing, reports, invoicing, use cases, backup format
-app/    Android app: SQLite storage, PDF rendering, Compose screens, ViewModels, navigation
-docs/   PRODUCT_SPEC.md: business rules, features, decisions, dependency register
-.github/workflows/ci.yml       Every push: unit tests, lint, signed debug APK; emulator tests
-.github/workflows/release.yml  After CI passes on Rebuild_v2: tags a dated version, publishes its APK
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every branch push, on pull requests
+  from forks and on manual dispatch. One job runs the unit tests and lint, builds the debug APK,
+  signs it with the owner's key and checks the key, writes the APK size to the job summary and
+  uploads the APK as the `app-debug` artifact. A second job runs the emulator tests on API 35.
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) runs after CI passes on
+  `Rebuild_v2`. When the `CHANGELOG.md` section for the current `versionName` has a date, it tags
+  `vX.Y.Z` and publishes a GitHub release with that section as notes and the signed APK attached.
+
+### Signing key
+
+Set this up once, as the repository owner. CI signs every `app-debug.apk` with your key and checks
+its fingerprint. In *Settings → Secrets and variables → Actions* add:
+
+| Kind | Name | Value |
+|------|------|-------|
+| Secret | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
+| Secret | `SIGNING_PASSWORD` | The keystore password |
+| Variable | `SIGNING_CERT_SHA256` | The certificate's SHA-256 fingerprint from `keytool -list -v` |
+| Variable (optional) | `SIGNING_KEY_ALIAS` | Only if your alias is not `release` |
+
+Create the key with:
+
+```bash
+keytool -genkeypair -keystore eduinvoice-release.p12 -storetype PKCS12 -alias release \
+  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=EduInvoice"
 ```
 
-| Document | Read it when you… |
-|----------|-------------------|
-| [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | need to know how the app should behave, or why it was built this way |
-| [`AGENTS.md`](AGENTS.md) | are changing code: rules, recipes and the checks to run |
-| [`CHANGELOG.md`](CHANGELOG.md) | want to know what changed in each version |
+Keep tested backups of the file and the password, and never commit them. Until the secrets exist, CI
+warns and signs with a throwaway key, and the release workflow refuses to publish. The job summary
+shows which certificate signed each build. Moving to your key needs one last export, uninstall and
+import.
+
+## Project structure
+
+```text
+.
+├── core/                         # pure Kotlin, no Android: every business rule, tested on the JVM
+│   └── src/
+│       ├── main/…/core/          # model, usecase, repository, report, invoice, backup, format
+│       ├── testFixtures/         # InMemoryRepositories: fakes shared by all JVM tests
+│       └── test/                 # rule, report, invoice and backup tests
+├── app/                          # the Android app
+│   └── src/
+│       ├── main/…/eduinvoice/    # AppContainer, MainActivity, data/ (SQLite, PDF, backups), ui/
+│       ├── test/                 # ViewModel and navigation tests (JVM)
+│       └── androidTest/          # emulator tests: SQL, migrations, end-to-end flow
+├── docs/PRODUCT_SPEC.md          # business rules, features, decisions, dependency register
+├── docs/ROADMAP.md               # planned work, with tasks and status
+├── AGENTS.md                     # guide for contributors and coding agents (CLAUDE.md imports it)
+├── gradle/libs.versions.toml     # version catalog
+└── .github/workflows/            # ci.yml, release.yml
+```
+
+## Footprint
+
+- No DI framework, database library, serialization library or navigation library. Objects are wired
+  by hand in `AppContainer`. The app uses framework SQLite, its own JSON backup codec in `:core` and
+  a small typed back stack. The spec's decision log (D2–D6) says why.
+- `minSdk 26`, so `java.time` works without desugaring. The theme is a framework theme, not
+  AppCompat, and icons are drawn in code.
+- PDFs are drawn with the framework's `PdfDocument`, so no PDF library ships.
+- There is no minified build (D9). The installed debug APK is about 12.5 MB. Ideas to shrink it are
+  in [`docs/ROADMAP.md`](docs/ROADMAP.md) item 11.
+
+## Contributing
+
+Read [`AGENTS.md`](AGENTS.md) first: it has the commands, architecture, rules, recipes and gotchas.
+In short:
+
+1. Branch off `Rebuild_v2`.
+2. Put business rules in `:core`, with tests.
+3. Run `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` before you
+   open a pull request. CI runs the same line, plus the emulator tests.
+4. Add your change to the `Unreleased` section of [`CHANGELOG.md`](CHANGELOG.md).
+5. New dependencies need approval first.
 
 ## License
 

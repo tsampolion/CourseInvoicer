@@ -63,7 +63,7 @@ class CreateInvoice(
             total = selected.sumOfMoney { it.charge },
             notes = notes.trim(),
         )
-        // The document is frozen now, as issued (D7).
+        // The document is frozen now, as issued (R12, D10).
         val issued = draft.copy(document = renderer.render(draft, selected))
         val id = invoices.createInvoice(issued, ids, paidOn = issueDate.takeIf { markPaid })
         return issued.copy(id = id)

@@ -3,7 +3,7 @@ package gr.eduinvoice.core.model
 /**
  * Fully formatted invoice content. It is frozen when the invoice is issued, so later changes to the
  * settings, the student, group names or lesson notes never change a document a parent may already hold
- * (D7). Only [paid] is live: it is filled in from the current payments each time the invoice is shared.
+ * (R12, D10). Only [paid] is live: it is filled in from the current payments each time the invoice is shared.
  * The Android PDF renderer only lays it out.
  */
 data class InvoiceDocument(

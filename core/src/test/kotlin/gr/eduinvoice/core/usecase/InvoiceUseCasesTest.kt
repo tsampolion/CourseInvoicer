@@ -109,7 +109,7 @@ class InvoiceUseCasesTest {
         assertEquals("Group lesson · B1 — Unit 4", issued.lines.single().description)
         assertFalse(issued.paid)
 
-        // Everything a re-render would read changes (D7)...
+        // Everything a re-render would read changes (R12, D10)...
         repos.settingsRepository.update {
             it.copy(currencyCode = "GBP", business = BusinessProfile(name = "Tutor B"), invoiceFooter = "New")
         }

@@ -1,7 +1,7 @@
 # EduInvoice: Product specification
 
-This is the reference for **what the app does and why**. When behaviour changes, update this file in
-the same pull request. Engineering rules (how to build it) live in [`AGENTS.md`](../AGENTS.md).
+This is the reference for **what the app does and why**. When behaviour changes, update this file
+in the same pull request. Engineering rules (how to build it) live in [`AGENTS.md`](../AGENTS.md).
 
 ## 1. Purpose
 
@@ -18,8 +18,8 @@ Nothing leaves the device unless the tutor shares an invoice or exports a backup
 
 ## 2. Business rules
 
-These rules are enforced in `:core` and covered by tests. The rule numbers are referenced from code
-comments and PRs.
+These rules are enforced in `:core` and, where listed, in the SQL layer of `:app`. Tests cover them.
+The rule numbers are referenced from code comments and PRs.
 
 | # | Rule | Enforced in |
 |---|------|-------------|
@@ -28,12 +28,12 @@ comments and PRs.
 | R3 | **Group lessons:** one row per member, billed at the *group* rate. Absent members get an `absent` row that is never charged, and so is never paid either. | `LogGroupLesson`, `SaveLesson` |
 | R4 | **Invoices:** one student per invoice. Only lessons that are not invoiced and not absent can be added. A lesson is on at most one invoice. The database guards this in the same transaction. | `CreateInvoice`, `SqlInvoiceRepository` |
 | R5 | **Numbering:** invoice numbers run `YYYY-NNNN` per calendar year. They are **never reused**. | `InvoiceNumbering` |
-| R6 | **Voiding:** an invoice is voided, never deleted. Voiding releases its lessons so they can be invoiced again. The void invoice and its number stay visible. A void invoice cannot be shared. | `VoidInvoice` |
-| R7 | **Locking:** while a lesson is on an invoice, its student, date, time, duration, fee and attendance are read-only, and it cannot be deleted. Notes and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
+| R6 | **Voiding:** an invoice is voided, never deleted. Voiding releases its lessons so they can be invoiced again. The void invoice and its number stay visible. A void invoice cannot be shared. | `VoidInvoice`, `SqlInvoiceRepository.voidInvoice`, `GetInvoiceDocument` |
+| R7 | **Locking:** while a lesson is on an invoice, its student, group, date, time, duration, fee and attendance are read-only, and it cannot be deleted. Notes and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
 | R8 | **Rescheduling:** several lessons can move to a new date and start time in one step, but only if none of them is paid or invoiced. Duration and fee are kept. | `RescheduleLessons` |
-| R9 | **Outstanding** = sum of fees of lessons that are unpaid and not absent. | `Reports` |
-| R10 | **Archiving:** archived students and groups leave lists and pickers but keep their history. A student can be deleted only if they have no lessons and no invoices (void ones included). A group can be deleted only if none of its lessons is invoiced; its other lessons are kept without the group. | `DeleteStudent`, `DeleteGroup` |
-| R11 | **Backups** are versioned JSON. Restoring replaces all data and settings in one step. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
+| R9 | **Outstanding** = sum of fees of lessons that are unpaid and not absent. Home and Students sum it in SQL with the same rule. | `Lesson.isOutstanding`, `Reports`, `SqlLessonRepository.observeBalances` |
+| R10 | **Archiving:** archived students and groups move to the *Archived* filter and keep their history. Archived students leave the student pickers, and an archived group has no *Log lesson* button. A student can be deleted only if they have no lessons and no invoices (void ones included). A group can be deleted only if none of its lessons is invoiced; its other lessons are kept without the group. | `DeleteStudent`, `DeleteGroup` |
+| R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction, then applies the backup's settings. Once a restore starts, cancelling it does not stop it half-way. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
 | R12 | **Issued documents:** an invoice's content (seller, bill-to, lines, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Invoices created before schema 3 are frozen the first time they are shared. An invoice is paid once it has lessons and all are paid. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
 | R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. | `SettingsRules`, `SaveSettings` |
 
@@ -48,24 +48,22 @@ comments and PRs.
 | AppSettings | business details, currency, default lesson length, theme, invoice footer | SharedPreferences |
 
 Version history:
-- Database schema (`EduDatabase.VERSION`):
-  - 1 = 2.0.0-alpha01
-  - 2 = `invoices.voided_on` (2.0.0-alpha02)
-  - 3 = `invoices.document` (2.0.0-alpha03)
-- Backup format (`BackupCodec.VERSION`):
-  - 1 = alpha01
-  - 2 = adds `voidedOn`. v1 files still import.
-  - 3 = adds `document`. v1 and v2 files still import.
+
+| Version | Database schema (`EduDatabase.VERSION`) | Backup format (`BackupCodec.VERSION`) | Change |
+|---------|-----------------------------------------|---------------------------------------|--------|
+| 2.0.0-alpha01 | 1 | 1 | v2 baseline. |
+| 2.0.0-alpha02 | 2 | 2 | Adds `invoices.voided_on` (backup field `voidedOn`) for voiding (R6). Schema 1 upgrades automatically. v1 backups still import. |
+| 2.0.0-alpha03 | 3 | 3 | Adds `invoices.document` (backup field `document`), the content as issued (R12). Schema 2 upgrades automatically. v1 and v2 backups still import. |
 
 ## 4. Features
 
 | Area | What the tutor can do |
 |------|-----------------------|
 | Home | See the month's lessons, hours, earned, paid and unpaid amounts. See the all-time outstanding total and who owes. |
-| Students | Search, filter active or archived, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start an invoice. Archive or delete. |
-| Groups | Create a group with members and a rate. Log a group lesson with attendance. |
+| Students | Search, filter *Active* or *Archived*, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start an invoice. Archive, restore or delete. |
+| Groups | Filter *Active* or *Archived*. Create or edit a group with members and a rate. Log a group lesson with attendance. Archive, restore or delete a group. |
 | Lessons | Browse by month and filter by all, unpaid or not invoiced. Add, edit or delete a lesson. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
-| Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Void it. |
+| Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Tap an issued invoice to share it again. See whether each is paid, unpaid or void. Void it. |
 | Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Export or import a JSON backup. |
 
 ## 5. Out of scope and backlog
@@ -78,7 +76,7 @@ Version history:
 | Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
 | Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
 | Crash reporting / analytics | Dropped | No network permission by design. |
-| Google Play Store release | Dropped | Not planned. Builds are installed from GitHub releases or CI (see README). Release-only items were removed in alpha03 (§8). |
+| Google Play Store release | Dropped | Not planned (D9). Builds are installed from GitHub releases or CI (§8). Release-only items were removed in alpha03 (see the appendix). |
 
 ## 6. Decision log
 
@@ -96,11 +94,12 @@ Version history:
 | D10 | Freeze each invoice's document when it is issued (R12) | D7's promise that a number means one document also covers its content, not just its number. | alpha03 |
 | D11 | CI signs debug builds with the owner's key (secrets `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and checks it against `SIGNING_CERT_SHA256` | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build; the fingerprint check catches a wrong or replaced key. | alpha03 |
 | D12 | Dated changelog versions are published as GitHub releases with the signed APK attached | CI artifacts expire after 14 days and are hard to find from a phone. A release is a permanent, named download whose notes are the changelog. Dating the section is the explicit release step, so merging alone never publishes. | alpha03 |
+| D13 | Target the latest Android (`targetSdk` 37, Android 17) | None of Android 17's changes for apps that target it touch the app. They cover local network access, background audio, reflection on `static final` fields and `MessageQueue`, `RemoteViews` memory, and the orientation and resizability opt-out on large screens. The app has no permissions, no audio, no notifications, no reflection, and an adaptive Compose layout. | alpha03 |
 
 ## 7. Dependency register
 
 Runtime dependencies are the only ones that ship in the APK. Anything not listed needs approval
-first. Record each approval here.
+first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
 
 | Scope | Dependencies |
 |-------|--------------|
@@ -108,13 +107,47 @@ first. Record each approval here.
 | Debug only | `androidx.compose.ui:ui-tooling` |
 | Unit tests (approved) | JUnit 4, `kotlinx-coroutines-test` |
 | Instrumented tests (approved alpha02) | `androidx.test:runner`, `androidx.test.ext:junit`, `androidx.compose.ui:ui-test-junit4` |
+| Build plugins | Android Gradle Plugin 9.4.0 (`com.android.application`), Kotlin Gradle plugin 2.4.21 (root build classpath; `:core` applies `org.jetbrains.kotlin.jvm`), Kotlin Compose compiler plugin 2.4.21 (`org.jetbrains.kotlin.plugin.compose`) |
 | Awaiting approval (not added) | Room, SQLCipher, Navigation 3, Robolectric |
 
-## 8. Removed Play Store items
+## 8. Release and distribution
+
+### Open actions
+
+- Delete or restrict the Firebase API key in Google Cloud (project `eduinvoiceapp`). It comes from
+  `app/google-services.json` on the legacy `main` and `Rebuild` branches and is in the git history.
+  v2 does not use Firebase, so nothing replaces it.
+
+### Current state
+
+- **No Google Play Store release (D9).** There is no release build type. CI builds only the debug
+  APK.
+- **Signed debug APK.** CI signs every debug APK with the owner's key and checks its fingerprint
+  (D11). A new build installs over the previous one and keeps the data.
+- **GitHub releases.** Dating a version in `CHANGELOG.md` publishes it as a GitHub release with the
+  signed APK attached (D12, `.github/workflows/release.yml`). Between releases, the APK is a CI
+  artifact. The README's *Install a test build* section covers both.
+- **Target SDK.** `targetSdk` and `compileSdk` are 37 (Android 17); `minSdk` is 26. D13 gives the
+  reason.
+- **Version numbers.** `versionCode` and `versionName` stay. Android refuses to install an APK with
+  a lower `versionCode` over a newer one, so sideloaded builds still need them. Settings shows
+  `versionName`.
+- **Signing patterns in `.gitignore`.** `*.jks`, `*.keystore`, `*.p12` and `keystore.properties`
+  stop a key from ever being committed and cost nothing.
+
+## 9. Origin
+
+This spec started as the rebuild brief written from the request: *"Rebuild the app under new
+specifications on a separate branch; Kotlin 2.x, Compose without XML layouts, ViewModel + StateFlow,
+Gradle Kotlin DSL, no external dependencies unless approved, minimal APK, no Hilt."* The original
+brief is in git history (commit `39cfa78a`). The v0.x app remains on the `Rebuild` and `main`
+branches.
+
+## Appendix: removed Play Store items (alpha03)
 
 Under D9 the app is not released on the Google Play Store. These release-only items were marked for
-deletion in alpha02 and removed in alpha03, when the owner confirmed. `git show` on the alpha03 commit
-brings any of them back.
+deletion in alpha02 and removed in alpha03, when the owner confirmed. `git show ee92fb1a` (the
+alpha03 removal commit) brings any of them back.
 
 | # | Item | Where it was |
 |---|------|--------------|
@@ -125,37 +158,25 @@ brings any of them back.
 | M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 |
 | M6 | 512 px Play listing icon | `app/src/main/ic_launcher-playstore.png` |
 
-The cost of removing M2: the R8 build was 1.9 MB, against 12.5 MB for the debug APK that is installed.
-If the APK size ever matters, add R8 back as a signed, sideloadable build type rather than a Play one.
+The cost of removing M2: the R8 build was 1.9 MB, against 12.5 MB for the debug APK that is
+installed. If the APK size ever matters, add R8 back as a signed, sideloadable build type rather
+than a Play one.
 
-**Kept:**
-- The `.gitignore` signing patterns (`*.jks`, `*.keystore`, `*.p12`, `keystore.properties`). They stop a
-  key from ever being committed and cost nothing.
-- `versionCode` and `versionName`. Android refuses to install an APK with a lower `versionCode` over a
-  newer one, so sideloaded debug builds still need them. Settings shows `versionName`.
-- `targetSdk`, now 37 (Android 17). Android 17's changes for apps that target it cover local network
-  access, background audio, reflection on `static final` fields and `MessageQueue`, `RemoteViews`
-  memory, and the orientation and resizability opt-out on large screens. The app uses none of these:
-  it has no permissions, no audio, no notifications, no reflection, and an adaptive Compose layout.
+**Kept:** the `.gitignore` signing patterns, `versionCode` and `versionName`, and `targetSdk` (see
+§8).
 
-**Found on the legacy branches (`main`, `Rebuild`), not changed:** the v0.x app there has:
+**Found on the legacy branches (`main`, `Rebuild`), not changed.** The v0.x app there has:
+
 - release signing configs read from `RELEASE_*` properties
 - a `PLAY_INTEGRITY_ENABLED` flag (`Rebuild`)
 - the `play-services-auth` dependency (`main`)
 - ABI splits for release builds (`Rebuild`)
 - the same 512 px Play listing icon as M6
 - a Privacy Policy screen, which a Play listing requires
-- `app/google-services.json` (Firebase project `eduinvoiceapp`). Its API key is in the git history, so it
-  must be deleted in Google Cloud. v2 uses no Firebase, so it needs no replacement.
+- `app/google-services.json` (Firebase project `eduinvoiceapp`), whose API key is in the git
+  history (see *Open actions* in §8)
 - a CI release build step (`Rebuild`)
 
-Those branches are frozen, so these items go when the branches are deleted. Before v2 the repository had
-no GitHub releases and one tag, `v0.28.0` (v0.x). v2 releases are tagged and published by
-`.github/workflows/release.yml` (D12).
-
-## 9. Origin
-
-This spec started as the rebuild brief written from the request: *"Rebuild the app under new
-specifications on a separate branch; Kotlin 2.x, Compose without XML layouts, ViewModel + StateFlow,
-Gradle Kotlin DSL, no external dependencies unless approved, minimal APK, no Hilt."* The original
-brief is in git history (commit `39cfa78a`). The v0.x app remains on the `Rebuild` and `main` branches.
+Those branches are frozen, so these items go when the branches are deleted. Before v2 the
+repository had no GitHub releases and one tag, `v0.28.0` (v0.x). v2 releases are tagged and
+published by `.github/workflows/release.yml` (D12).
