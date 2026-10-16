@@ -78,7 +78,7 @@ Version history:
 | Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
 | Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
 | Crash reporting / analytics | Dropped | No network permission by design. |
-| Google Play Store release | Dropped | Not planned. Builds are installed from CI (see README). Release-only items were removed in alpha03 (§8). |
+| Google Play Store release | Dropped | Not planned. Builds are installed from GitHub releases or CI (see README). Release-only items were removed in alpha03 (§8). |
 
 ## 6. Decision log
 
@@ -95,6 +95,7 @@ Version history:
 | D9 | No Play Store release. Release-only items were marked for deletion (alpha02), then removed once the owner confirmed (alpha03) | The app is installed from CI builds, so a release build, R8 rules and Play assets were unused weight. | alpha02 |
 | D10 | Freeze each invoice's document when it is issued (R12) | D7's promise that a number means one document also covers its content, not just its number. | alpha03 |
 | D11 | CI signs debug builds with the owner's key (secrets `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and checks it against `SIGNING_CERT_SHA256` | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build; the fingerprint check catches a wrong or replaced key. | alpha03 |
+| D12 | Dated changelog versions are published as GitHub releases with the signed APK attached | CI artifacts expire after 14 days and are hard to find from a phone. A release is a permanent, named download whose notes are the changelog. Dating the section is the explicit release step, so merging alone never publishes. | alpha03 |
 
 ## 7. Dependency register
 
@@ -148,8 +149,9 @@ If the APK size ever matters, add R8 back as a signed, sideloadable build type r
   must be deleted in Google Cloud. v2 uses no Firebase, so it needs no replacement.
 - a CI release build step (`Rebuild`)
 
-Those branches are frozen, so these items go when the branches are deleted. The repository has no
-GitHub releases. Its only tag is `v0.28.0` (v0.x).
+Those branches are frozen, so these items go when the branches are deleted. Before v2 the repository had
+no GitHub releases and one tag, `v0.28.0` (v0.x). v2 releases are tagged and published by
+`.github/workflows/release.yml` (D12).
 
 ## 9. Origin
 

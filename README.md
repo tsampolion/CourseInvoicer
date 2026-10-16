@@ -7,9 +7,13 @@ who owes what, record payments and send PDF invoices. All data stays on the phon
 
 ## Install a test build
 
-1. Open the latest green **CI** run for `Rebuild_v2` in the repository's *Actions* tab.
-2. Download the `app-debug` artifact and unzip it.
-3. Copy `app-debug.apk` to the phone, open it, and allow installs from that app when asked.
+1. Open the repository's *Releases* page and pick the newest release (alpha and beta builds are marked
+   *Pre-release*).
+2. Download `eduinvoice-<version>.apk` from its *Assets*.
+3. Copy it to the phone, open it, and allow installs from that app when asked.
+
+For a build between releases, open the latest green **CI** run for `Rebuild_v2` in the *Actions* tab
+and download its `app-debug` artifact (a zip holding `app-debug.apk`). Artifacts expire after 14 days.
 
 A new build installs over the previous one and keeps your data, **as long as both were signed with
 the owner's key**. If Android says *App not installed*, the builds have different keys: export a
@@ -74,7 +78,8 @@ throwaway database, but Gradle uninstalls the app when they finish, which delete
 core/   Pure Kotlin business rules: models, billing, reports, invoicing, use cases, backup format
 app/    Android app: SQLite storage, PDF rendering, Compose screens, ViewModels, navigation
 docs/   PRODUCT_SPEC.md: business rules, features, decisions, dependency register
-.github/workflows/ci.yml   Unit tests, lint and builds on one runner. Emulator tests on a second runner.
+.github/workflows/ci.yml        Every push: unit tests, lint and the signed debug APK; emulator tests on a second runner
+.github/workflows/release.yml   After CI passes on Rebuild_v2: tags a dated version and publishes its APK
 ```
 
 | Document | Read it when you… |
