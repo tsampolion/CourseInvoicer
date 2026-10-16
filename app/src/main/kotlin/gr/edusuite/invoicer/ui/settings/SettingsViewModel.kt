@@ -36,6 +36,7 @@ data class SettingsForm(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val footer: String = "",
     val reminders: ReminderSettings = ReminderSettings(),
+    val showAddressOnStatements: Boolean = false,
 )
 
 data class SettingsUiState(
@@ -48,7 +49,7 @@ data class SettingsUiState(
 
 /**
  * Settings save as the user types (R13): text fields [SAVE_DEBOUNCE_MS] after the last keystroke,
- * the theme at once. A currency or lesson length that breaks the rules is never stored: the field
+ * switches and the theme at once. A currency or lesson length that breaks the rules is never stored: the field
  * shows an error and the stored value stays, while the other fields still save.
  */
 class SettingsViewModel(
@@ -86,12 +87,10 @@ class SettingsViewModel(
     }
 
     /** The theme applies at once, so it is saved without waiting (with any typing still pending). */
-    fun onTheme(mode: ThemeMode) {
-        mutableState.update { it.copy(form = it.form.copy(themeMode = mode)) }
-        pendingSave?.cancel()
-        pendingSave = null
-        launchCatching(::showMessage) { commit() }
-    }
+    fun onTheme(mode: ThemeMode) = editNow { it.copy(themeMode = mode) }
+
+    /** Like the theme, a switch saves at once. */
+    fun onShowAddressOnStatements(show: Boolean) = editNow { it.copy(showAddressOnStatements = show) }
 
     fun onRemindersEnabled(on: Boolean) = setReminders { it.copy(enabled = on) }
 
@@ -132,7 +131,7 @@ class SettingsViewModel(
             }
             showMessage(
                 "Restored ${plural(snapshot.students.size, "student")}, ${plural(snapshot.lessons.size, "lesson")} " +
-                    "and ${plural(snapshot.invoices.size, "invoice")}",
+                    "and ${plural(snapshot.invoices.size, "statement")}",
             )
         } catch (e: BackupFormatException) {
             showMessage("Not a valid backup: ${e.message}")
@@ -148,6 +147,14 @@ class SettingsViewModel(
             delay(SAVE_DEBOUNCE_MS)
             commit()
         }
+    }
+
+    /** Saves [transform]'s change without waiting, together with any typing still pending. */
+    private fun editNow(transform: (SettingsForm) -> SettingsForm) {
+        mutableState.update { it.copy(form = transform(it.form)) }
+        pendingSave?.cancel()
+        pendingSave = null
+        launchCatching(::showMessage) { commit() }
     }
 
     private suspend fun savePendingNow() {
@@ -182,6 +189,7 @@ class SettingsViewModel(
                 themeMode = form.themeMode,
                 invoiceFooter = form.footer,
                 reminders = form.reminders,
+                showAddressOnStatements = form.showAddressOnStatements,
             ),
         )
     }
@@ -210,5 +218,6 @@ class SettingsViewModel(
         themeMode = themeMode,
         footer = invoiceFooter,
         reminders = reminders,
+        showAddressOnStatements = showAddressOnStatements,
     )
 }

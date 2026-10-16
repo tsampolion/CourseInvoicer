@@ -1,5 +1,6 @@
 package gr.edusuite.invoicer.core.usecase
 
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -26,15 +27,27 @@ class DeleteGroup(
 ) {
     suspend operator fun invoke(groupId: Long) {
         if (lessons.getLessonsOfGroup(groupId).any { it.isInvoiced }) {
-            throw DomainException("Some of this group's lessons are on an invoice. Archive the group instead.")
+            throw DomainException("Some of this group's lessons are on a statement. Archive the group instead.")
         }
         groups.deleteGroup(groupId)
     }
 }
 
 /**
- * Logs one group session: a lesson row for every attending student, billed at the group rate, and a
- * non-billable `absent` row for every absent student so attendance history is kept.
+ * One member's attendance at a group lesson: present, absent (excused, never charged) or absent as a
+ * late cancellation (charged), with an optional reason for an absence (R3).
+ */
+data class Attendance(
+    val studentId: Long,
+    val absent: Boolean = false,
+    val charge: AbsenceCharge = AbsenceCharge.NONE,
+    val note: String = "",
+)
+
+/**
+ * Logs one group session: a lesson row for every member in [attendance], billed at the group rate.
+ * Absent members get an `absent` row so attendance history is kept; it is charged only when it is a
+ * late cancellation.
  */
 class LogGroupLesson(
     private val groups: GroupRepository,
@@ -45,28 +58,31 @@ class LogGroupLesson(
         date: LocalDate,
         startTime: LocalTime,
         durationMinutes: Int,
-        studentIds: Collection<Long>,
-        absentIds: Set<Long>,
+        attendance: List<Attendance>,
         notes: String = "",
     ): List<Long> {
         val group = groups.getGroup(groupId) ?: throw DomainException("Group not found")
         validateDuration(durationMinutes)
-        if (studentIds.isEmpty()) throw DomainException("Select at least one student")
-        val strangers = studentIds.filterNot { it in group.memberIds }
+        if (attendance.isEmpty()) throw DomainException("Select at least one student")
+        val strangers = attendance.filterNot { it.studentId in group.memberIds }
         if (strangers.isNotEmpty()) throw DomainException("Some students are not members of ${group.name}")
-        if (!studentIds.containsAll(absentIds)) throw DomainException("Absent students must be in the session")
+        if (attendance.distinctBy { it.studentId }.size != attendance.size) {
+            throw DomainException("Each student can be listed only once")
+        }
 
         val fee = group.rate.feeFor(durationMinutes)
-        val rows = studentIds.distinct().sorted().map { studentId ->
+        val rows = attendance.sortedBy { it.studentId }.map { member ->
             Lesson(
-                studentId = studentId,
+                studentId = member.studentId,
                 groupId = group.id,
                 date = date,
                 startTime = startTime,
                 durationMinutes = durationMinutes,
                 fee = fee,
-                absent = studentId in absentIds,
+                absent = member.absent,
                 notes = notes.trim(),
+                absenceCharge = if (member.absent) member.charge else AbsenceCharge.NONE,
+                absenceNote = if (member.absent) member.note.trim() else "",
             )
         }
         return lessons.insertLessons(rows)

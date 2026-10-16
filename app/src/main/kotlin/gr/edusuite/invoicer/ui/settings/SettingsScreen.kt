@@ -46,6 +46,7 @@ import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.appViewModel
+import gr.edusuite.invoicer.ui.lessons.SwitchRow
 import java.time.LocalDate
 
 @Composable
@@ -92,7 +93,7 @@ fun SettingsScreen(
         ) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            Section("Your details", "Printed at the top of every invoice.")
+            Section("Your details", "Printed at the top of every statement.")
             CommitField(
                 value = form.name,
                 onValueChange = viewModel::onName,
@@ -106,6 +107,11 @@ fun SettingsScreen(
                 singleLine = false,
                 minLines = 2,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            SwitchRow(
+                "Show address on statements",
+                form.showAddressOnStatements,
+                viewModel::onShowAddressOnStatements,
             )
             CommitField(
                 value = form.phone,
@@ -126,7 +132,7 @@ fun SettingsScreen(
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             )
 
-            Section("Invoices & lessons")
+            Section("Statements & lessons")
             CommitField(
                 value = form.currencyCode,
                 onValueChange = viewModel::onCurrency,
@@ -150,7 +156,7 @@ fun SettingsScreen(
             CommitField(
                 value = form.footer,
                 onValueChange = viewModel::onFooter,
-                label = "Invoice footer (e.g. thank-you note)",
+                label = "Statement footer (e.g. thank-you note)",
                 singleLine = false,
                 minLines = 2,
             )
@@ -223,7 +229,7 @@ fun SettingsScreen(
     pendingImport?.let { uri ->
         ConfirmDialog(
             title = "Replace all data?",
-            text = "Importing replaces every student, lesson, invoice and setting on this device with the backup.",
+            text = "Importing replaces every student, lesson, statement and setting on this device with the backup.",
             confirmLabel = "Replace",
             onConfirm = { viewModel.importBackup(uri) },
             onDismiss = { pendingImport = null },

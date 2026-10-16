@@ -86,7 +86,10 @@ interface LessonRepository {
 
     suspend fun deleteLesson(id: Long)
 
-    /** Sets (or clears, when [paidOn] is null) the payment date of the given lessons. */
+    /**
+     * Sets (or clears, when [paidOn] is null) the payment date of the given lessons. Lessons that are not
+     * charged (excused absences, free lessons) are left unchanged: they are never paid.
+     */
     suspend fun setPaid(ids: Collection<Long>, paidOn: LocalDate?)
 }
 
@@ -109,8 +112,8 @@ interface InvoiceRepository {
     suspend fun countInvoicesOfStudent(studentId: Long): Int
 
     /**
-     * Atomically stores [invoice] and links [lessonIds] to it. When [paidOn] is set, lessons that are
-     * still unpaid are marked paid on that date.
+     * Atomically stores [invoice] and links [lessonIds] to it. When [paidOn] is set, charged lessons that
+     * are still unpaid are marked paid on that date.
      */
     suspend fun createInvoice(invoice: Invoice, lessonIds: Collection<Long>, paidOn: LocalDate?): Long
 

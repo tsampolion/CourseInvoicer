@@ -65,6 +65,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
                 earlyJune = getBoolean(REMIND_EARLY_JUNE, defaults.reminders.earlyJune),
                 earlyEaster = getBoolean(REMIND_EARLY_EASTER, defaults.reminders.earlyEaster),
             ),
+            showAddressOnStatements = getBoolean(SHOW_ADDRESS, defaults.showAddressOnStatements),
         )
     }
 
@@ -83,6 +84,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             putBoolean(REMIND_EARLY_DECEMBER, settings.reminders.earlyDecember)
             putBoolean(REMIND_EARLY_JUNE, settings.reminders.earlyJune)
             putBoolean(REMIND_EARLY_EASTER, settings.reminders.earlyEaster)
+            putBoolean(SHOW_ADDRESS, settings.showAddressOnStatements)
         }
     }
 
@@ -102,6 +104,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         private const val REMIND_EARLY_DECEMBER = "remind_early_december"
         private const val REMIND_EARLY_JUNE = "remind_early_june"
         private const val REMIND_EARLY_EASTER = "remind_early_easter"
+        private const val SHOW_ADDRESS = "show_address_on_statements"
 
         /** Written by versions before 2.0.0; removed on load. */
         private const val REMOVED_TAX_ID = "tax_id"

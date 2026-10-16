@@ -12,10 +12,11 @@ tutor, part of the EduSuite apps with Course Pacer:
 2. Log lessons.
 3. See who owes what.
 4. Record payments.
-5. Issue invoices as PDFs.
+5. Issue lesson statements as PDFs. Statements are informational, not fiscal documents (D20). In code
+   and in the database they are still called invoices.
 6. Back the data up.
 
-Nothing leaves the device unless the tutor shares an invoice or exports a backup.
+Nothing leaves the device unless the tutor shares a statement or exports a backup.
 
 ## 2. Business rules
 
@@ -26,17 +27,18 @@ The rule numbers are referenced from code comments and PRs.
 |---|------|-------------|
 | R1 | **Billing:** `HOURLY` fee = rate × minutes ÷ 60. `PER_LESSON` fee = rate. Money is integer cents, rounded half-up. | `Rate.feeFor` |
 | R2 | **Fee snapshot:** a lesson stores its fee when it is logged. Changing a rate never rewrites past lessons. | `Lesson.fee`, `SaveLesson` |
-| R3 | **Group lessons:** one row per member, billed at the *group* rate. Absent members get an `absent` row that is never charged, and so is never paid either. | `LogGroupLesson`, `SaveLesson` |
-| R4 | **Invoices:** one student per invoice. Only lessons that are not invoiced and not absent can be added. A lesson is on at most one invoice. The database guards this in the same transaction. | `CreateInvoice`, `SqlInvoiceRepository` |
-| R5 | **Numbering:** invoice numbers run `YYYY-NNNN` per calendar year. They are **never reused**. | `InvoiceNumbering` |
-| R6 | **Voiding:** an invoice is voided, never deleted. Voiding releases its lessons so they can be invoiced again. The void invoice and its number stay visible. A void invoice cannot be shared. | `VoidInvoice`, `SqlInvoiceRepository.voidInvoice`, `GetInvoiceDocument` |
-| R7 | **Locking:** while a lesson is on an invoice, its student, group, date, time, duration, fee and attendance are read-only, and it cannot be deleted. Notes and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
-| R8 | **Rescheduling:** several lessons can move to a new date and start time in one step, but only if none of them is paid or invoiced. Duration and fee are kept. | `RescheduleLessons` |
-| R9 | **Outstanding** = sum of fees of lessons that are unpaid and not absent. Home, Dashboard and Students sum it in SQL with the same rule. | `Lesson.isOutstanding`, `Reports`, `SqlLessonRepository.observeBalances` |
+| R3 | **Attendance and absences:** a lesson is held or absent. An absence is either *excused* (not charged, so never paid either) or a *late cancellation* (under 24 hours' notice), charged the full fee like a held lesson. An absence can carry a reason. Group lessons have one row per member, billed at the *group* rate; each member is marked Present, Absent or Late cancel in the attendance list. A lesson that was held has no absence charge or reason. | `Lesson.charge`, `LogGroupLesson`, `SaveLesson` |
+| R4 | **Statements:** one student per statement. Any lessons of that student that are on no other statement can be added, absences included: an excused absence is a 0.00 line, a late cancellation is charged. A statement whose lessons are all excused totals 0.00 and is allowed. A lesson is on at most one statement. The database guards this in the same transaction. Marking the lessons paid when issuing pays only the charged ones. | `CreateInvoice`, `SqlInvoiceRepository` |
+| R5 | **Numbering:** statement numbers run `YYYY-NNNN` per calendar year. They are **never reused**. | `InvoiceNumbering` |
+| R6 | **Voiding:** a statement is voided, never deleted. Voiding releases its lessons so they can go on a new statement. The void statement and its number stay visible. A void statement cannot be shared. | `VoidInvoice`, `SqlInvoiceRepository.voidInvoice`, `GetInvoiceDocument` |
+| R7 | **Locking:** while a lesson is on a statement, its student, group, date, time, duration, fee, attendance and absence charge are read-only, and it cannot be deleted. Notes, the absence reason and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
+| R8 | **Rescheduling:** several lessons can move to a new date and start time in one step, but only if none of them is paid or on a statement. Duration and fee are kept. | `RescheduleLessons` |
+| R9 | **Outstanding** = sum of the fees of lessons that are unpaid and *charged*: held or late-cancelled, with a fee above zero. Only charged lessons can be paid. Home, Dashboard and Students sum it in SQL with the same rule (`CHARGED_LESSON`). | `Lesson.isOutstanding`, `Reports`, `SqlLessonRepository.observeBalances`, `setPaid` |
 | R10 | **Archiving:** archived students and groups move to the *Archived* filter and keep their history. Archived students leave the student pickers, and an archived group has no *Log lesson* button. A student can be deleted only if they have no lessons and no invoices (void ones included). A group can be deleted only if none of its lessons is invoiced; its other lessons are kept without the group. | `DeleteStudent`, `DeleteGroup` |
-| R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction, then applies the backup's settings. Once a restore starts, cancelling it does not stop it half-way. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
-| R12 | **Issued documents:** an invoice's content (seller, bill-to, lines, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Invoices created before schema 3 are frozen the first time they are shared. An invoice is paid once it has lessons and all are paid. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
+| R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction, then applies the backup's settings. Once a restore starts, cancelling it does not stop it half-way. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, an unknown absence charge, a paid excused absence, a lesson on a void or missing statement…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
+| R12 | **Issued documents:** a statement's content (title, disclaimer, seller, bill-to, lines and their notes, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Statements created before schema 3 are frozen the first time they are shared; documents issued before 2.0.0 have no title or disclaimer and keep rendering as issued. A statement is paid once it has lessons and every charged one is paid, so one of excused absences only is paid at once. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
 | R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. Settings save as they are typed, each field checked on its own: invalid input is never stored, the stored value stays in use and the field shows an inline error, while valid fields still save. | `SettingsRules`, `SaveSettings`, `SettingsViewModel` |
+| R14 | **Statement content:** the heading is «ΕΝΗΜΕΡΩΤΙΚΗ ΚΑΤΑΣΤΑΣΗ ΜΑΘΗΜΑΤΩΝ / Lesson statement». The seller block has the tutor's name, phone and email, and the address only when *Show address on statements* is on (off by default). Bill-to is the student and "c/o" the guardian. Each line has date, description, duration and the amount charged (0.00 for an excused absence); an absence line adds the note "Absent — not charged" or "Late cancellation (under 24 h) — charged", followed by the reason if one was given. Then the total, the statement notes, the IBAN payment note and the footer. The non-fiscal disclaimer (D20) appears boxed under the header and in every page footer: «ΤΟ ΠΑΡΟΝ ΔΕΝ ΑΠΟΤΕΛΕΙ ΦΟΡΟΛΟΓΙΚΟ ΣΤΟΙΧΕΙΟ. Δεν είναι τιμολόγιο ούτε απόδειξη παροχής υπηρεσιών κατά τον ν. 4308/2014 (ΕΛΠ) και δεν διαβιβάζεται στην ΑΑΔΕ (myDATA). Για κάθε πληρωμή εκδίδεται χωριστά νόμιμη απόδειξη.» The PDF is named `statement-<number>.pdf`. | `InvoiceDocumentBuilder`, `InvoicePdfWriter` |
 | R15 | **Month-end reminder:** opening the app on Home asks *Time to invoice* the month (e.g. *Time to invoice March*) while it has lessons on no statement (absences included). A month's reminder runs from the 29th to its last day; February, which has fewer than 30 days, starts on its second-to-last day (the 27th, or the 28th in a leap year). December, June and the Easter month start on the 21st, each while its switch is on. The Easter month is the month of Orthodox Easter when Easter falls on or after the 21st, else the month before. During days 1–7 of the next month the previous month is still asked about. *Remind me tomorrow* hides it until the next day, *Done for this month* stops it for that month (and earlier ones), and *Create statements* or Back only hide it until the app is next opened. A master switch turns every reminder off. It is a dialog inside the app, not a notification. | `InvoiceReminder`, `HomeViewModel`, `LessonRepository.observeUninvoicedSummary` |
 
 ## 3. Data model
@@ -45,9 +47,9 @@ The rule numbers are referenced from code comments and PRs.
 |--------|-----------|-------|
 | Student | name, class, guardian, phone, email, rate (cents + type), notes, archived | |
 | StudentGroup | name, class, rate, member ids, archived | Members are stored in `group_members` |
-| Lesson | student, group?, date, start time, minutes, fee, absent, notes, paidOn?, invoice? | `paidOn` is the payment record |
-| Invoice | number, student, issue date, total, notes, voidedOn?, document? | Never deleted (R6). `document` is the content as issued (R12) |
-| AppSettings | business details (name, address, phone, email, IBAN), currency, default lesson length, theme, invoice footer, reminder switches (on, early December, early June, early Easter month) | SharedPreferences. The Tax ID was removed in 2.0.0 |
+| Lesson | student, group?, date, start time, minutes, fee, absent, absence charge (`NONE` or `LATE_CANCELLATION`), absence note, notes, paidOn?, invoice? | `paidOn` is the payment record. The absence fields mean something only while `absent` is set (R3) |
+| Invoice | number, student, issue date, total, notes, voidedOn?, document? | Shown as a *statement*. Never deleted (R6). `document` is the content as issued (R12, R14) |
+| AppSettings | business details (name, address, phone, email, IBAN), currency, default lesson length, theme, statement footer (`invoiceFooter`), show address on statements, reminder switches (on, early December, early June, early Easter month) | SharedPreferences. The Tax ID was removed in 2.0.0 |
 | Reminder state | the month marked done, the snooze date | Its own SharedPreferences file `reminder_state`, on this device only: never in a backup (R15) |
 
 Version history:
@@ -58,19 +60,19 @@ Version history:
 | 2.0.0-alpha02 | 2 | 2 | Adds `invoices.voided_on` (backup field `voidedOn`) for voiding (R6). Schema 1 upgrades automatically. v1 backups still import. |
 | 2.0.0-alpha03 | 3 | 3 | Adds `invoices.document` (backup field `document`), the content as issued (R12). Schema 2 upgrades automatically. v1 and v2 backups still import. |
 | 2.0.0 | 3 | 3 | Drops the settings field `taxId`: no longer written, and ignored when an older backup has it. |
-| 2.0.0 | 3 | 3 | Adds the settings fields `remindersEnabled`, `remindEarlyDecember`, `remindEarlyJune` and `remindEarlyEaster` (R15). A backup without them restores them switched on. |
+| 2.0.0 | 4 | 4 | Adds `lessons.absence_charge` and `lessons.absence_note` (backup fields `absenceCharge`, `absenceNote`) for late cancellations (R3), the settings field `showAddressOnStatements`, and optional `title`, `disclaimer` and line `note` in documents (R14). Schema 3 upgrades automatically, with every existing absence excused. v1 to v3 backups still import. It also adds the settings fields `remindersEnabled`, `remindEarlyDecember`, `remindEarlyJune` and `remindEarlyEaster` (R15); a backup without them restores them switched on. |
 
 ## 4. Features
 
 | Area | What the tutor can do |
 |------|-----------------------|
-| Home | The launcher the app opens on: the EduSuite home header, then a button per section with a live figure (Dashboard: the outstanding total; Students: active students; Groups: active groups; Lessons: how many are not invoiced, absences included; Statements: how many are unpaid, not counting void ones; Settings). A section with nothing in it yet shows a faded button that still opens it. *Log lesson* appears once there is an active student. Every other screen has a Back arrow; Back from a section returns here. At the end of a month it asks once to send that month's statements (R15): *Create statements* opens Statements, or *Remind me tomorrow*, or *Done for this month*. |
+| Home | The launcher the app opens on: the EduSuite home header, then a button per section with a live figure (Dashboard: the outstanding total; Students: active students; Groups: active groups; Lessons: how many are on no statement, absences included; Statements: how many are unpaid, not counting void ones; Settings). A section with nothing in it yet shows a faded button that still opens it. *Log lesson* appears once there is an active student. Every other screen has a Back arrow; Back from a section returns here. At the end of a month it asks once to send that month's statements (R15): *Create statements* opens Statements, or *Remind me tomorrow*, or *Done for this month*. |
 | Dashboard | See the month's lessons, hours, earned, paid and unpaid amounts. See the all-time outstanding total and who owes. |
-| Students | Search, filter *Active* or *Archived*, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start an invoice. Archive, restore or delete. |
-| Groups | Filter *Active* or *Archived*. Create or edit a group with members and a rate. Log a group lesson with attendance. Archive, restore or delete a group. |
-| Lessons | Browse by month and filter by all, unpaid or not invoiced. Add, edit or delete a lesson. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
-| Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Tap an issued invoice to share it again. See whether each is paid, unpaid or void. Void it. |
-| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Changes save as you type, with no *Save* button; the theme applies at once. Turn the month-end reminder on or off, and choose whether December, June and the Easter month start it on the 21st; switches apply at once. Export or import a JSON backup. |
+| Students | Search, filter *Active* or *Archived*, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start a statement. Archive, restore or delete. |
+| Groups | Filter *Active* or *Archived*. Create or edit a group with members and a rate. Log a group lesson with attendance: each member Present, Absent or Late cancel, with an optional reason. Archive, restore or delete a group. |
+| Lessons | Browse by month and filter by all, unpaid or on no statement. Add, edit or delete a lesson. Mark a lesson absent, either not charged or as a late cancellation (charged), with a reason. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
+| Statements | Create a statement from a student's lessons that are on no statement yet, absences included, optionally marking them paid. Share it as an A4 PDF that says on every page it is not a fiscal document. Tap an issued statement to share it again. See whether each is paid, unpaid or void. Void it. |
+| Settings | Set the business details printed on statements (and whether the address is), the currency, the default lesson length, the theme and the statement footer. Changes save as you type, with no *Save* button; the theme and switches apply at once. Turn the month-end reminder on or off, and choose whether December, June and the Easter month start it on the 21st. Export or import a JSON backup. |
 
 ## 5. Out of scope and backlog
 
@@ -80,7 +82,7 @@ Version history:
 | Database encryption | Backlog | Needs SQLCipher, an approved dependency, and a key-management design. |
 | Cloud sync / multi-device | Backlog | Needs a backend. Use backups to move data for now. |
 | Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
-| Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
+| Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are lesson statements, not fiscal documents, and say so (D20, R14). |
 | Crash reporting / analytics | Dropped | No network permission by design. |
 | Google Play Store release | Dropped | Not planned (D9). Builds are installed from GitHub releases or CI (§8). Release-only items were removed in alpha03 (see the appendix). |
 
@@ -107,6 +109,7 @@ Version history:
 | D17 | Rename to **Course Invoicer**, part of the EduSuite apps, with a new `applicationId` and package `gr.edusuite.invoicer` | The owner's apps now share one suite name and style. A new `applicationId` installs beside the old EduInvoice app instead of over it, so the tutor moves data once: export a backup from EduInvoice, install Course Invoicer, import, then uninstall the old app. Backups now say `course-invoicer-backup`; files that say `eduinvoice-backup` (versions 1 to 3) still import. The database file is `course_invoicer.db`. Launcher shortcuts to the old app go with it. | 2.0.0 |
 | D18 | Plain SemVer `MAJOR.MINOR.PATCH` for `versionName`, tags and changelog sections; no pre-release suffix | The owner's choice. Earlier `-alphaNN` tags and sections stay as history. `release.yml` rejects any other `versionName`, so no release is marked *Pre-release*. 2.0.0 follows 2.0.0-alpha03. | 2.0.0 |
 | D19 | EduSuite style: a shared base (paper neutrals, warn and ok colours, serif titles, monospace figures, flat panels) plus one accent per app, with dynamic (wallpaper) colour off. The canonical guide is [`docs/EDUSUITE_STYLE_GUIDE.md`](EDUSUITE_STYLE_GUIDE.md) | The suite apps should look like one family, and the accent tells them apart; wallpaper colours would replace it. One guide, copied into each app, keeps them in step. Course Invoicer's accent is purple `#5B3FA0`. The launcher icon is a vector adaptive icon, so the bitmap mipmaps went. | 2.0.0 |
+| D20 | Statements are informational, not fiscal documents (Law 4308/2014, ΕΛΠ; AADE myDATA). Everything user-visible says *statement*; code, routes and the database keep *invoice*. The non-fiscal disclaimer is printed on every page (R14). Absences can go on statements, and late cancellations are charged (R3, R4) | The tutor issues the legal receipt for each payment separately; a document that looks like an invoice but is not one must say so plainly. The owner should have an accountant confirm the disclaimer wording. | 2.0.0 |
 
 ## 7. Dependency register
 

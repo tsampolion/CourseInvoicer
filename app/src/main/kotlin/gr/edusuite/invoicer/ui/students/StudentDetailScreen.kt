@@ -154,7 +154,7 @@ fun StudentDetailScreen(
                                 Text("Record payment")
                             }
                             OutlinedButton(onClick = onCreateInvoice, enabled = state.invoiceableLessons > 0) {
-                                Text("Invoice")
+                                Text("Statement")
                             }
                         }
                     }
@@ -175,7 +175,7 @@ fun StudentDetailScreen(
                 HorizontalDivider()
             }
             if (state.invoices.isNotEmpty()) {
-                item { SectionHeader("Invoices") }
+                item { SectionHeader("Statements") }
                 items(state.invoices, key = { "invoice-${it.id}" }) { invoice ->
                     ListItem(
                         headlineContent = { Text(invoice.number + if (invoice.isVoid) " (void)" else "") },
@@ -202,7 +202,7 @@ fun StudentDetailScreen(
         )
         PendingAction.Archive -> ConfirmDialog(
             title = "Archive student",
-            text = "Archived students are hidden from lists and pickers. Their lessons and invoices are kept.",
+            text = "Archived students are hidden from lists and pickers. Their lessons and statements are kept.",
             confirmLabel = "Archive",
             onConfirm = { viewModel.setArchived(true) },
             onDismiss = { pending = null },

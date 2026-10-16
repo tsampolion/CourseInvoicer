@@ -49,19 +49,22 @@ fun LessonRow(
                         formats.duration(lesson.durationMinutes),
                 )
                 Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (lesson.isExcused) StatusChip("Absent", ChipTone.Neutral)
+                    if (lesson.isLateCancellation) StatusChip("Late cancel", ChipTone.Neutral)
                     when {
-                        lesson.absent -> StatusChip("Absent", ChipTone.Neutral)
+                        lesson.isExcused -> Unit
                         lesson.isPaid -> StatusChip("Paid", ChipTone.Good)
                         lesson.charge.isPositive -> StatusChip("Unpaid", ChipTone.Warning)
                     }
-                    if (lesson.isInvoiced) StatusChip("Invoiced", ChipTone.Neutral)
+                    if (lesson.isInvoiced) StatusChip("On statement", ChipTone.Neutral)
                 }
             }
         },
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(formats.money(lesson.charge), style = MaterialTheme.typography.titleSmall)
-                if (!lesson.absent) {
+                // Only charged lessons can be paid (see LessonRepository.setPaid).
+                if (lesson.charge.isPositive) {
                     Checkbox(
                         checked = lesson.isPaid,
                         onCheckedChange = onPaidChange,

@@ -49,10 +49,25 @@ class MoneyTest {
     }
 
     @Test
-    fun `absent lessons are never charged or outstanding`() {
+    fun `excused absences are never charged or outstanding but can go on a statement`() {
         val absent = gr.edusuite.invoicer.core.lesson(studentId = 1, absent = true)
         assertEquals(Money.ZERO, absent.charge)
         assertEquals(false, absent.isOutstanding)
-        assertEquals(false, absent.isInvoiceable)
+        assertEquals(true, absent.isInvoiceable)
+        assertEquals(false, absent.copy(invoiceId = 3).isInvoiceable)
+    }
+
+    @Test
+    fun `late cancellations are charged the full fee`() {
+        val late = gr.edusuite.invoicer.core.lateCancel(studentId = 1, fee = "20")
+        assertEquals(Money(2000), late.charge)
+        assertEquals(true, late.isOutstanding)
+        assertEquals(true, late.isLateCancellation)
+        assertEquals(false, late.isExcused)
+        assertEquals(
+            "the charge means nothing for a lesson that was held",
+            Money(2000),
+            late.copy(absent = false).charge,
+        )
     }
 }

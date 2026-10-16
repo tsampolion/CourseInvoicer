@@ -7,7 +7,7 @@ where the code stands today, what to change, and when it counts as done.
 
 Tick a box in the pull request that does the work. When an item is done, move it to *Done* at the
 end and note the version it shipped in. Product behaviour still belongs in
-[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md): when a task changes a rule (R1–R13) or makes a decision,
+[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md): when a task changes a rule (R1–R15) or makes a decision,
 update the spec in the same pull request.
 
 ## Order of work
@@ -50,7 +50,8 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 - `LessonEditViewModel.setPaid` and `setNotes` bypass its `edit()` guard;
 - some writes skip the use cases: `lessons.setPaid` is called from `LessonsViewModel` and
   `StudentDetailViewModel`, and archiving is a read-modify-write in `StudentDetailViewModel`;
-- R3 (absent lessons are never paid) is guarded only by the UI (`LessonRow.kt`).
+- R3 (excused absences are never paid) is enforced by `SaveLesson` and by `setPaid`, which skips
+  lessons that are not charged (2.0.0), but not yet by a use case.
 
 **Tasks**
 - [ ] Add a `stateInCatching` helper next to `launchCatching`. It catches upstream errors, keeps the
@@ -60,7 +61,7 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 - [ ] Give each form ViewModel one private `edit(transform)` that every setter calls, with the lock
       check (R7) inside it.
 - [ ] Add `MarkPaid` and `ArchiveStudent` / `ArchiveGroup` use cases in `core/usecase`. `MarkPaid`
-      refuses absent lessons (R3). Call them from the ViewModels instead of the repositories.
+      refuses lessons that are not charged (R3). Call them from the ViewModels instead of the repositories.
 - [ ] Tests: `core` tests for the new use cases. A `ViewModelsTest` case where the repository flow
       throws and the screen shows a message instead of crashing.
 

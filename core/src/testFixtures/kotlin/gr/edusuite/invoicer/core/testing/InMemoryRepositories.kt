@@ -176,9 +176,14 @@ class InMemoryRepositories :
         data.update { it.copy(lessons = it.lessons - id) }
     }
 
+    // Like the SQL update, rows that are not charged (excused absences, free lessons) are left alone.
     override suspend fun setPaid(ids: Collection<Long>, paidOn: LocalDate?) {
         data.update { d ->
-            d.copy(lessons = d.lessons.mapValues { (id, l) -> if (id in ids) l.copy(paidOn = paidOn) else l })
+            d.copy(
+                lessons = d.lessons.mapValues { (id, l) ->
+                    if (id in ids && l.charge.isPositive) l.copy(paidOn = paidOn) else l
+                },
+            )
         }
     }
 
@@ -206,17 +211,22 @@ class InMemoryRepositories :
 
     override suspend fun createInvoice(invoice: Invoice, lessonIds: Collection<Long>, paidOn: LocalDate?): Long {
         check(data.value.invoices.values.none { it.number == invoice.number }) { "UNIQUE constraint failed" }
-        // Same all-or-nothing guard as the SQL update: every lesson must exist, be uninvoiced and not absent.
+        // Same all-or-nothing guard as the SQL update: every lesson must exist and be on no other statement.
         val linkable = lessonIds.distinct().map { data.value.lessons[it] }
-        if (linkable.any { it == null || it.invoiceId != null || it.absent }) {
-            throw DomainException("Some lessons are already on an invoice")
+        if (linkable.any { it == null || it.invoiceId != null }) {
+            throw DomainException("Some lessons are already on a statement")
         }
         val id = allocateId()
         data.update { d ->
             d.copy(
                 invoices = d.invoices + (id to invoice.copy(id = id)),
                 lessons = d.lessons.mapValues { (lessonId, l) ->
-                    if (lessonId in lessonIds) l.copy(invoiceId = id, paidOn = l.paidOn ?: paidOn) else l
+                    when {
+                        lessonId !in lessonIds -> l
+                        // Only charged lessons are marked paid, as in the SQL update.
+                        l.charge.isPositive -> l.copy(invoiceId = id, paidOn = l.paidOn ?: paidOn)
+                        else -> l.copy(invoiceId = id)
+                    }
                 },
             )
         }

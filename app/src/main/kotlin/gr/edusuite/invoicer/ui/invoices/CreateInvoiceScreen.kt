@@ -57,7 +57,7 @@ fun CreateInvoiceScreen(
     MessageEffect(state.message, snackbar, viewModel::messageShown)
 
     ScreenScaffold(
-        title = "New invoice",
+        title = "New statement",
         modifier = modifier,
         onBack = onBack,
         snackbarHostState = snackbar,
@@ -76,7 +76,7 @@ fun CreateInvoiceScreen(
                     OutlinedTextField(
                         value = state.notes,
                         onValueChange = viewModel::setNotes,
-                        label = { Text("Notes on the invoice") },
+                        label = { Text("Notes on the statement") },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                     SwitchRow("Mark these lessons as paid", state.markPaid, viewModel::setMarkPaid)
@@ -90,7 +90,7 @@ fun CreateInvoiceScreen(
             if (state.studentId != null && state.lessons.isEmpty()) {
                 item {
                     Text(
-                        "This student has no lessons waiting to be invoiced.",
+                        "This student has no lessons waiting for a statement.",
                         Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -124,7 +124,13 @@ fun CreateInvoiceScreen(
                     Column(Modifier.weight(1f).padding(start = 8.dp)) {
                         Text("${formats.date(lesson.date)} · ${formats.duration(lesson.durationMinutes)}")
                         val group = lesson.groupId?.let { state.groupNames[it] }
-                        val detail = listOfNotNull(group, lesson.notes.takeIf { it.isNotBlank() }).joinToString(" · ")
+                        val absence = when {
+                            lesson.isExcused -> "Absent, not charged"
+                            lesson.isLateCancellation -> "Late cancellation"
+                            else -> null
+                        }
+                        val detail = listOfNotNull(absence, group, lesson.notes.takeIf { it.isNotBlank() })
+                            .joinToString(" · ")
                         if (detail.isNotEmpty()) Text(detail, style = MaterialTheme.typography.bodySmall)
                     }
                     Text(formats.money(lesson.charge))
@@ -136,7 +142,7 @@ fun CreateInvoiceScreen(
     state.created?.let { invoice ->
         AlertDialog(
             onDismissRequest = onDone,
-            title = { Text("Invoice ${invoice.number} created") },
+            title = { Text("Statement ${invoice.number} created") },
             text = { Text("Total ${formats.money(invoice.total)}. Share the PDF with the student now?") },
             confirmButton = { TextButton(onClick = { shareInvoice(invoice.id) }) { Text("Share PDF") } },
             dismissButton = { TextButton(onClick = onDone) { Text("Done") } },

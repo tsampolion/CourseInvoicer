@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,8 +29,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.ui.common.AppIcons
 import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.DateField
@@ -89,7 +93,8 @@ fun LessonEditScreen(
             if (state.locked) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Text(
-                        "This lesson is on an invoice. Void the invoice to change its date, length or fee.",
+                        "This lesson is on a statement. Void the statement to change its date, length, fee " +
+                            "or attendance.",
                         Modifier.padding(12.dp),
                     )
                 }
@@ -120,8 +125,40 @@ fun LessonEditScreen(
                     else -> "Calculated from the rate; you can change it"
                 },
             )
-            SwitchRow("Absent (not charged)", state.absent, viewModel::setAbsent, enabled = editable)
-            SwitchRow("Paid", state.paid, viewModel::setPaid, enabled = !state.absent)
+            SwitchRow("Absent", state.absent, viewModel::setAbsent, enabled = editable)
+            if (state.absent) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.absenceCharge == AbsenceCharge.NONE,
+                        onClick = { viewModel.setAbsenceCharge(AbsenceCharge.NONE) },
+                        label = { Text("Not charged") },
+                        enabled = editable,
+                    )
+                    FilterChip(
+                        selected = state.absenceCharge == AbsenceCharge.LATE_CANCELLATION,
+                        onClick = { viewModel.setAbsenceCharge(AbsenceCharge.LATE_CANCELLATION) },
+                        label = { Text("Late cancellation") },
+                        enabled = editable,
+                    )
+                }
+                Text(
+                    if (state.absenceCharge == AbsenceCharge.LATE_CANCELLATION) {
+                        "Cancelled under 24 hours before: charged the full fee."
+                    } else {
+                        "Recorded but not charged. It can still go on a statement, at 0.00."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = state.absenceNote,
+                    onValueChange = viewModel::setAbsenceNote,
+                    label = { Text("Reason (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            SwitchRow("Paid", state.paid, viewModel::setPaid, enabled = state.charged)
             OutlinedTextField(
                 value = state.notes,
                 onValueChange = viewModel::setNotes,
@@ -143,6 +180,7 @@ fun LessonEditScreen(
     }
 }
 
+/** A labelled switch; the whole row toggles it, so the label is part of the touch target. */
 @Composable
 internal fun SwitchRow(
     label: String,
@@ -151,8 +189,13 @@ internal fun SwitchRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

@@ -167,7 +167,7 @@ private fun RescheduleDialog(
                 DateField("New date", date, { date = it })
                 TimeField("New start time", time, { time = it })
                 Text(
-                    "Length and fee stay the same. Only unpaid, uninvoiced lessons can move.",
+                    "Length and fee stay the same. Only unpaid lessons that are on no statement can move.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

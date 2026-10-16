@@ -56,7 +56,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   every open screen refreshes after a change. Settings are not a table: `PrefsSettingsRepository`
   keeps them in SharedPreferences and exposes a `StateFlow`.
 - **Rules.** Use cases in `core/usecase` (`SaveLesson`, `CreateInvoice`, `VoidInvoice`, …) enforce
-  the business rules R1–R13 and throw `DomainException` with a message the user can read. ViewModels
+  the business rules R1–R15 and throw `DomainException` with a message the user can read. ViewModels
   build the use cases they need from the repositories they receive (for example
   `LessonEditViewModel` creates `SaveLesson(lessons)`).
 - **ViewModels.** Each screen has one, exposing a single `state`. List screens `combine` repository
@@ -72,9 +72,10 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   `ViewModelStore`, cleared when the entry is popped (D3). There are no tabs: `Home` is the launcher
   and always the bottom of the stack, each section opens from a `HomeButton` on it, and every other
   screen has a Back arrow.
-- **Invoices.** `CreateInvoice` freezes an `InvoiceDocument` when the invoice is issued (R12).
-  `InvoiceExporter` renders it with `InvoicePdfWriter` (framework `PdfDocument`) and shares it
-  through `FileProvider`.
+- **Invoices (shown as statements).** The user reads *statement* everywhere; code, routes and the
+  database say *invoice* (D20). `CreateInvoice` freezes an `InvoiceDocument` when the statement is
+  issued (R12), with the non-fiscal title and disclaimer (R14). `InvoiceExporter` renders it with
+  `InvoicePdfWriter` (framework `PdfDocument`) and shares it through `FileProvider`.
 - **Backup.** `BackupCodec` in `:core` writes and validates versioned JSON (no serialization
   library, D6). `SqlBackupRepository.replaceAll` swaps all data in one transaction.
 
@@ -179,7 +180,13 @@ isn't enough, then wait for approval.
   Google cloud backup on purpose, so student data stays on the phone; the in-app JSON backup is the
   way to save it.
 - **An issued invoice never changes** (R12). Render from its frozen `InvoiceDocument`, never from
-  live settings, students or lessons.
+  live settings, students or lessons. Documents issued before 2.0.0 have no `title` or `disclaimer`;
+  keep rendering them as they were.
+- **"Charged" has one definition.** In Kotlin it is `Lesson.charge.isPositive` (held or a late
+  cancellation, fee above zero); in SQL it is `CHARGED_LESSON` in `SqlRepositories.kt`. Balances,
+  invoice payments and `setPaid` must use them, never `absent = 0` on its own.
+- **User-visible text says "statement", code says "invoice"** (D20). New strings follow that, the
+  domain messages in `:core` included.
 - **R8 shrinks the release build.** Anything reached only by reflection or JNI needs a keep rule in
   `app/proguard-rules.pro`. The emulator smoke test of the minified APK is the check; debug tests
   don't cover it.
