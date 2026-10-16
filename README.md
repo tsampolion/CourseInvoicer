@@ -142,7 +142,7 @@ import.
 - `minSdk 26`, so `java.time` works without desugaring. The theme is a framework theme, not
   AppCompat, and icons are drawn in code.
 - PDFs are drawn with the framework's `PdfDocument`, so no PDF library ships.
-- Releases ship a minified build (D16): about 2 MB, against 12.5 MB for the debug APK. More ideas to
+- Releases ship a minified build (D16): 1.9 MB, against 12.5 MB for the debug APK. More ideas to
   shrink it are in [`docs/ROADMAP.md`](docs/ROADMAP.md) item 11.
 
 ## Contributing

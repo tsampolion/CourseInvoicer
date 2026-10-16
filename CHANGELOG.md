@@ -70,8 +70,8 @@ and documentation reorganised for contributors.
   history.
 - **Releases ship a minified APK** (D16). The `release` build type is back: R8, resource shrinking,
   signed with the owner's key. CI builds it next to the debug APK, checks both signatures and
-  uploads it as `app-release`; `release.yml` attaches it. The debug APK stays the between-release
-  build.
+  uploads it as `app-release`; `release.yml` attaches it. It is 1.9 MB (1,906,154 bytes) against
+  12.5 MB for the debug APK, which stays the between-release build.
 - **Undo scope decided** (D15): deleting a lesson, recording a payment, marking paid and
   rescheduling will get *Undo* instead of a confirmation dialog (roadmap item 2).
 
