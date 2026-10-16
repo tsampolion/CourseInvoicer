@@ -114,7 +114,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 | `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch |
 | `app/…/ui/nav/Navigation.kt` | `Route`, `Navigator`, `NavHost` |
 | `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen; `ui/home` is the launcher, `ui/dashboard` the month's figures and who owes |
-| `app/…/ui/common` | Shared components, icons, `appViewModel {}`, `launchCatching`; `SuiteComponents.kt` holds the EduSuite pieces (`Section`, `Eyebrow`, `MoneyText`, `Logo`, `HomeButton`, `GuideCard`, `SuitePanel`); `EmptyState.kt` the empty-list badge |
+| `app/…/ui/common` | Shared components (`CommitField` for fields that save as you type), icons, `appViewModel {}`, `launchCatching`; `SuiteComponents.kt` holds the EduSuite pieces (`Section`, `Eyebrow`, `MoneyText`, `Logo`, `HomeButton`, `GuideCard`, `SuitePanel`); `EmptyState.kt` the empty-list badge |
 | `app/…/ui/theme` | `InvoicerTheme` (`Theme.kt`, no dynamic colour), tokens and `Invoicer.colors` extras (`Color.kt`), `Typography` and `Mono` (`Type.kt`), `Shapes` (`Shape.kt`), all from the style guide |
 | `app/src/test` | JVM tests: `ViewModelsTest`, `NavigatorTest` |
 | `app/src/androidTest` | Emulator tests: `SqlRepositoriesTest` (SQL, migrations), `EndToEndTest` |

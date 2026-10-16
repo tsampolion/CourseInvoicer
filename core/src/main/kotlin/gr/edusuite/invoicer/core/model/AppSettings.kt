@@ -6,7 +6,6 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 data class BusinessProfile(
     val name: String = "",
     val address: String = "",
-    val taxId: String = "",
     val phone: String = "",
     val email: String = "",
     val iban: String = "",

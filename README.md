@@ -31,7 +31,7 @@ always export a backup first.
 
 | To… | Go to |
 |-----|-------|
-| Put your name, address, tax ID and IBAN on invoices | Home → ⚙ Settings → *Your details* → **Save** |
+| Put your name, address and IBAN on invoices | Home → ⚙ Settings → *Your details* (saves as you type) |
 | Add a student and their rate (per hour or per lesson) | Students → **+** |
 | Log a lesson | **Log lesson** on Home or on a student. The fee is calculated from the rate and can be changed. |
 | Log a lesson for a whole group, with attendance | Groups → **Log lesson** on the group |

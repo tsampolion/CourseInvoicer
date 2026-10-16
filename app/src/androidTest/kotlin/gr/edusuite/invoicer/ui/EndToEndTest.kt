@@ -2,8 +2,10 @@ package gr.edusuite.invoicer.ui
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -11,6 +13,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import gr.edusuite.invoicer.CourseInvoicerApplication
 import gr.edusuite.invoicer.MainActivity
 import org.junit.Rule
 import org.junit.Test
@@ -76,5 +79,22 @@ class EndToEndTest {
         compose.onNodeWithContentDescription("Void invoice", substring = true).performClick()
         compose.onNodeWithText("Void").performClick()
         waitFor("voided", substring = true)
+    }
+
+    @Test
+    fun settingsSaveAsYouTypeWithoutASaveButton() {
+        val name = "Tutor${System.currentTimeMillis() % 1_000_000}"
+        val settings = (compose.activity.application as CourseInvoicerApplication).container.settingsRepository
+
+        openFromHome("Settings")
+        compose.onNodeWithText("Name or business name").performTextInput(name)
+        compose.onAllNodesWithText("Save").assertCountEquals(0)
+
+        // Leaving the screen saves what was typed without waiting for the pause.
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntil(timeoutMillis = 10_000) { settings.settings.value.business.name == name }
+
+        openFromHome("Settings")
+        waitFor(name)
     }
 }

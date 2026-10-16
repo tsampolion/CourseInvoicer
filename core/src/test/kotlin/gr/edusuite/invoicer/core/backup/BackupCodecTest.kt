@@ -103,6 +103,16 @@ class BackupCodecTest {
     }
 
     @Test
+    fun `ignores the removed Tax ID in older backups`() {
+        val current = BackupCodec.encode(snapshot)
+        assertTrue("taxId is no longer written", "taxId" !in current)
+
+        val withTaxId = current.replace("\"businessName\":", "\"taxId\": \"123\", \"businessName\":")
+        assertTrue("fixture must contain taxId", "\"taxId\": \"123\"" in withTaxId)
+        assertEquals(snapshot, BackupCodec.decode(withTaxId))
+    }
+
+    @Test
     fun `reads version 1 backups written before invoices could be voided`() {
         val v1 = BackupCodec.encode(snapshot.withoutDocuments())
             .replace("\"version\": 3", "\"version\": 1")

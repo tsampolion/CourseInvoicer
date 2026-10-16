@@ -54,6 +54,15 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 - **Plain SemVer** (D18): versions, tags and changelog sections are `MAJOR.MINOR.PATCH` with no
   pre-release suffix, so this release is 2.0.0. `release.yml` rejects any other `versionName` and no
   longer marks releases *Pre-release*.
+- **Settings save as you type** (R13). There is no *Save* button: text fields save 0.4 s after you
+  stop typing, the theme applies as soon as you pick it, and anything still waiting is saved when you
+  leave the screen or the app. A currency code or lesson length that isn't valid is never stored: the
+  field shows an error and the last valid value stays in use, while the other fields still save.
+
+### Removed
+- **Tax ID (ΑΦΜ) field.** It is no longer stored, printed on invoices or written to backups, and the
+  saved value is deleted from the settings file. Old backups that contain it still import. Invoices
+  already issued keep the document they were issued with (R12).
 
 ## [2.0.0-alpha03] - 2026-10-16
 
