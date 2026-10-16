@@ -24,6 +24,16 @@ How to use this file:
 
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 
+### Added
+- **EduSuite style guide** (`docs/EDUSUITE_STYLE_GUIDE.md`, D19): the shared look of Course
+  Invoicer and Course Pacer, with colour tokens and their contrast ratios, type, shapes, spacing,
+  components, the home header, launcher icon rules, accessibility and copy tone.
+- **Suite theme** (D19): a calm sage paper background with flat panels and 1dp lines, Course
+  Invoicer's purple accent, serif titles and monospace figures. Wallpaper (dynamic) colours are
+  off, so the app looks the same on every phone.
+- **New launcher icon**: an open book with a euro sign on a purple tile, drawn as a vector, with a
+  matching themed icon on Android 13 and later.
+
 ### Changed
 - **Renamed to Course Invoicer** (D17). The app has a new `applicationId`, `gr.edusuite.invoicer`,
   so it installs beside EduInvoice instead of over it. To move your data: in EduInvoice, *Settings →

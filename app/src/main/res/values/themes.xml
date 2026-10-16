@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window theme only (shown before Compose draws). Framework parent: no AppCompat or Material Components. -->
-    <style name="Theme.Invoicer" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Window theme only (shown before Compose draws). Framework parent: no AppCompat or Material Components.
+         The paper background avoids a white flash before the first frame; the app is edge-to-edge. -->
+    <style name="Theme.Invoicer" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:colorAccent">@color/accent</item>
+    </style>
 </resources>

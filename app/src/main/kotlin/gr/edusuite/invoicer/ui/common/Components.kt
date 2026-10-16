@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
@@ -56,6 +54,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import gr.edusuite.invoicer.AppContainer
 import gr.edusuite.invoicer.core.format.Formats
+import gr.edusuite.invoicer.ui.theme.Invoicer
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -329,7 +328,7 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A labelled figure, e.g. "Earned · €320.00". */
+/** A labelled figure, e.g. "Earned · €320.00": a flat suite panel with the value in monospace. */
 @Composable
 fun MetricCard(
     label: String,
@@ -337,14 +336,14 @@ fun MetricCard(
     modifier: Modifier = Modifier,
     valueColor: Color = Color.Unspecified,
 ) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+    SuitePanel(modifier) {
         Column(Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Invoicer.colors.muted)
+            MoneyText(
                 value,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
                 color = valueColor,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
