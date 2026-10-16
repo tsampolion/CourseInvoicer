@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.ui
 
 import android.content.ContextWrapper
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
@@ -13,7 +14,10 @@ import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
 import gr.edusuite.invoicer.data.BackupFiles
 import gr.edusuite.invoicer.ui.groups.GroupEditViewModel
+import gr.edusuite.invoicer.ui.groups.GroupLessonViewModel
+import gr.edusuite.invoicer.ui.groups.Presence
 import gr.edusuite.invoicer.ui.home.HomeViewModel
+import gr.edusuite.invoicer.ui.invoices.CreateInvoiceViewModel
 import gr.edusuite.invoicer.ui.invoices.InvoicesViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonEditViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonsViewModel
@@ -187,6 +191,129 @@ class ViewModelsTest {
     }
 
     @Test
+    fun `a late cancellation is charged, keeps its payment and saves its reason`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000, paidOn = "2026-03-10"))
+        val viewModel = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
+
+        viewModel.setAbsent(true)
+        assertFalse("an excused absence is not charged", viewModel.state.value.charged)
+        assertFalse(viewModel.state.value.paid)
+
+        viewModel.setAbsenceCharge(AbsenceCharge.LATE_CANCELLATION)
+        assertTrue(viewModel.state.value.charged)
+        viewModel.setPaid(true)
+        viewModel.setAbsenceNote("cancelled at 16:00")
+        viewModel.save()
+
+        val saved = repos.getLesson(id)!!
+        assertTrue(saved.isLateCancellation)
+        assertEquals("cancelled at 16:00", saved.absenceNote)
+        assertEquals("the original payment date is kept", LocalDate.parse("2026-03-10"), saved.paidOn)
+        assertEquals(Money(2000), saved.charge)
+    }
+
+    @Test
+    fun `the absence charge is locked on a statement but the reason is not`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000).copy(absent = true))
+        createInvoice(maria, listOf(id), LocalDate.parse("2026-03-31"))
+        val viewModel = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
+
+        viewModel.setAbsenceCharge(AbsenceCharge.LATE_CANCELLATION)
+        viewModel.setAbsenceNote("ill")
+        assertEquals(AbsenceCharge.NONE, viewModel.state.value.absenceCharge)
+        viewModel.save()
+
+        assertTrue(viewModel.state.value.done)
+        assertEquals("ill", repos.getLesson(id)?.absenceNote)
+        assertEquals(AbsenceCharge.NONE, repos.getLesson(id)?.absenceCharge)
+    }
+
+    @Test
+    fun `group attendance logs present, absent and late cancelled members`() = runTest {
+        val maria = addStudent("Maria")
+        val nikos = addStudent("Nikos")
+        val eleni = addStudent("Eleni")
+        val groupId = repos.saveGroup(
+            StudentGroup(
+                name = "B1",
+                rate = Rate(Money(1200), RateType.HOURLY),
+                memberIds = setOf(maria, nikos, eleni),
+            ),
+        )
+        val viewModel = GroupLessonViewModel(
+            groupId,
+            repos,
+            repos,
+            repos,
+            repos.settingsRepository,
+            now = LocalDateTime.parse("2026-03-10T17:20"),
+        )
+
+        viewModel.setPresence(nikos, Presence.ABSENT)
+        viewModel.setReason(nikos, "ill")
+        viewModel.setPresence(eleni, Presence.LATE_CANCEL)
+        viewModel.setReason(eleni, " late ")
+        val state = viewModel.state.value
+        assertEquals(1, state.presentCount)
+        assertEquals(2, state.chargedCount)
+        assertEquals(Money(1200), state.feePerStudent)
+
+        viewModel.save()
+
+        assertTrue(viewModel.state.value.done)
+        val rows = repos.lessons.associateBy { it.studentId }
+        assertFalse(rows.getValue(maria).absent)
+        assertTrue(rows.getValue(nikos).isExcused)
+        assertEquals("ill", rows.getValue(nikos).absenceNote)
+        assertTrue(rows.getValue(eleni).isLateCancellation)
+        assertEquals("late", rows.getValue(eleni).absenceNote)
+        assertEquals(Money(2400), repos.lessons.fold(Money.ZERO) { sum, it -> sum + it.charge })
+    }
+
+    @Test
+    fun `a new statement selects every lesson on no statement, absences included`() = runTest {
+        val maria = addStudent("Maria")
+        val held = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val excused = repos.saveLesson(lesson(maria, "2026-03-11", 2000).copy(absent = true))
+        val late = repos.saveLesson(
+            lesson(maria, "2026-03-12", 1500).copy(absent = true, absenceCharge = AbsenceCharge.LATE_CANCELLATION),
+        )
+        val viewModel = CreateInvoiceViewModel(
+            initialStudentId = maria,
+            students = repos,
+            groups = repos,
+            lessons = repos,
+            invoices = repos,
+            renderer = InvoiceRenderer(repos, repos, repos.settingsRepository),
+            today = LocalDate.parse("2026-03-31"),
+        )
+
+        assertEquals(setOf(held, excused, late), viewModel.state.value.selected)
+        assertEquals(Money(3500), viewModel.state.value.total)
+
+        viewModel.create()
+
+        val created = viewModel.state.value.created!!
+        assertEquals(Money(3500), created.total)
+        assertTrue(repos.lessons.all { it.invoiceId == created.id })
+    }
+
+    @Test
+    fun `a statement of excused absences shows as paid at once`() = runTest {
+        val maria = addStudent("Maria")
+        val excused = repos.saveLesson(lesson(maria, "2026-03-10", 2000).copy(absent = true))
+        createInvoice(maria, listOf(excused), LocalDate.parse("2026-03-31"))
+        val viewModel = InvoicesViewModel(repos, repos, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        val item = viewModel.state.value.items.single()
+        assertEquals(Money.ZERO, item.invoice.total)
+        assertTrue(item.paid)
+    }
+
+    @Test
     fun `students list filters by the search text and shows balances`() = runTest {
         val maria = addStudent("Maria")
         addStudent("Nikos")
@@ -301,6 +428,19 @@ class ViewModelsTest {
         assertEquals(ThemeMode.DARK, stored.themeMode)
         assertEquals("Thanks", stored.invoiceFooter)
         assertEquals(ThemeMode.DARK, viewModel.state.value.form.themeMode)
+    }
+
+    @Test
+    fun `the show-address switch saves at once`() = runTest {
+        val viewModel = settingsViewModel()
+        assertFalse(stored.showAddressOnStatements)
+
+        viewModel.onAddress("1 Main St")
+        viewModel.onShowAddressOnStatements(true)
+
+        assertTrue(stored.showAddressOnStatements)
+        assertEquals("pending typing is saved with it", "1 Main St", stored.business.address)
+        assertTrue(viewModel.state.value.form.showAddressOnStatements)
     }
 
     @Test

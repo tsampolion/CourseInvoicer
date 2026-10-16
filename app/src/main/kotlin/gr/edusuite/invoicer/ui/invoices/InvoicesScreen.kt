@@ -54,18 +54,18 @@ fun InvoicesScreen(
     MessageEffect(state.message, snackbar, viewModel::messageShown)
 
     ScreenScaffold(
-        title = "Invoices",
+        title = "Statements",
         modifier = modifier,
         snackbarHostState = snackbar,
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreateInvoice) { Icon(AppIcons.Add, contentDescription = "New invoice") }
+            FloatingActionButton(onClick = onCreateInvoice) { Icon(AppIcons.Add, contentDescription = "New statement") }
         },
         bottomBar = bottomBar,
     ) { padding ->
         when {
             state.loading -> Unit
             state.items.isEmpty() -> EmptyState(
-                "No invoices yet. Tap + to bill a student's lessons.",
+                "No statements yet. Tap + to list a student's lessons on one.",
                 Modifier.padding(padding),
             )
             else -> LazyColumn(Modifier.padding(padding)) {
@@ -89,7 +89,10 @@ fun InvoicesScreen(
                                 }
                                 if (!item.invoice.isVoid) {
                                     IconButton(onClick = { toVoid = item.invoice }) {
-                                        Icon(AppIcons.Close, contentDescription = "Void invoice ${item.invoice.number}")
+                                        Icon(
+                                            AppIcons.Close,
+                                            contentDescription = "Void statement ${item.invoice.number}",
+                                        )
                                     }
                                 }
                             }
@@ -108,9 +111,9 @@ fun InvoicesScreen(
 
     toVoid?.let { invoice ->
         ConfirmDialog(
-            title = "Void invoice ${invoice.number}",
-            text = "The invoice stays in the list as void and its number is never reused. Its lessons can be " +
-                "invoiced again. Payment records are kept.",
+            title = "Void statement ${invoice.number}",
+            text = "The statement stays in the list as void and its number is never reused. Its lessons can " +
+                "go on a new statement. Payment records are kept.",
             confirmLabel = "Void",
             onConfirm = { viewModel.markVoid(invoice) },
             onDismiss = { toVoid = null },

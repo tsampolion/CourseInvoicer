@@ -60,7 +60,7 @@ class BackupCodecTest {
                     billTo = listOf("Maria Papadopoulou"),
                     lines = listOf(
                         InvoiceDocument.Line("2 Mar 2026", "Lesson — \"quoted\"", "1 h", "€20.00"),
-                        InvoiceDocument.Line("9 Mar 2026", "Lesson", "1 h", "€0.00", note = "Absent — not charged: ill"),
+                        InvoiceDocument.Line("9 Mar 2026", "Lesson", "1 h", "€0.00", "Absent — not charged: ill"),
                     ),
                     total = "€20.00",
                     paid = false,

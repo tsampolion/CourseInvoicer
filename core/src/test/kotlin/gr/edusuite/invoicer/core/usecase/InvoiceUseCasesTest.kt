@@ -87,7 +87,7 @@ class InvoiceUseCasesTest {
     fun `statements take absences, excused ones at 0 and late cancellations at the fee`() = runTest {
         val maria = repos.saveStudent(student())
         val held = repos.saveLesson(lesson(maria, date = "2026-03-02", fee = "20"))
-        val excused = repos.saveLesson(lesson(maria, date = "2026-03-09", fee = "20", absent = true, absenceNote = "ill"))
+        val excused = repos.saveLesson(lesson(maria, date = "2026-03-09", absent = true, absenceNote = "ill"))
         val late = repos.saveLesson(lateCancel(maria, fee = "20").copy(date = LocalDate.parse("2026-03-16")))
 
         val invoice = createInvoice(maria, listOf(held, excused, late), issueDate, markPaid = true)

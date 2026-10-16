@@ -110,7 +110,13 @@ class InvoiceDocumentTest {
             listOf(
                 InvoiceDocument.Line("2 Mar 2026", "Lesson", "1 h", "€0.00", "Absent — not charged"),
                 InvoiceDocument.Line("9 Mar 2026", "Lesson", "1 h", "€0.00", "Absent — not charged: ill"),
-                InvoiceDocument.Line("16 Mar 2026", "Lesson", "1 h", "€20.00", "Late cancellation (under 24 h) — charged"),
+                InvoiceDocument.Line(
+                    "16 Mar 2026",
+                    "Lesson",
+                    "1 h",
+                    "€20.00",
+                    "Late cancellation (under 24 h) — charged",
+                ),
                 InvoiceDocument.Line(
                     "23 Mar 2026",
                     "Lesson",
@@ -170,7 +176,7 @@ class InvoiceDocumentTest {
         assertNull(doc.lines.single().note)
         assertEquals("€20.00", doc.lines.single().amount)
         val reEncoded = InvoiceDocumentCodec.encode(doc)
-        assertFalse("an old document is stored again without the new keys", "title" in reEncoded || "note\"" in reEncoded)
+        assertFalse("an old document is stored without the new keys", "title" in reEncoded || "note\"" in reEncoded)
     }
 
     @Test

@@ -26,7 +26,7 @@ import java.time.YearMonth
 enum class LessonFilter(val label: String) {
     ALL("All"),
     UNPAID("Unpaid"),
-    NOT_INVOICED("Not invoiced"),
+    NOT_INVOICED("No statement"),
 }
 
 data class LessonItem(val lesson: Lesson, val title: String)

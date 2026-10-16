@@ -42,6 +42,7 @@ class InvoicerDatabase(
         // Each step upgrades exactly one version; never drop user data.
         if (oldVersion < 2) Schema.migrateTo2.forEach(db::execSQL)
         if (oldVersion < 3) Schema.migrateTo3.forEach(db::execSQL)
+        if (oldVersion < 4) Schema.migrateTo4.forEach(db::execSQL)
     }
 
     fun <T> observe(vararg tables: Table, query: (SQLiteDatabase) -> T): Flow<T> =
@@ -75,8 +76,9 @@ class InvoicerDatabase(
         /**
          * 1: v2 baseline. 2: invoices.voided_on (invoices are voided, never deleted).
          * 3: invoices.document (the content as issued, R12/D10).
+         * 4: lessons.absence_charge and lessons.absence_note (late cancellations, R3).
          */
-        const val VERSION = 3
+        const val VERSION = 4
 
         /** SQLite on API 26 allows at most 999 bound arguments per statement. */
         const val MAX_ARGS = 500
@@ -143,7 +145,9 @@ internal object Schema {
             absent INTEGER NOT NULL DEFAULT 0,
             notes TEXT NOT NULL DEFAULT '',
             paid_on TEXT,
-            invoice_id INTEGER REFERENCES invoices (id) ON DELETE SET NULL
+            invoice_id INTEGER REFERENCES invoices (id) ON DELETE SET NULL,
+            absence_charge TEXT NOT NULL DEFAULT 'NONE',
+            absence_note TEXT NOT NULL DEFAULT ''
         )
         """,
         "CREATE INDEX idx_lessons_student ON lessons (student_id)",
@@ -156,6 +160,12 @@ internal object Schema {
 
     /** Existing invoices get no document; it is frozen the first time each one is shared. */
     val migrateTo3 = listOf("ALTER TABLE invoices ADD COLUMN document TEXT")
+
+    /** Absences recorded before 2.0.0 were never charged, so they become excused (NONE) with no reason. */
+    val migrateTo4 = listOf(
+        "ALTER TABLE lessons ADD COLUMN absence_charge TEXT NOT NULL DEFAULT 'NONE'",
+        "ALTER TABLE lessons ADD COLUMN absence_note TEXT NOT NULL DEFAULT ''",
+    )
 }
 
 internal fun Cursor.long(column: String): Long = getLong(getColumnIndexOrThrow(column))

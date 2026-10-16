@@ -163,7 +163,7 @@ object BackupCodec {
         themeMode = enum<ThemeMode>("themeMode"),
         invoiceFooter = string("invoiceFooter"),
         // Version 4; older backups predate the switch, which starts off.
-        showAddressOnStatements = if (containsKey("showAddressOnStatements")) boolean("showAddressOnStatements") else false,
+        showAddressOnStatements = containsKey("showAddressOnStatements") && boolean("showAddressOnStatements"),
     )
 
     private fun Student.toJson() = mapOf(

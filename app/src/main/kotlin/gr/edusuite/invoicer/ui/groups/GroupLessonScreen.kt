@@ -7,9 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
@@ -19,9 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.ui.common.DateField
@@ -80,28 +77,22 @@ fun GroupLessonScreen(
                 Text("This group has no active members. Edit the group to add students.")
             }
             state.attendees.forEach { attendee ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .toggleable(attendee.present, role = Role.Checkbox) {
-                            viewModel.togglePresent(attendee.student.id)
-                        },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(checked = attendee.present, onCheckedChange = null)
-                    Text(attendee.student.fullName, Modifier.padding(start = 8.dp).weight(1f))
-                    Text(if (attendee.present) "Present" else "Absent", style = MaterialTheme.typography.labelMedium)
-                }
+                AttendeeRow(
+                    attendee = attendee,
+                    onPresence = { viewModel.setPresence(attendee.student.id, it) },
+                    onReason = { viewModel.setReason(attendee.student.id, it) },
+                )
             }
 
             state.feePerStudent?.let { fee ->
                 Text(
-                    "${state.presentCount} present × ${formats.money(fee)} = ${formats.money(fee * state.presentCount)}",
+                    "${state.presentCount} present · ${state.chargedCount} charged × ${formats.money(fee)} = " +
+                        formats.money(fee * state.chargedCount),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
             Text(
-                "Absent students are recorded but not charged.",
+                "Absent students are recorded but not charged. Late cancellations (under 24 hours) are charged.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -109,6 +100,45 @@ fun GroupLessonScreen(
                 value = state.notes,
                 onValueChange = viewModel::setNotes,
                 label = { Text("Notes (e.g. topic)") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/** One member: Present, Absent or Late cancel, and a reason when absent. */
+@Composable
+private fun AttendeeRow(
+    attendee: Attendee,
+    onPresence: (Presence) -> Unit,
+    onReason: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(attendee.student.fullName, style = MaterialTheme.typography.bodyLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Presence.entries.forEach { presence ->
+                FilterChip(
+                    selected = attendee.presence == presence,
+                    onClick = { onPresence(presence) },
+                    label = {
+                        Text(
+                            when (presence) {
+                                Presence.PRESENT -> "Present"
+                                Presence.ABSENT -> "Absent"
+                                Presence.LATE_CANCEL -> "Late cancel"
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        if (!attendee.present) {
+            OutlinedTextField(
+                value = attendee.reason,
+                onValueChange = onReason,
+                label = { Text("Reason (optional)") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

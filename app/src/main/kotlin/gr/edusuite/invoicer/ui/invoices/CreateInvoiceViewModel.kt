@@ -64,6 +64,7 @@ class CreateInvoiceViewModel(
     fun selectStudent(id: Long) {
         mutableState.update { it.copy(studentId = id, lessons = emptyList(), selected = emptySet()) }
         viewModelScope.launch {
+            // Every lesson on no statement yet, absences included: excused ones are 0.00 lines (R4).
             val open = lessons.observeLessonsOfStudent(id).first()
                 .filter { it.isInvoiceable }
                 .sortedWith(compareBy({ it.date }, { it.startTime }))
