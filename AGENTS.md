@@ -1,17 +1,17 @@
-# AGENTS.md: working on EduInvoice
+# AGENTS.md: working on Course Invoicer
 
 The guide for coding agents and contributors: commands, how the code fits together, the rules,
 recipes for common changes and the traps. What the app should do is in
 [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md); planned work is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-**Version:** 2.0.0-alpha03 · **Default branch:** `Rebuild_v2`
+**Version:** 2.0.0 · **Default branch:** `Rebuild_v2`
 
 ## 1. Commands
 
 ```bash
 ./gradlew :core:test                      # business rules (pure JVM)
-./gradlew :core:test --tests 'gr.eduinvoice.core.model.MoneyTest'   # one class
+./gradlew :core:test --tests 'gr.edusuite.invoicer.core.model.MoneyTest'   # one class
 ./gradlew :app:testDebugUnitTest          # ViewModel and navigation tests (JVM)
 ./gradlew :app:lintDebug                  # Android lint
 ./gradlew :app:assembleDebug              # → app/build/outputs/apk/debug/app-debug.apk
@@ -44,12 +44,12 @@ Compose screen ──collectAsStateWithLifecycle──▶ XxxViewModel.state: St
 XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ──▶ repository interface (:core)
                                                                          │ implemented by
                                                                          ▼
-                                     Sql*Repository ──db.write(Table…)──▶ EduDatabase (SQLite)
+                                     Sql*Repository ──db.write(Table…)──▶ InvoicerDatabase (SQLite)
                                            ▲                                   │ bumps versions
                                            └──────── db.observe(Table…) ◀──────┘ re-query
 ```
 
-- **Data.** `EduDatabase` is a framework `SQLiteOpenHelper` (no Room, D2). `write(tables) { … }`
+- **Data.** `InvoicerDatabase` is a framework `SQLiteOpenHelper` (no Room, D2). `write(tables) { … }`
   runs one transaction, then bumps a version counter for each listed `Table`.
   `observe(tables) { … }` re-runs its query whenever one of those counters changes. That is how
   every open screen refreshes after a change. Settings are not a table: `PrefsSettingsRepository`
@@ -107,16 +107,16 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 | `core/src/testFixtures` | `InMemoryRepositories` (every data repository) and `InMemorySettingsRepository` |
 | `app/…/AppContainer.kt` | The object graph |
 | `app/…/MainActivity.kt` | Theme, edge-to-edge, `LocalAppContainer`, the root composable |
-| `app/…/data` | `EduDatabase` (schema, migrations), SQL repositories, settings, backup files, PDF |
-| `app/…/ui/EduInvoiceApp.kt` | Route → screen dispatch and the bottom bar |
+| `app/…/data` | `InvoicerDatabase` (schema, migrations), SQL repositories, settings, backup files, PDF |
+| `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch and the bottom bar |
 | `app/…/ui/nav/Navigation.kt` | `Route`, `Navigator`, `NavHost` |
 | `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen |
-| `app/…/ui/common`, `ui/theme` | Shared components, icons, `appViewModel {}`, `launchCatching`; `EduInvoiceTheme` |
+| `app/…/ui/common`, `ui/theme` | Shared components, icons, `appViewModel {}`, `launchCatching`; `InvoicerTheme` |
 | `app/src/test` | JVM tests: `ViewModelsTest`, `NavigatorTest` |
 | `app/src/androidTest` | Emulator tests: `SqlRepositoriesTest` (SQL, migrations), `EndToEndTest` |
 
-`core/…` is `core/src/main/kotlin/gr/eduinvoice/core`; `app/…` is
-`app/src/main/kotlin/gr/eduinvoice`.
+`core/…` is `core/src/main/kotlin/gr/edusuite/invoicer/core`; `app/…` is
+`app/src/main/kotlin/gr/edusuite/invoicer`.
 
 ## 5. Recipes
 
@@ -124,7 +124,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 1. Add it to the model in `:core`.
 2. Update `InMemoryRepositories` and `BackupCodec`. Bump `BackupCodec.VERSION` and keep decoding
    older files.
-3. In `EduDatabase`: add the column to `Schema.statements` (fresh installs), add a
+3. In `InvoicerDatabase`: add the column to `Schema.statements` (fresh installs), add a
    `Schema.migrateToN` list with the `ALTER TABLE`, call it from `onUpgrade`, and bump `VERSION`.
 4. Update `Mappers.kt`.
 5. In `SqlRepositoriesTest`, add a migration test from a frozen copy of the previous schema.
@@ -142,7 +142,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 1. Add a `Route` and its `encode`/`decode` entries. Extend `NavigatorTest`.
 2. Write `XxxViewModel(…repositories)` and
    `XxxScreen(…, viewModel = appViewModel { XxxViewModel(it.…) })`.
-3. Dispatch the route in `ui/EduInvoiceApp.kt`.
+3. Dispatch the route in `ui/CourseInvoicerApp.kt`.
 4. A new bottom-bar tab also goes in `Route.tabs` and gets its own branch in `AppBottomBar`.
 
 **Write to the database**
@@ -159,13 +159,13 @@ isn't enough, then wait for approval.
 
 - **`observe` must list every table its query reads,** or the screen goes stale after a write to a
   table it left out.
-- **`IN (…)` lists are chunked** by `EduDatabase.MAX_ARGS` (500). SQLite on API 26 allows only 999
+- **`IN (…)` lists are chunked** by `InvoicerDatabase.MAX_ARGS` (500). SQLite on API 26 allows only 999
   bound arguments.
 - **`InMemoryRepositories` must fail where SQLite fails** (foreign keys, the invoice link guard).
   When you add a constraint to the schema, add it to the fake and to `InMemoryRepositoriesTest`.
 - **App unit tests run with `isReturnDefaultValues = true`,** because ViewModels touch
   `SavedStateHandle`. A stubbed Android call returns 0 or null instead of failing.
-- **Instrumented tests run through `EduTestRunner`,** which uses an in-memory database and its own
+- **Instrumented tests run through `InvoicerTestRunner`,** which uses an in-memory database and its own
   settings file. Gradle still uninstalls the app when they finish, so run them on an emulator.
 - **A corrupt database file is deleted** by the framework's default error handler, and drafts in
   forms don't survive process death (ROADMAP item 8). Don't build on either behaviour.
@@ -184,7 +184,8 @@ isn't enough, then wait for approval.
 
 **Versions and releases**
 - Every PR adds an entry to `CHANGELOG.md`, under the `## [<versionName>] - Unreleased` section.
-- Versions are SemVer `MAJOR.MINOR.PATCH`, with an optional pre-release suffix such as `-alpha03`.
+- Versions are plain SemVer `MAJOR.MINOR.PATCH`, with no pre-release suffix (D18). `release.yml`
+  rejects any other `versionName`.
 - **To start a version:** bump `versionCode` by one, set `versionName` in `app/build.gradle.kts` and
   open a `## [X.Y.Z] - Unreleased` section in `CHANGELOG.md`. Keep the version shown in `README.md`,
   this file and `CHANGELOG.md` the same.

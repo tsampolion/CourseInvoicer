@@ -1,4 +1,4 @@
-# EduInvoice: Roadmap
+# Course Invoicer: Roadmap
 
 Work planned after 2.0.0-alpha03. It started as a comparison with [Coursebook
 Pacer](https://github.com/tsampolion/course_planner), a sibling app by the same owner. Thirteen of
@@ -88,7 +88,7 @@ whole state; that doesn't fit SQLite, so each action needs its own inverse.
 - [x] Decide the scope with the owner: delete lesson, record payment, mark paid (one or in bulk),
       reschedule. Recorded as D15 in the spec.
 - [ ] Add an app-level message channel, for example a `Messages` object in `AppContainer` with a
-      `SnackbarHostState` in `EduInvoiceApp.kt`. A message survives the screen that sent it and can
+      `SnackbarHostState` in `CourseInvoicerApp.kt`. A message survives the screen that sent it and can
       carry an action.
 - [ ] Make each in-scope use case return an `Undo` value: a suspend function that reverses exactly
       what it changed, inside one `db.write`.
@@ -200,7 +200,7 @@ use-case tests cover the rules. Gaps:
 
 **Today.** Every write commits at once: `db.write` is a `NonCancellable` transaction, and settings
 use `commit()`. So, unlike Coursebook Pacer, nothing needs flushing in `onStop`. Gaps:
-- **Corrupt database.** `EduDatabase` uses the framework's default error handler, which *deletes* a
+- **Corrupt database.** `InvoicerDatabase` uses the framework's default error handler, which *deletes* a
   corrupt database file without asking. Coursebook Pacer keeps the bad file as `.bad` and starts
   clean.
 - **Downgrade.** There is no `onDowngrade`. Installing an older build over a newer one throws on
@@ -209,7 +209,7 @@ use `commit()`. So, unlike Coursebook Pacer, nothing needs flushing in `onStop`.
   and Back discards edits without asking.
 
 **Tasks**
-- [ ] Pass a `DatabaseErrorHandler` to `EduDatabase` that copies the file to `eduinvoice_v2.db.bad`
+- [ ] Pass a `DatabaseErrorHandler` to `InvoicerDatabase` that copies the file to `course_invoicer.db.bad`
       before the framework resets it, and flags it so Home can say: "The database was damaged.
       Import your last backup."
 - [ ] Override `onDowngrade` to refuse with a clear message: "This build is older than your data.

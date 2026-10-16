@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something in EduInvoice behaves wrongly or crashes
+about: Something in Course Invoicer behaves wrongly or crashes
 title: '[Bug] '
 labels: ['bug']
 assignees: ''

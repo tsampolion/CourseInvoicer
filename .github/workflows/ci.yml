@@ -46,11 +46,11 @@ jobs:
             exit 0
           fi
           echo "::add-mask::$SIGNING_PASSWORD"
-          echo "$SIGNING_KEYSTORE_B64" | base64 --decode --ignore-garbage > "$RUNNER_TEMP/eduinvoice-signing.p12"
+          echo "$SIGNING_KEYSTORE_B64" | base64 --decode --ignore-garbage > "$RUNNER_TEMP/invoicer-signing.p12"
           {
-            echo "EDUINVOICE_DEBUG_KEYSTORE=$RUNNER_TEMP/eduinvoice-signing.p12"
-            echo "EDUINVOICE_KEYSTORE_PASSWORD=$SIGNING_PASSWORD"
-            echo "EDUINVOICE_KEY_ALIAS=$SIGNING_KEY_ALIAS"
+            echo "INVOICER_DEBUG_KEYSTORE=$RUNNER_TEMP/invoicer-signing.p12"
+            echo "INVOICER_KEYSTORE_PASSWORD=$SIGNING_PASSWORD"
+            echo "INVOICER_KEY_ALIAS=$SIGNING_KEY_ALIAS"
           } >> "$GITHUB_ENV"
 
       - name: Unit tests
@@ -197,14 +197,14 @@ jobs:
           # Gradle uninstalled the debug app above, so this is a clean install.
           "$ADB" install -r app/build/outputs/apk/release/app-release.apk
           "$ADB" logcat -c
-          "$ADB" shell am start -W -n gr.eduinvoice/.MainActivity
+          "$ADB" shell am start -W -n gr.edusuite.invoicer/.MainActivity
           sleep 10
-          if ! "$ADB" shell pidof gr.eduinvoice > /dev/null; then
+          if ! "$ADB" shell pidof gr.edusuite.invoicer > /dev/null; then
             echo "::error::The minified app is not running 10 s after launch"; "$ADB" logcat -d | tail -200; exit 1
           fi
-          "$ADB" shell monkey -p gr.eduinvoice -s 42 --throttle 200 --pct-syskeys 0 --pct-appswitch 0 \
+          "$ADB" shell monkey -p gr.edusuite.invoicer -s 42 --throttle 200 --pct-syskeys 0 --pct-appswitch 0 \
             --ignore-timeouts 300 > monkey.log 2>&1 || true
-          if grep -q "CRASH: gr.eduinvoice" monkey.log || "$ADB" logcat -d -b crash | grep -q "Process: gr.eduinvoice"; then
+          if grep -q "CRASH: gr.edusuite.invoicer" monkey.log || "$ADB" logcat -d -b crash | grep -q "Process: gr.edusuite.invoicer"; then
             echo "::error::The minified app crashed during the smoke test"
             cat monkey.log; "$ADB" logcat -d -b crash; exit 1
           fi

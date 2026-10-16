@@ -2,8 +2,8 @@
 
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html), with a pre-release suffix such as
-`-alpha03` until 2.0.0.
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). From 2.0.0 on, versions are plain
+`MAJOR.MINOR.PATCH` with no pre-release suffix (D18); the earlier `-alphaNN` sections are history.
 
 - **MAJOR:** a change that breaks older backups or the stored data, or changes billing results on
   purpose.
@@ -19,6 +19,20 @@ How to use this file:
    is never released.
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
+
+## [2.0.0] - Unreleased
+
+EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
+
+### Changed
+- **Renamed to Course Invoicer** (D17). The app has a new `applicationId`, `gr.edusuite.invoicer`,
+  so it installs beside EduInvoice instead of over it. To move your data: in EduInvoice, *Settings →
+  Export*; install Course Invoicer; *Settings → Import* that file; then uninstall EduInvoice.
+  Backups are now `course-invoicer-backup-<date>.json`, and EduInvoice backups still import. The
+  release download is `course-invoicer-<version>.apk`.
+- **Plain SemVer** (D18): versions, tags and changelog sections are `MAJOR.MINOR.PATCH` with no
+  pre-release suffix, so this release is 2.0.0. `release.yml` rejects any other `versionName` and no
+  longer marks releases *Pre-release*.
 
 ## [2.0.0-alpha03] - 2026-10-16
 
