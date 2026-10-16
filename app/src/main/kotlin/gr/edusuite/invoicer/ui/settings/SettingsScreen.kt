@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -20,13 +21,16 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -170,6 +174,31 @@ fun SettingsScreen(
                 }
             }
 
+            Section("Reminders", "From the 29th, Home reminds you of the month's lessons not on a statement yet.")
+            SettingSwitch(
+                label = "Remind me to send statements at month end",
+                checked = form.reminders.enabled,
+                onCheckedChange = viewModel::onRemindersEnabled,
+            )
+            SettingSwitch(
+                label = "December: from the 21st",
+                checked = form.reminders.earlyDecember,
+                onCheckedChange = viewModel::onRemindEarlyDecember,
+                enabled = form.reminders.enabled,
+            )
+            SettingSwitch(
+                label = "June: from the 21st",
+                checked = form.reminders.earlyJune,
+                onCheckedChange = viewModel::onRemindEarlyJune,
+                enabled = form.reminders.enabled,
+            )
+            SettingSwitch(
+                label = "Easter month: from the 21st",
+                checked = form.reminders.earlyEaster,
+                onCheckedChange = viewModel::onRemindEarlyEaster,
+                enabled = form.reminders.enabled,
+            )
+
             Section("Backup", "Everything stays on this device. Export a backup regularly and keep it somewhere safe.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -199,6 +228,32 @@ fun SettingsScreen(
             onConfirm = { viewModel.importBackup(uri) },
             onDismiss = { pendingImport = null },
         )
+    }
+}
+
+/** Material's opacity for disabled content. */
+private const val DISABLED_ALPHA = 0.38f
+
+/** A switch whose whole row toggles it, so the label is a large touch target and reads as one control. */
+@Composable
+private fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else DISABLED_ALPHA),
+        )
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

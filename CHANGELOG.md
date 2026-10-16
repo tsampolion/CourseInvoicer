@@ -42,6 +42,14 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 - **Empty lists explain themselves**: Students, Groups, Lessons and Invoices show an icon, a title
   and a line of help when they have nothing to show, with a button to add the first student or
   group.
+- **Month-end reminder** (R15): from the 29th (the 27th or 28th in February), Home asks *Time to
+  invoice March* when the month still has lessons on no statement, with how many lessons and
+  students. *Create statements* opens Statements, *Remind me tomorrow* waits a day and *Done for this
+  month* stops it for that month. December, June and the Easter month (the month of Orthodox Easter,
+  or the month before when Easter falls before the 21st) ask from the 21st, each with its own switch
+  in *Settings → Reminders*, and a master switch turns reminders off. A month not yet done is still
+  asked about during the first 7 days of the next one. The answers stay on the phone; the switches
+  are in the backup.
 
 ### Changed
 - **The bottom tab bar is gone**: every section opens from Home and has a Back arrow to it. The

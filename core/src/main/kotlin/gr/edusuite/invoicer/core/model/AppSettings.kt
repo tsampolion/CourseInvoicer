@@ -17,4 +17,16 @@ data class AppSettings(
     val defaultLessonMinutes: Int = 60,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val invoiceFooter: String = "",
+    val reminders: ReminderSettings = ReminderSettings(),
+)
+
+/**
+ * The month-end reminder to send statements (R15). [enabled] turns every reminder off; each early switch
+ * moves that month's reminder from the 29th to the 21st.
+ */
+data class ReminderSettings(
+    val enabled: Boolean = true,
+    val earlyDecember: Boolean = true,
+    val earlyJune: Boolean = true,
+    val earlyEaster: Boolean = true,
 )

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import gr.edusuite.invoicer.core.backup.BackupFormatException
 import gr.edusuite.invoicer.core.model.AppSettings
+import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.ThemeMode
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.usecase.SaveSettings
@@ -34,6 +35,7 @@ data class SettingsForm(
     val defaultMinutes: String = "60",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val footer: String = "",
+    val reminders: ReminderSettings = ReminderSettings(),
 )
 
 data class SettingsUiState(
@@ -86,6 +88,22 @@ class SettingsViewModel(
     /** The theme applies at once, so it is saved without waiting (with any typing still pending). */
     fun onTheme(mode: ThemeMode) {
         mutableState.update { it.copy(form = it.form.copy(themeMode = mode)) }
+        pendingSave?.cancel()
+        pendingSave = null
+        launchCatching(::showMessage) { commit() }
+    }
+
+    fun onRemindersEnabled(on: Boolean) = setReminders { it.copy(enabled = on) }
+
+    fun onRemindEarlyDecember(on: Boolean) = setReminders { it.copy(earlyDecember = on) }
+
+    fun onRemindEarlyJune(on: Boolean) = setReminders { it.copy(earlyJune = on) }
+
+    fun onRemindEarlyEaster(on: Boolean) = setReminders { it.copy(earlyEaster = on) }
+
+    /** Like the theme, a reminder switch is saved at once (with any typing still pending). */
+    private fun setReminders(transform: (ReminderSettings) -> ReminderSettings) {
+        mutableState.update { it.copy(form = it.form.copy(reminders = transform(it.form.reminders))) }
         pendingSave?.cancel()
         pendingSave = null
         launchCatching(::showMessage) { commit() }
@@ -163,6 +181,7 @@ class SettingsViewModel(
                 defaultLessonMinutes = minutes ?: stored.defaultLessonMinutes,
                 themeMode = form.themeMode,
                 invoiceFooter = form.footer,
+                reminders = form.reminders,
             ),
         )
     }
@@ -190,5 +209,6 @@ class SettingsViewModel(
         defaultMinutes = defaultLessonMinutes.toString(),
         themeMode = themeMode,
         footer = invoiceFooter,
+        reminders = reminders,
     )
 }

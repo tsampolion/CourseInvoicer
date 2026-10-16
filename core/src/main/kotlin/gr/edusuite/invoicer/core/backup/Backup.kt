@@ -8,6 +8,7 @@ import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
+import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.model.ThemeMode
@@ -140,6 +141,10 @@ object BackupCodec {
         "defaultLessonMinutes" to defaultLessonMinutes.toLong(),
         "themeMode" to themeMode.name,
         "invoiceFooter" to invoiceFooter,
+        "remindersEnabled" to reminders.enabled,
+        "remindEarlyDecember" to reminders.earlyDecember,
+        "remindEarlyJune" to reminders.earlyJune,
+        "remindEarlyEaster" to reminders.earlyEaster,
     )
 
     // Backups made before 2.0.0 also hold "taxId"; the field was removed and is ignored on purpose.
@@ -155,7 +160,21 @@ object BackupCodec {
         defaultLessonMinutes = int("defaultLessonMinutes"),
         themeMode = enum<ThemeMode>("themeMode"),
         invoiceFooter = string("invoiceFooter"),
+        reminders = toReminderSettings(),
     )
+
+    // The reminder switches arrived in 2.0.0 without a format version of their own: files without them
+    // restore the defaults.
+    private fun Map<*, *>.toReminderSettings(): ReminderSettings {
+        val defaults = ReminderSettings()
+        fun flag(key: String, default: Boolean) = if (containsKey(key)) boolean(key) else default
+        return ReminderSettings(
+            enabled = flag("remindersEnabled", defaults.enabled),
+            earlyDecember = flag("remindEarlyDecember", defaults.earlyDecember),
+            earlyJune = flag("remindEarlyJune", defaults.earlyJune),
+            earlyEaster = flag("remindEarlyEaster", defaults.earlyEaster),
+        )
+    }
 
     private fun Student.toJson() = mapOf(
         "id" to id,

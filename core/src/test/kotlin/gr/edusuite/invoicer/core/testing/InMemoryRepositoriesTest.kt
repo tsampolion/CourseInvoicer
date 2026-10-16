@@ -7,6 +7,7 @@ import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.report.Reports
+import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.student
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -89,5 +90,27 @@ class InMemoryRepositoriesTest {
 
         repos.setPaid(listOf(open), issueDate)
         assertEquals(0, repos.observeUnpaidCount().first())
+    }
+
+    @Test
+    fun `the uninvoiced summary counts a period's open lessons and their students`() = runTest {
+        val maria = repos.saveStudent(student())
+        val nikos = repos.saveStudent(student(firstName = "Nikos"))
+        val eleni = repos.saveStudent(student(firstName = "Eleni"))
+        val billed = repos.saveLesson(lesson(maria, date = "2026-03-02"))
+        repos.saveLesson(lesson(maria, date = "2026-03-01"))
+        repos.saveLesson(lesson(maria, date = "2026-03-31"))
+        repos.saveLesson(lesson(nikos, date = "2026-03-15", absent = true))
+        repos.saveLesson(lesson(eleni, date = "2026-02-28"))
+        repos.saveLesson(lesson(eleni, date = "2026-04-01"))
+        repos.createInvoiceUseCase()(maria, listOf(billed), issueDate)
+        val march = repos.observeUninvoicedSummary(LocalDate.parse("2026-03-01"), LocalDate.parse("2026-03-31"))
+
+        // Both ends are included, an absence counts, and the invoiced lesson and other months do not.
+        assertEquals(UninvoicedSummary(lessons = 3, students = 2), march.first())
+        assertEquals(
+            UninvoicedSummary(0, 0),
+            repos.observeUninvoicedSummary(LocalDate.parse("2026-05-01"), LocalDate.parse("2026-05-31")).first(),
+        )
     }
 }

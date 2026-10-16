@@ -37,6 +37,7 @@ The rule numbers are referenced from code comments and PRs.
 | R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction, then applies the backup's settings. Once a restore starts, cancelling it does not stop it half-way. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
 | R12 | **Issued documents:** an invoice's content (seller, bill-to, lines, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Invoices created before schema 3 are frozen the first time they are shared. An invoice is paid once it has lessons and all are paid. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
 | R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. Settings save as they are typed, each field checked on its own: invalid input is never stored, the stored value stays in use and the field shows an inline error, while valid fields still save. | `SettingsRules`, `SaveSettings`, `SettingsViewModel` |
+| R15 | **Month-end reminder:** opening the app on Home asks *Time to invoice* the month (e.g. *Time to invoice March*) while it has lessons on no statement (absences included). A month's reminder runs from the 29th to its last day; February, which has fewer than 30 days, starts on its second-to-last day (the 27th, or the 28th in a leap year). December, June and the Easter month start on the 21st, each while its switch is on. The Easter month is the month of Orthodox Easter when Easter falls on or after the 21st, else the month before. During days 1–7 of the next month the previous month is still asked about. *Remind me tomorrow* hides it until the next day, *Done for this month* stops it for that month (and earlier ones), and *Create statements* or Back only hide it until the app is next opened. A master switch turns every reminder off. It is a dialog inside the app, not a notification. | `InvoiceReminder`, `HomeViewModel`, `LessonRepository.observeUninvoicedSummary` |
 
 ## 3. Data model
 
@@ -46,7 +47,8 @@ The rule numbers are referenced from code comments and PRs.
 | StudentGroup | name, class, rate, member ids, archived | Members are stored in `group_members` |
 | Lesson | student, group?, date, start time, minutes, fee, absent, notes, paidOn?, invoice? | `paidOn` is the payment record |
 | Invoice | number, student, issue date, total, notes, voidedOn?, document? | Never deleted (R6). `document` is the content as issued (R12) |
-| AppSettings | business details (name, address, phone, email, IBAN), currency, default lesson length, theme, invoice footer | SharedPreferences. The Tax ID was removed in 2.0.0 |
+| AppSettings | business details (name, address, phone, email, IBAN), currency, default lesson length, theme, invoice footer, reminder switches (on, early December, early June, early Easter month) | SharedPreferences. The Tax ID was removed in 2.0.0 |
+| Reminder state | the month marked done, the snooze date | Its own SharedPreferences file `reminder_state`, on this device only: never in a backup (R15) |
 
 Version history:
 
@@ -56,18 +58,19 @@ Version history:
 | 2.0.0-alpha02 | 2 | 2 | Adds `invoices.voided_on` (backup field `voidedOn`) for voiding (R6). Schema 1 upgrades automatically. v1 backups still import. |
 | 2.0.0-alpha03 | 3 | 3 | Adds `invoices.document` (backup field `document`), the content as issued (R12). Schema 2 upgrades automatically. v1 and v2 backups still import. |
 | 2.0.0 | 3 | 3 | Drops the settings field `taxId`: no longer written, and ignored when an older backup has it. |
+| 2.0.0 | 3 | 3 | Adds the settings fields `remindersEnabled`, `remindEarlyDecember`, `remindEarlyJune` and `remindEarlyEaster` (R15). A backup without them restores them switched on. |
 
 ## 4. Features
 
 | Area | What the tutor can do |
 |------|-----------------------|
-| Home | The launcher the app opens on: the EduSuite home header, then a button per section with a live figure (Dashboard: the outstanding total; Students: active students; Groups: active groups; Lessons: how many are not invoiced, absences included; Statements: how many are unpaid, not counting void ones; Settings). A section with nothing in it yet shows a faded button that still opens it. *Log lesson* appears once there is an active student. Every other screen has a Back arrow; Back from a section returns here. |
+| Home | The launcher the app opens on: the EduSuite home header, then a button per section with a live figure (Dashboard: the outstanding total; Students: active students; Groups: active groups; Lessons: how many are not invoiced, absences included; Statements: how many are unpaid, not counting void ones; Settings). A section with nothing in it yet shows a faded button that still opens it. *Log lesson* appears once there is an active student. Every other screen has a Back arrow; Back from a section returns here. At the end of a month it asks once to send that month's statements (R15): *Create statements* opens Statements, or *Remind me tomorrow*, or *Done for this month*. |
 | Dashboard | See the month's lessons, hours, earned, paid and unpaid amounts. See the all-time outstanding total and who owes. |
 | Students | Search, filter *Active* or *Archived*, add or edit, see a balance. Call or email. Record a payment, which settles all open lessons. Start an invoice. Archive, restore or delete. |
 | Groups | Filter *Active* or *Archived*. Create or edit a group with members and a rate. Log a group lesson with attendance. Archive, restore or delete a group. |
 | Lessons | Browse by month and filter by all, unpaid or not invoiced. Add, edit or delete a lesson. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
 | Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Tap an issued invoice to share it again. See whether each is paid, unpaid or void. Void it. |
-| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Changes save as you type, with no *Save* button; the theme applies at once. Export or import a JSON backup. |
+| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Changes save as you type, with no *Save* button; the theme applies at once. Turn the month-end reminder on or off, and choose whether December, June and the Easter month start it on the 21st; switches apply at once. Export or import a JSON backup. |
 
 ## 5. Out of scope and backlog
 

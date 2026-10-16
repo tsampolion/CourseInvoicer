@@ -5,9 +5,12 @@ import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
+import gr.edusuite.invoicer.core.model.ReminderSettings
+import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.model.ThemeMode
+import gr.edusuite.invoicer.core.testing.InMemoryReminderStateRepository
 import gr.edusuite.invoicer.core.testing.InMemoryRepositories
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
@@ -15,6 +18,7 @@ import gr.edusuite.invoicer.data.BackupFiles
 import gr.edusuite.invoicer.ui.dashboard.DashboardViewModel
 import gr.edusuite.invoicer.ui.groups.GroupEditViewModel
 import gr.edusuite.invoicer.ui.home.HomeViewModel
+import gr.edusuite.invoicer.ui.home.ReminderPrompt
 import gr.edusuite.invoicer.ui.invoices.InvoicesViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonEditViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonsViewModel
@@ -83,7 +87,7 @@ class ViewModelsTest {
 
     @Test
     fun `home counts each section and dims the empty ones`() = runTest {
-        val viewModel = HomeViewModel(repos, repos, repos, repos)
+        val viewModel = homeViewModel(today = "2026-03-15")
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
         val empty = viewModel.state.value
@@ -112,6 +116,100 @@ class ViewModelsTest {
 
         repos.setPaid(listOf(a, b), LocalDate.parse("2026-04-01"))
         assertEquals(0, viewModel.state.value.unpaidStatements)
+    }
+
+    private val reminderState = InMemoryReminderStateRepository()
+
+    private fun homeViewModel(today: String) = HomeViewModel(
+        repos,
+        repos,
+        repos,
+        repos,
+        repos.settingsRepository,
+        reminderState,
+        today = { LocalDate.parse(today) },
+    )
+
+    @Test
+    fun `home reminds at month end of the lessons not on a statement`() = runTest {
+        val maria = addStudent("Maria")
+        val nikos = addStudent("Nikos")
+        val billed = repos.saveLesson(lesson(maria, "2026-03-02", 2000))
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        repos.saveLesson(lesson(maria, "2026-03-12", 2000))
+        repos.saveLesson(lesson(nikos, "2026-03-20", 2000))
+        repos.saveLesson(lesson(nikos, "2026-02-20", 2000))
+        createInvoice(maria, listOf(billed), LocalDate.parse("2026-03-02"))
+
+        val viewModel = homeViewModel(today = "2026-03-29")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        assertEquals(ReminderPrompt(YearMonth.of(2026, 3), lessons = 3, students = 2), viewModel.state.value.reminder)
+    }
+
+    @Test
+    fun `home does not remind before the window or when the month is all on statements`() = runTest {
+        val maria = addStudent("Maria")
+        val billed = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+
+        val early = homeViewModel(today = "2026-03-20")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { early.state.collect {} }
+        assertNull("2026's Easter month starts on the 21st", early.state.value.reminder)
+
+        val due = homeViewModel(today = "2026-03-21")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { due.state.collect {} }
+        assertEquals(1, due.state.value.reminder?.lessons)
+
+        createInvoice(maria, listOf(billed), LocalDate.parse("2026-03-21"))
+        assertNull("nothing left to bill", due.state.value.reminder)
+
+        repos.settingsRepository.update { it.copy(reminders = it.reminders.copy(enabled = false)) }
+        repos.saveLesson(lesson(maria, "2026-03-21", 2000))
+        assertNull("reminders off", due.state.value.reminder)
+    }
+
+    @Test
+    fun `remind me tomorrow snoozes and done for this month stops the month`() = runTest {
+        val maria = addStudent("Maria")
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+
+        val snoozing = homeViewModel(today = "2026-03-29")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { snoozing.state.collect {} }
+        snoozing.remindTomorrow()
+        assertNull(snoozing.state.value.reminder)
+        assertEquals(LocalDate.parse("2026-03-30"), reminderState.state.value.snoozedUntil)
+
+        val sameDay = homeViewModel(today = "2026-03-29")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { sameDay.state.collect {} }
+        assertNull("snoozed until tomorrow", sameDay.state.value.reminder)
+
+        // Carried over into April's first days, then marked done.
+        val nextDay = homeViewModel(today = "2026-04-02")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { nextDay.state.collect {} }
+        assertEquals(YearMonth.of(2026, 3), nextDay.state.value.reminder?.month)
+        nextDay.doneForMonth()
+        assertNull(nextDay.state.value.reminder)
+        assertEquals(YearMonth.of(2026, 3), reminderState.state.value.doneFor)
+
+        val later = homeViewModel(today = "2026-04-03")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { later.state.collect {} }
+        assertNull("March is done", later.state.value.reminder)
+    }
+
+    @Test
+    fun `dismissing the reminder only hides it on this home`() = runTest {
+        val maria = addStudent("Maria")
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+
+        val viewModel = homeViewModel(today = "2026-03-30")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        viewModel.dismissReminder()
+
+        assertNull(viewModel.state.value.reminder)
+        assertEquals(ReminderState(), reminderState.state.value)
+        val reopened = homeViewModel(today = "2026-03-30")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { reopened.state.collect {} }
+        assertEquals(YearMonth.of(2026, 3), reopened.state.value.reminder?.month)
     }
 
     @Test
@@ -335,6 +433,22 @@ class ViewModelsTest {
         assertEquals(ThemeMode.DARK, stored.themeMode)
         assertEquals("Thanks", stored.invoiceFooter)
         assertEquals(ThemeMode.DARK, viewModel.state.value.form.themeMode)
+    }
+
+    @Test
+    fun `reminder switches save at once`() = runTest {
+        val viewModel = settingsViewModel()
+
+        viewModel.onName("Tutor")
+        viewModel.onRemindEarlyJune(false)
+        assertEquals(ReminderSettings(earlyJune = false), stored.reminders)
+        assertEquals("pending typing is saved too", "Tutor", stored.business.name)
+
+        viewModel.onRemindersEnabled(false)
+        viewModel.onRemindEarlyEaster(false)
+        viewModel.onRemindEarlyDecember(false)
+        assertEquals(ReminderSettings(false, false, false, false), stored.reminders)
+        assertEquals(stored.reminders, viewModel.state.value.form.reminders)
     }
 
     @Test

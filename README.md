@@ -41,6 +41,7 @@ always export a backup first.
 | Send an invoice again | Invoices → tap the invoice. It is the same document as the first time. |
 | Cancel an invoice | Invoices → ✕ → **Void**. The number is never reused, and the lessons can be invoiced again. |
 | See the month's earnings and who owes what | Home → **Dashboard** |
+| Change or turn off the month-end reminder to send statements | Home → ⚙ Settings → *Reminders* |
 
 **Back up regularly:** Settings → *Backup* → **Export** saves a JSON file. Keep it off the phone,
 for example in cloud storage or email. **Import** replaces *all* data on the phone with the backup.

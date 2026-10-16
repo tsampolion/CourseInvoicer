@@ -11,9 +11,12 @@ import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
+import gr.edusuite.invoicer.core.model.ReminderSettings
+import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.report.Reports
+import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.testing.InMemorySettingsRepository
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.DeleteGroup
@@ -36,6 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.YearMonth
 import java.util.Locale
 
 /** Runs the real SQLite repositories (in-memory database) on a device or emulator. */
@@ -301,6 +305,56 @@ class SqlRepositoriesTest {
 
         lessons.setPaid(listOf(open), march31)
         assertEquals(0, invoices.observeUnpaidCount().first())
+    }
+
+    @Test
+    fun uninvoicedSummaryCountsAPeriodsOpenLessonsAndTheirStudents() = runTest {
+        val maria = student()
+        val nikos = student("Nikos")
+        val eleni = student("Eleni")
+        val billed = lessons.saveLesson(lesson(maria, date = "2026-03-02"))
+        lessons.saveLesson(lesson(maria, date = "2026-03-01"))
+        lessons.saveLesson(lesson(maria, date = "2026-03-31"))
+        lessons.saveLesson(lesson(nikos, date = "2026-03-15").copy(absent = true))
+        lessons.saveLesson(lesson(eleni, date = "2026-02-28"))
+        lessons.saveLesson(lesson(eleni, date = "2026-04-01"))
+        createInvoice(maria, listOf(billed), march31)
+        val march = lessons.observeUninvoicedSummary(LocalDate.parse("2026-03-01"), march31)
+
+        // Both ends are included, an absence counts, and the invoiced lesson and other months do not.
+        assertEquals(UninvoicedSummary(lessons = 3, students = 2), march.first())
+        assertEquals(
+            UninvoicedSummary(0, 0),
+            lessons.observeUninvoicedSummary(LocalDate.parse("2026-05-01"), LocalDate.parse("2026-05-31")).first(),
+        )
+    }
+
+    @Test
+    fun reminderSwitchesAndAnswersSurviveARestart() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val settingsFile = "settings-reminders-test"
+        val stateFile = "reminder-state-test"
+        context.deleteSharedPreferences(settingsFile)
+        context.deleteSharedPreferences(stateFile)
+        try {
+            assertEquals(ReminderSettings(), PrefsSettingsRepository(context, settingsFile).settings.value.reminders)
+            val reminders = ReminderSettings(earlyDecember = false, earlyEaster = false)
+            PrefsSettingsRepository(context, settingsFile).update { it.copy(reminders = reminders) }
+            assertEquals(reminders, PrefsSettingsRepository(context, settingsFile).settings.value.reminders)
+
+            assertEquals(ReminderState(), PrefsReminderStateRepository(context, stateFile).state.value)
+            val answered = ReminderState(doneFor = YearMonth.of(2026, 3), snoozedUntil = LocalDate.parse("2026-04-02"))
+            PrefsReminderStateRepository(context, stateFile).update { answered }
+            assertEquals(answered, PrefsReminderStateRepository(context, stateFile).state.value)
+
+            // A cleared value is removed from the file, not stored as an empty string.
+            PrefsReminderStateRepository(context, stateFile).update { it.copy(snoozedUntil = null) }
+            val reloaded = PrefsReminderStateRepository(context, stateFile).state.value
+            assertEquals(answered.copy(snoozedUntil = null), reloaded)
+        } finally {
+            context.deleteSharedPreferences(settingsFile)
+            context.deleteSharedPreferences(stateFile)
+        }
     }
 
     @Test
