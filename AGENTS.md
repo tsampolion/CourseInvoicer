@@ -100,8 +100,9 @@ There, only `:core` builds locally, and CI is the source of truth for `:app`.
   in `README.md`, this file and `CHANGELOG.md` the same.
 - *Marked for deletion (D9):* release signing is not configured, and it isn't planned because the
   app is not going to the Play Store. `assembleRelease` produces an unsigned APK.
-- Never commit keystores or passwords. CI signs debug builds with the key in the
-  `DEBUG_KEYSTORE_BASE64` secret so updates install over each other (README, *Install a test build*).
+- Never commit keystores or passwords. CI signs debug builds with the owner's key (secrets
+  `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and fails if the certificate does not match the
+  `SIGNING_CERT_SHA256` variable, so updates install over each other (README, *Install a test build*).
 
 ## 6. Pull requests
 

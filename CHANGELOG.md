@@ -11,8 +11,9 @@ Fixes from a full audit of the app.
 - **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing it
   after changing the currency, your details, the student, a group name or lesson notes produces the
   same document. Older invoices are frozen the first time they are shared.
-- **Updating the app no longer risks your data:** CI signs every debug build with one stable key
-  (secret `DEBUG_KEYSTORE_BASE64`, see README), so a new build installs over the previous one.
+- **Updating the app no longer risks your data:** CI signs every debug build with the owner's key
+  (secrets `SIGNING_KEYSTORE_B64` and `SIGNING_PASSWORD`, see README) and fails if its fingerprint
+  differs from `SIGNING_CERT_SHA256`, so a new build installs over the previous one.
 - Deleting a student who only has a void invoice now explains why it is refused, instead of showing a
   database error. Groups with invoiced lessons can no longer be deleted (archive them instead).
 - Restoring a backup checks it against the app's rules first. A bad currency, an impossible lesson

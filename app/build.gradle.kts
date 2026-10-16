@@ -20,10 +20,16 @@ android {
 
     signingConfigs {
         getByName("debug") {
-            // CI signs every debug build with the same key, so a new build installs over the previous one
-            // and keeps the tutor's data (see README, "Install a test build"). Locally, the default
-            // ~/.android/debug.keystore is used.
-            providers.environmentVariable("EDUINVOICE_DEBUG_KEYSTORE").orNull?.let { storeFile = file(it) }
+            // CI signs every debug build with the owner's key (secrets SIGNING_KEYSTORE_B64 and
+            // SIGNING_PASSWORD), so a new build installs over the previous one and keeps the tutor's data
+            // (README, "Install a test build"). Without these variables the default debug key is used.
+            providers.environmentVariable("EDUINVOICE_DEBUG_KEYSTORE").orNull?.let { path ->
+                val password = providers.environmentVariable("EDUINVOICE_KEYSTORE_PASSWORD").orNull ?: "android"
+                storeFile = file(path)
+                storePassword = password
+                keyPassword = password // PKCS12 keys share the keystore password.
+                keyAlias = providers.environmentVariable("EDUINVOICE_KEY_ALIAS").orNull ?: "androiddebugkey"
+            }
         }
     }
 

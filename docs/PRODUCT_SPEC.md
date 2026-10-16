@@ -94,7 +94,7 @@ Version history:
 | D8 | Instrumented tests on an emulator in CI | The SQLite layer and the whole UI flow can only be verified on Android. Test-only dependencies were approved. | alpha02 |
 | D9 | No Play Store release. Release-only items are marked for deletion, not removed | The app is installed from CI builds. Marking first keeps the change reversible until the owner confirms each removal. | alpha02 |
 | D10 | Freeze each invoice's document when it is issued (R12) | D7's promise that a number means one document also covers its content, not just its number. | alpha03 |
-| D11 | CI signs debug builds with one key kept in a GitHub secret | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build. | alpha03 |
+| D11 | CI signs debug builds with the owner's key (secrets `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and checks it against `SIGNING_CERT_SHA256` | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build; the fingerprint check catches a wrong or replaced key. | alpha03 |
 
 ## 7. Dependency register
 

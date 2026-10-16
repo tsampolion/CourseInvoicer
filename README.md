@@ -12,23 +12,25 @@ who owes what, record payments and send PDF invoices. All data stays on the phon
 3. Copy `app-debug.apk` to the phone, open it, and allow installs from that app when asked.
 
 A new build installs over the previous one and keeps your data, **as long as both were signed with
-the project's debug key** (the `DEBUG_KEYSTORE_BASE64` secret below). If Android says *App not
-installed*, the builds have different keys: export a backup, uninstall, install the new build and
-import the backup. Uninstalling deletes all data, so always export a backup first.
+the owner's key**. If Android says *App not installed*, the builds have different keys: export a
+backup, uninstall, install the new build and import the backup. Uninstalling deletes all data, so
+always export a backup first.
 
-**One-time setup of the debug key** (repository owner). Until it is done, each CI build is signed
-with a throwaway key and cannot update the previous one; CI prints a warning.
+**Signing key setup** (repository owner, once). CI signs every `app-debug.apk` with your key and
+checks its fingerprint. In *Settings → Secrets and variables → Actions* add:
 
-```bash
-keytool -genkeypair -keystore eduinvoice-debug.keystore -alias androiddebugkey \
-  -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
-  -dname "CN=Android Debug,O=Android,C=US"
-base64 -w0 eduinvoice-debug.keystore   # macOS: base64 -i eduinvoice-debug.keystore
-```
+| Kind | Name | Value |
+|------|------|-------|
+| Secret | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
+| Secret | `SIGNING_PASSWORD` | The keystore password |
+| Variable | `SIGNING_CERT_SHA256` | The certificate's SHA-256 fingerprint from `keytool -list -v` |
+| Variable (optional) | `SIGNING_KEY_ALIAS` | Only if your alias is not `release` |
 
-Add the output as the repository secret `DEBUG_KEYSTORE_BASE64` (*Settings → Secrets and variables
-→ Actions*), keep the keystore file somewhere safe outside the repository, and re-run CI. Switching
-to the stable key needs one last export, uninstall and import.
+Create the key with `keytool -genkeypair -keystore eduinvoice-release.p12 -storetype PKCS12 -alias
+release -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=EduInvoice"`, keep tested backups of the
+file and the password, and never commit them. Until the secrets exist, CI warns and signs with a
+throwaway key. The job summary shows which certificate signed each build. Moving to your key needs
+one last export, uninstall and import.
 
 ## Using the app
 
