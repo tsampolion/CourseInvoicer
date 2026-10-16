@@ -39,6 +39,7 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 11 | Smaller footprint | Partial | S |
 | 12 | App theme drives the system bars | Done | — |
 | 13 | Short, rule-focused agent guide | In review | S |
+| 14 | Theme and components for style guide v3 | Not started | L |
 
 ## 1. One state and one change path per ViewModel
 
@@ -278,6 +279,19 @@ colour applied on Android 12 and later until 2.0.0, which turned it off for the 
       because AGP resolves while Gradle configures the build.
 - [ ] Optional: make `:core:test` work without Google Maven, for example by moving the AGP plugin
       declaration out of the root build. It is worth doing only if sandboxed agents keep hitting it.
+
+## 14. Theme and components for style guide v3
+
+The style guide's third version (tiles, Outfit, motion, flow) is written; the app still has the 2.0
+look. Bring the code in line, in small PRs:
+
+- Tokens: `Color.kt` (neutrals, tile sets light and dark), `Type.kt` with the Outfit font files,
+  `Shape.kt`, a `Space` and a `Motion` object.
+- Components in `SuiteComponents.kt`: Tile, hero tile, stat tile row, day strip, status chip, list
+  row, pill buttons, and the press, toggle, slider and rolling-figure motion.
+- Home: the greeting header and the bento tile grid.
+- Flow: swipe actions and bottom-sheet edits (Undo itself is item 2).
+- Mirror the guide in Course Pacer.
 
 ## Found along the way
 

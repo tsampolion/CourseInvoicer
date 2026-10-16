@@ -12,8 +12,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 203
-        versionName = "2.0.0"
+        versionCode = 204
+        versionName = "2.1.0"
         // Runs instrumented tests against a throwaway database (app/src/androidTest/.../InvoicerTestRunner.kt).
         testInstrumentationRunner = "gr.edusuite.invoicer.InvoicerTestRunner"
     }

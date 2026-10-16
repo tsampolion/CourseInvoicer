@@ -20,6 +20,16 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.1.0] - Unreleased
+
+### Changed
+- **EduSuite style guide, version 3** (`docs/EDUSUITE_STYLE_GUIDE.md`): a brighter, livelier look
+  with pastel tiles (a separate deep set in dark mode), pill controls, the bundled Outfit typeface
+  with monospace figures, and larger corners. It adds rules for micro-interactions (springy presses,
+  toggles, sliders, rolling figures, haptics), loading, empty and error states, strings and icons,
+  and a fluid flow (undo instead of confirm, smart defaults, swipe actions, two taps to the daily
+  work), plus an overview diagram. Guide only: the app's theme follows in later changes.
+
 ## [2.0.0] - 2026-10-16
 
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
