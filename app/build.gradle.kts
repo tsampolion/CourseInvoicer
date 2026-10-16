@@ -4,18 +4,18 @@ plugins {
 }
 
 android {
-    namespace = "gr.eduinvoice"
+    namespace = "gr.edusuite.invoicer"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "gr.eduinvoice"
+        applicationId = "gr.edusuite.invoicer"
         minSdk = 26
         targetSdk = 37
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 202
-        versionName = "2.0.0-alpha03"
-        // Runs instrumented tests against a throwaway database (app/src/androidTest/.../EduTestRunner.kt).
-        testInstrumentationRunner = "gr.eduinvoice.EduTestRunner"
+        versionCode = 203
+        versionName = "2.0.0"
+        // Runs instrumented tests against a throwaway database (app/src/androidTest/.../InvoicerTestRunner.kt).
+        testInstrumentationRunner = "gr.edusuite.invoicer.InvoicerTestRunner"
     }
 
     signingConfigs {
@@ -23,12 +23,12 @@ android {
             // CI signs every debug build with the owner's key (secrets SIGNING_KEYSTORE_B64 and
             // SIGNING_PASSWORD), so a new build installs over the previous one and keeps the tutor's data
             // (README, "Install a test build"). Without these variables the default debug key is used.
-            providers.environmentVariable("EDUINVOICE_DEBUG_KEYSTORE").orNull?.let { path ->
-                val password = providers.environmentVariable("EDUINVOICE_KEYSTORE_PASSWORD").orNull ?: "android"
+            providers.environmentVariable("INVOICER_DEBUG_KEYSTORE").orNull?.let { path ->
+                val password = providers.environmentVariable("INVOICER_KEYSTORE_PASSWORD").orNull ?: "android"
                 storeFile = file(path)
                 storePassword = password
                 keyPassword = password // PKCS12 keys share the keystore password.
-                keyAlias = providers.environmentVariable("EDUINVOICE_KEY_ALIAS").orNull ?: "androiddebugkey"
+                keyAlias = providers.environmentVariable("INVOICER_KEY_ALIAS").orNull ?: "androiddebugkey"
             }
         }
     }

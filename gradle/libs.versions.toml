@@ -1,4 +1,4 @@
-# Approved dependencies for EduInvoice (register: docs/PRODUCT_SPEC.md §7).
+# Approved dependencies for Course Invoicer (register: docs/PRODUCT_SPEC.md §7).
 # Adding anything here needs explicit approval. Test-only entries never ship in the APK.
 
 [versions]

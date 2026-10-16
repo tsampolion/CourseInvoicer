@@ -50,8 +50,8 @@ jobs:
         id: version
         run: |
           version=$(sed -n 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error file=app/build.gradle.kts::versionName '$version' is not MAJOR.MINOR.PATCH with an optional -prerelease suffix"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=app/build.gradle.kts::versionName '$version' is not plain SemVer MAJOR.MINOR.PATCH"
             exit 1
           fi
           heading=$(grep -m1 -F "## [$version]" CHANGELOG.md || true)
@@ -65,7 +65,6 @@ jobs:
             echo "tag=v$version"
             echo "sha=$(git rev-parse HEAD)"
             echo "date=$date"
-            [[ "$version" == *-* ]] && echo "prerelease=true" || echo "prerelease=false"
           } >> "$GITHUB_OUTPUT"
           if [ -z "$date" ]; then
             echo "::notice::CHANGELOG.md does not date $version yet ('$heading'); nothing to release"
@@ -145,14 +144,10 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           SHA: ${{ steps.version.outputs.sha }}
-          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          cp apk/app-release.apk "eduinvoice-$VERSION.apk"
-          flags=()
-          [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
-          gh release create "$TAG" "eduinvoice-$VERSION.apk" \
+          cp apk/app-release.apk "course-invoicer-$VERSION.apk"
+          gh release create "$TAG" "course-invoicer-$VERSION.apk" \
             --target "$SHA" \
-            --title "EduInvoice $VERSION" \
-            --notes-file notes.md \
-            "${flags[@]}"
+            --title "Course Invoicer $VERSION" \
+            --notes-file notes.md
           echo "Released [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG) from $SHA." >> "$GITHUB_STEP_SUMMARY"

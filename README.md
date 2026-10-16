@@ -1,20 +1,20 @@
-# EduInvoice
+# Course Invoicer
 
 [![CI](https://github.com/tsampolion/EduInvoiceApp/actions/workflows/ci.yml/badge.svg?branch=Rebuild_v2)](https://github.com/tsampolion/EduInvoiceApp/actions/workflows/ci.yml?query=branch%3ARebuild_v2)
 
 An offline Android app for private tutors. Keep a register of students and groups, log lessons, see
-who owes what, record payments and send PDF invoices. All data stays on the phone.
+who owes what, record payments and send PDF lesson statements. All data stays on the phone. Part of
+the EduSuite apps, with Course Pacer. Formerly EduInvoice.
 
-**Version:** 2.0.0-alpha03 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.0.0 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 How the app should behave is in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). What changed in each
 version is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Install a test build
 
-1. Open the repository's *Releases* page and pick the newest release. Alpha and beta builds are
-   marked *Pre-release*.
-2. Download `eduinvoice-<version>.apk` from its *Assets*. It is the small, optimised build.
+1. Open the repository's *Releases* page and pick the newest release.
+2. Download `course-invoicer-<version>.apk` from its *Assets*. It is the small, optimised build.
 3. Copy it to the phone, open it, and allow installs from that app when asked.
 
 Until the first v2 release is published, or for a build between releases, open the latest green
@@ -104,8 +104,8 @@ its fingerprint. In *Settings → Secrets and variables → Actions* add:
 Create the key with:
 
 ```bash
-keytool -genkeypair -keystore eduinvoice-release.p12 -storetype PKCS12 -alias release \
-  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=EduInvoice"
+keytool -genkeypair -keystore invoicer-release.p12 -storetype PKCS12 -alias release \
+  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Course Invoicer"
 ```
 
 Keep tested backups of the file and the password, and never commit them. Until the secrets exist, CI
@@ -124,7 +124,7 @@ import.
 │       └── test/                 # rule, report, invoice and backup tests
 ├── app/                          # the Android app
 │   └── src/
-│       ├── main/…/eduinvoice/    # AppContainer, MainActivity, data/ (SQLite, PDF, backups), ui/
+│       ├── main/…/invoicer/      # AppContainer, MainActivity, data/ (SQLite, PDF, backups), ui/
 │       ├── test/                 # ViewModel and navigation tests (JVM)
 │       └── androidTest/          # emulator tests: SQL, migrations, end-to-end flow
 ├── docs/PRODUCT_SPEC.md          # business rules, features, decisions, dependency register

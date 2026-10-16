@@ -1,11 +1,12 @@
-# EduInvoice: Product specification
+# Course Invoicer: Product specification
 
 This is the reference for **what the app does and why**. When behaviour changes, update this file
 in the same pull request. Engineering rules (how to build it) live in [`AGENTS.md`](../AGENTS.md).
 
 ## 1. Purpose
 
-EduInvoice is a single-user, offline Android app for a private tutor:
+Course Invoicer (formerly EduInvoice, D17) is a single-user, offline Android app for a private
+tutor, part of the EduSuite apps with Course Pacer:
 
 1. Keep a register of students and groups.
 2. Log lessons.
@@ -49,7 +50,7 @@ The rule numbers are referenced from code comments and PRs.
 
 Version history:
 
-| Version | Database schema (`EduDatabase.VERSION`) | Backup format (`BackupCodec.VERSION`) | Change |
+| Version | Database schema (`InvoicerDatabase.VERSION`) | Backup format (`BackupCodec.VERSION`) | Change |
 |---------|-----------------------------------------|---------------------------------------|--------|
 | 2.0.0-alpha01 | 1 | 1 | v2 baseline. |
 | 2.0.0-alpha02 | 2 | 2 | Adds `invoices.voided_on` (backup field `voidedOn`) for voiding (R6). Schema 1 upgrades automatically. v1 backups still import. |
@@ -98,6 +99,8 @@ Version history:
 | D14 | Proprietary licence, all rights reserved, with AI-use terms; replaces MIT | One licence for the owner's apps, shared with Coursebook Pacer: it keeps every right with the owner and lets AI systems work on the code only when the owner authorises them. It also adds MIT's full warranty disclaimer, leaves third-party libraries under their own licences, and confirms that copies already published under MIT keep their MIT rights. | alpha03 |
 | D15 | Undo, not a confirmation dialog, for deleting a lesson, recording a payment, marking lessons paid (one or in bulk) and rescheduling | Mistakes are cheap to reverse and the dialogs go. Voiding stays final, because un-voiding would break R6 and D7. A backup import stays final; the advice is to export first. | alpha03 (decided; built in roadmap item 2) |
 | D16 | Releases ship a minified (R8) build signed with the owner's key; D9 still rules out the Play Store | The installed app shrinks from 12.5 MB to 1.9 MB and Compose runs faster than in a debuggable build. Same key and `applicationId` as debug, so either installs over the other. An emulator smoke test in CI launches and exercises the minified APK. | alpha03 |
+| D17 | Rename to **Course Invoicer**, part of the EduSuite apps, with a new `applicationId` and package `gr.edusuite.invoicer` | The owner's apps now share one suite name and style. A new `applicationId` installs beside the old EduInvoice app instead of over it, so the tutor moves data once: export a backup from EduInvoice, install Course Invoicer, import, then uninstall the old app. Backups now say `course-invoicer-backup`; files that say `eduinvoice-backup` (versions 1 to 3) still import. The database file is `course_invoicer.db`. Launcher shortcuts to the old app go with it. | 2.0.0 |
+| D18 | Plain SemVer `MAJOR.MINOR.PATCH` for `versionName`, tags and changelog sections; no pre-release suffix | The owner's choice. Earlier `-alphaNN` tags and sections stay as history. `release.yml` rejects any other `versionName`, so no release is marked *Pre-release*. 2.0.0 follows 2.0.0-alpha03. | 2.0.0 |
 
 ## 7. Dependency register
 
@@ -126,7 +129,8 @@ first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
   is a CI artifact. The README's *Install a test build* section covers both.
 - **Target SDK.** `targetSdk` and `compileSdk` are 37 (Android 17); `minSdk` is 26. D13 gives the
   reason.
-- **Version numbers.** `versionCode` and `versionName` stay. Android refuses to install an APK with
+- **Version numbers.** `versionName` is plain SemVer with no pre-release suffix (D18).
+  `versionCode` and `versionName` stay. Android refuses to install an APK with
   a lower `versionCode` over a newer one, so sideloaded builds still need them. Settings shows
   `versionName`.
 - **Signing patterns in `.gitignore`.** `*.jks`, `*.keystore`, `*.p12` and `keystore.properties`

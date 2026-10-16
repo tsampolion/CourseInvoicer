@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "EduInvoice"
+rootProject.name = "CourseInvoicer"
 
 include(":core", ":app")

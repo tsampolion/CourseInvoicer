@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a change to how EduInvoice works
+about: Suggest a change to how Course Invoicer works
 title: '[Feature] '
 labels: ['enhancement']
 assignees: ''
