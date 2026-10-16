@@ -38,10 +38,10 @@ always export a backup first.
 | Record an absence | Turn on **Absent** on the lesson: *Not charged*, or *Late cancellation* (under 24 hours, charged the full fee), with an optional reason. |
 | Mark lessons paid | Tick the box on a lesson. Or use a student's **Record payment** to settle everything they owe. |
 | Move several lessons to another day | Lessons → long-press the lessons → **Reschedule** |
-| Send a student a statement of their lessons | Student → **Statement**, or Invoices → **+**. Choose the lessons (absences can go on it too; excused ones show 0.00), then **Create**, then **Share PDF**. A statement is not a fiscal document and says so on every page: issue the legal receipt for each payment separately. |
-| Send a statement again | Invoices → tap the statement. It is the same document as the first time. |
-| Cancel a statement | Invoices → ✕ → **Void**. The number is never reused, and the lessons can go on a new statement. |
-| See who owes what | Home → *Who owes* |
+| Send a student a statement of their lessons | Student → **Statement**, or Home → **Statements** → **+**. Choose the lessons (absences can go on it too; excused ones show 0.00), then **Create**, then **Share PDF**. A statement is not a fiscal document and says so on every page: issue the legal receipt for each payment separately. |
+| Send a statement again | Home → **Statements** → tap the statement. It is the same document as the first time. |
+| Cancel a statement | Home → **Statements** → ✕ → **Void**. The number is never reused, and the lessons can go on a new statement. |
+| See the month's earnings and who owes what | Home → **Dashboard** |
 
 **Back up regularly:** Settings → *Backup* → **Export** saves a JSON file. Keep it off the phone,
 for example in cloud storage or email. **Import** replaces *all* data on the phone with the backup.

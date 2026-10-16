@@ -124,7 +124,14 @@ fun StudentDetailScreen(
         },
     ) { padding ->
         if (student == null) {
-            if (!state.loading) EmptyState("This student no longer exists.", Modifier.padding(padding))
+            if (!state.loading) {
+                EmptyState(
+                    icon = AppIcons.Person,
+                    title = "Student not found",
+                    message = "This student no longer exists.",
+                    modifier = Modifier.padding(padding),
+                )
+            }
             return@ScreenScaffold
         }
         LazyColumn(Modifier.padding(padding)) {

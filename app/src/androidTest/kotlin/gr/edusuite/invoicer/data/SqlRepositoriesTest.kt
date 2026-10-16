@@ -313,6 +313,44 @@ class SqlRepositoriesTest {
     }
 
     @Test
+    fun homeCountsSkipVoidAndFullyPaidInvoices() = runTest {
+        val maria = student()
+        val open = lessons.saveLesson(lesson(maria, fee = 2000))
+        val paid = lessons.saveLesson(lesson(maria, fee = 3000).copy(paidOn = march31))
+        val voided = lessons.saveLesson(lesson(maria, fee = 4000))
+        lessons.saveLesson(lesson(maria, fee = 5000))
+        lessons.saveLesson(lesson(maria, fee = 1500).copy(absent = true))
+        val unpaidInvoice = createInvoice(maria, listOf(open), march31)
+        val paidInvoice = createInvoice(maria, listOf(paid), march31)
+        val voidInvoice = createInvoice(maria, listOf(voided), march31)
+        VoidInvoice(invoices)(voidInvoice.id, march31)
+
+        assertEquals(5, lessons.observeLessonCount().first())
+        // The voided invoice released its lesson, and an absence is counted too.
+        assertEquals(3, lessons.observeUninvoicedCount().first())
+        assertEquals(3, invoices.observeInvoiceCount().first())
+        assertEquals(1, invoices.observeUnpaidCount().first())
+        // The same answer as InvoicePayment.isPaid over observeInvoicePayments, for every invoice that is not void.
+        val payments = lessons.observeInvoicePayments().first()
+        assertEquals(
+            listOf(unpaidInvoice.id),
+            invoices.observeInvoices().first().filter { !it.isVoid && payments[it.id]?.isPaid == false }.map { it.id },
+        )
+        assertTrue(payments.getValue(paidInvoice.id).isPaid)
+
+        lessons.setPaid(listOf(open), march31)
+        assertEquals(0, invoices.observeUnpaidCount().first())
+
+        // Only charged lessons can leave a statement unpaid: excused absences never do, late cancellations do.
+        val excused = lessons.saveLesson(lesson(maria, fee = 2500).copy(absent = true))
+        createInvoice(maria, listOf(excused), march31)
+        assertEquals(0, invoices.observeUnpaidCount().first())
+        val late = lessons.saveLesson(lateCancel(maria, fee = 2500))
+        createInvoice(maria, listOf(late), march31)
+        assertEquals(1, invoices.observeUnpaidCount().first())
+    }
+
+    @Test
     fun deleteRulesHoldOnSqlite() = runTest {
         val maria = student()
         val groupId = groups.saveGroup(StudentGroup(name = "B1", rate = Rate(Money(1200), RateType.HOURLY)))

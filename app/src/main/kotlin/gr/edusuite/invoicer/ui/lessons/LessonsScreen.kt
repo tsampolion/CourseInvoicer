@@ -45,9 +45,9 @@ import java.time.LocalTime
 
 @Composable
 fun LessonsScreen(
+    onBack: () -> Unit,
     onOpenLesson: (Long) -> Unit,
     onAddLesson: () -> Unit,
-    bottomBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LessonsViewModel = appViewModel {
         LessonsViewModel(it.lessonRepository, it.studentRepository, it.groupRepository)
@@ -64,9 +64,10 @@ fun LessonsScreen(
     ScreenScaffold(
         title = if (selecting) "${state.selected.size} selected" else "Lessons",
         modifier = modifier,
-        onBack = if (selecting) viewModel::clearSelection else null,
-        backIcon = AppIcons.Close,
-        backLabel = "Clear selection",
+        // While lessons are selected the navigation icon clears the selection instead of going back.
+        onBack = if (selecting) viewModel::clearSelection else onBack,
+        backIcon = if (selecting) AppIcons.Close else AppIcons.Back,
+        backLabel = if (selecting) "Clear selection" else "Back",
         snackbarHostState = snackbar,
         actions = {
             if (selecting) {
@@ -79,7 +80,6 @@ fun LessonsScreen(
                 FloatingActionButton(onClick = onAddLesson) { Icon(AppIcons.Add, contentDescription = "Log lesson") }
             }
         },
-        bottomBar = bottomBar,
     ) { padding ->
         Column(Modifier.padding(padding)) {
             MonthSwitcher(state.month, viewModel::previousMonth, viewModel::nextMonth, Modifier.padding(horizontal = 8.dp))
@@ -105,7 +105,11 @@ fun LessonsScreen(
             }
             when {
                 state.loading -> Unit
-                state.items.isEmpty() -> EmptyState("No lessons in this month.")
+                state.items.isEmpty() -> EmptyState(
+                    icon = AppIcons.Calendar,
+                    title = "No lessons here",
+                    message = "Nothing in this month matches the filter. Log a lesson or pick another month.",
+                )
                 else -> LazyColumn {
                     state.items.groupBy { it.lesson.date }.forEach { (date, dayItems) ->
                         item(key = "day-$date") { SectionHeader(formats.date(date)) }

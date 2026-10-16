@@ -133,6 +133,10 @@ class InMemoryRepositories :
             .mapValues { (_, linked) -> InvoicePayment.of(linked) }
     }
 
+    override fun observeLessonCount(): Flow<Int> = data.map { it.lessons.size }
+
+    override fun observeUninvoicedCount(): Flow<Int> = data.map { d -> d.lessons.values.count { !it.isInvoiced } }
+
     override suspend fun getLesson(id: Long): Lesson? = data.value.lessons[id]
 
     override suspend fun getLessons(ids: Collection<Long>): List<Lesson> = ids.mapNotNull { data.value.lessons[it] }
@@ -179,6 +183,15 @@ class InMemoryRepositories :
 
     override fun observeInvoices(): Flow<List<Invoice>> = data.map { d ->
         d.invoices.values.sortedWith(compareByDescending<Invoice> { it.issueDate }.thenByDescending { it.number })
+    }
+
+    override fun observeInvoiceCount(): Flow<Int> = data.map { it.invoices.size }
+
+    override fun observeUnpaidCount(): Flow<Int> = data.map { d ->
+        val linked = d.lessons.values.filter { it.invoiceId != null }.groupBy { it.invoiceId!! }
+        d.invoices.values.count { invoice ->
+            !invoice.isVoid && linked[invoice.id]?.let { !InvoicePayment.of(it).isPaid } == true
+        }
     }
 
     override suspend fun getInvoice(id: Long): Invoice? = data.value.invoices[id]

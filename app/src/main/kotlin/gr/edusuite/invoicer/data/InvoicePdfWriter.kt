@@ -74,7 +74,7 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
 
     private val ink = Color.rgb(0x1C, 0x1B, 0x1F)
     private val muted = Color.rgb(0x60, 0x5D, 0x66)
-    private val accent = Color.rgb(0x2E, 0x5A, 0x88)
+    private val accent = Color.rgb(0x5B, 0x3F, 0xA0) // Course Invoicer accent (EduSuite style guide)
 
     private val title = paint(22f, bold = true, color = accent)
     private val statementTitle = paint(15f, bold = true, color = accent)
@@ -86,7 +86,7 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
     private val disclaimerBox = paint(9f, bold = true)
     private val footer = paint(7f, color = muted)
     private val total = paint(12f, bold = true)
-    private val stamp = paint(14f, bold = true, color = Color.rgb(0x2E, 0x7D, 0x32))
+    private val stamp = paint(14f, bold = true, color = Color.rgb(0x3E, 0x6E, 0x47)) // suite "ok" moss
     private val rule = Paint().apply { color = Color.rgb(0xCA, 0xC4, 0xD0); strokeWidth = 0.8f }
     private val band = Paint().apply { color = Color.rgb(0xEE, 0xEC, 0xF2) }
     private val frame = Paint().apply { color = ink; strokeWidth = 1f; style = Paint.Style.STROKE }

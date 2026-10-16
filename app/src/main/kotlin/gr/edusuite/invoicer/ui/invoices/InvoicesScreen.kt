@@ -39,8 +39,8 @@ import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
 
 @Composable
 fun InvoicesScreen(
+    onBack: () -> Unit,
     onCreateInvoice: () -> Unit,
-    bottomBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: InvoicesViewModel = appViewModel {
         InvoicesViewModel(it.invoiceRepository, it.studentRepository, it.lessonRepository)
@@ -56,17 +56,19 @@ fun InvoicesScreen(
     ScreenScaffold(
         title = "Statements",
         modifier = modifier,
+        onBack = onBack,
         snackbarHostState = snackbar,
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateInvoice) { Icon(AppIcons.Add, contentDescription = "New statement") }
         },
-        bottomBar = bottomBar,
     ) { padding ->
         when {
             state.loading -> Unit
             state.items.isEmpty() -> EmptyState(
-                "No statements yet. Tap + to list a student's lessons on one.",
-                Modifier.padding(padding),
+                icon = AppIcons.Invoice,
+                title = "No statements yet",
+                message = "Tap + to list a student's lessons on one.",
+                modifier = Modifier.padding(padding),
             )
             else -> LazyColumn(Modifier.padding(padding)) {
                 items(state.items, key = { it.invoice.id }) { item ->

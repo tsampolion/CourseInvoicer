@@ -4,6 +4,7 @@ import gr.edusuite.invoicer.core.createInvoiceUseCase
 import gr.edusuite.invoicer.core.euros
 import gr.edusuite.invoicer.core.lateCancel
 import gr.edusuite.invoicer.core.lesson
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoicePayment
@@ -97,5 +98,44 @@ class InMemoryRepositoriesTest {
             repos.observeInvoicePayments().first(),
         )
         assertTrue("a statement of excused absences is paid", repos.observeInvoicePayments().first()[zero.id]!!.isPaid)
+    }
+
+    @Test
+    fun `home counts skip void and fully paid invoices`() = runTest {
+        val maria = repos.saveStudent(student())
+        val create = repos.createInvoiceUseCase()
+        val open = repos.saveLesson(lesson(maria, fee = "20"))
+        val paid = repos.saveLesson(lesson(maria, fee = "30", paidOn = "2026-03-11"))
+        val voided = repos.saveLesson(lesson(maria, fee = "40"))
+        repos.saveLesson(lesson(maria, fee = "50"))
+        repos.saveLesson(lesson(maria, fee = "15", absent = true))
+        val unpaidInvoice = create(maria, listOf(open), issueDate)
+        val paidInvoice = create(maria, listOf(paid), issueDate)
+        val voidInvoice = create(maria, listOf(voided), issueDate)
+        repos.voidInvoice(voidInvoice.id, issueDate)
+
+        assertEquals(5, repos.observeLessonCount().first())
+        // The voided invoice released its lesson, and an absence is counted too.
+        assertEquals(3, repos.observeUninvoicedCount().first())
+        assertEquals(3, repos.observeInvoiceCount().first())
+        assertEquals(1, repos.observeUnpaidCount().first())
+        // The same answer as InvoicePayment.isPaid over observeInvoicePayments, for every invoice that is not void.
+        val payments = repos.observeInvoicePayments().first()
+        assertEquals(
+            listOf(unpaidInvoice.id),
+            repos.invoices.filter { !it.isVoid && payments[it.id]?.isPaid == false }.map { it.id },
+        )
+        assertTrue(payments[paidInvoice.id]!!.isPaid)
+
+        repos.setPaid(listOf(open), issueDate)
+        assertEquals(0, repos.observeUnpaidCount().first())
+
+        // Only charged lessons can leave a statement unpaid: excused absences never do, late cancellations do.
+        val excused = repos.saveLesson(lesson(maria, fee = "25", absent = true))
+        create(maria, listOf(excused), issueDate)
+        assertEquals(0, repos.observeUnpaidCount().first())
+        val late = repos.saveLesson(lesson(maria, fee = "25", absent = true, absenceCharge = AbsenceCharge.LATE_CANCELLATION))
+        create(maria, listOf(late), issueDate)
+        assertEquals(1, repos.observeUnpaidCount().first())
     }
 }
