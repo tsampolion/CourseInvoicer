@@ -28,7 +28,7 @@ class SaveLesson(private val lessons: LessonRepository) {
         if (lesson.id == 0L) return lessons.saveLesson(normalized.copy(invoiceId = null))
 
         val existing = lessons.getLesson(lesson.id) ?: throw DomainException("Lesson not found")
-        // The invoice link is owned by CreateInvoice / delete invoice, never by the edit form.
+        // The invoice link is owned by CreateInvoice / VoidInvoice, never by the edit form.
         val updated = normalized.copy(invoiceId = existing.invoiceId)
         if (existing.isInvoiced && existing.lockedFields() != updated.lockedFields()) {
             throw DomainException("This lesson is on an invoice; void the invoice before changing it")

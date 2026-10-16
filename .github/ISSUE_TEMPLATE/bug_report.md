@@ -6,7 +6,7 @@ labels: ['bug']
 assignees: ''
 ---
 
-**App version:** <!-- Settings → bottom of the screen, e.g. 2.0.0-alpha02 -->
+**App version:** <!-- Settings → bottom of the screen, e.g. 2.0.0-alpha03 -->
 **Phone and Android version:** <!-- e.g. Pixel 8, Android 16 -->
 
 ## What happened

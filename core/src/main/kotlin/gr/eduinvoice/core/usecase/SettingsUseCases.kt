@@ -6,7 +6,7 @@ import gr.eduinvoice.core.repository.SettingsRepository
 import java.util.Currency
 import java.util.Locale
 
-/** What makes settings valid. Used when saving them and when restoring a backup (R11). */
+/** What makes settings valid. Used when saving them and when restoring a backup (R13; R11 on restore). */
 object SettingsRules {
     fun isValidCurrency(code: String): Boolean = runCatching { Currency.getInstance(code) }.isSuccess
 

@@ -1,35 +1,81 @@
 # Changelog
 
 All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html), with a pre-release suffix such as
+`-alpha03` until 2.0.0.
+
+- **MAJOR:** a change that breaks older backups or the stored data, or changes billing results on
+  purpose.
+- **MINOR:** a new feature that keeps existing data and backups working.
+- **PATCH:** fixes, and changes to docs, build or CI that leave the app working as before.
+
+How to use this file:
+
+1. Every pull request adds its changes to the section for the current `versionName`, headed
+   `## [X.Y.Z] - Unreleased`. Sections are ordered Added, Changed, Removed, Fixed.
+2. To release, replace `Unreleased` with the date. After the merge, `.github/workflows/release.yml`
+   tags `vX.Y.Z` and publishes a GitHub release with that section as its notes. An undated section
+   is never released.
+3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
+   section above the released one (AGENTS.md, *Workflow*).
 
 ## [2.0.0-alpha03] - Unreleased
 
-Fixes from a full audit of the app.
+Fixes from a full audit of the app, GitHub releases, CI on every branch, Android 17 as the target,
+and documentation reorganised for contributors.
 
 ### Added
-- **GitHub releases:** once CI passes on `Rebuild_v2`, `.github/workflows/release.yml` tags the version in
-  `app/build.gradle.kts` and publishes a release, but only after its `CHANGELOG.md` section is dated. The
-  release notes are that section, and the signed `eduinvoice-<version>.apk` is attached. The workflow won't
-  publish an APK signed with any other key, and it marks versions with a suffix such as `-alpha03` as
-  pre-releases (D12).
-- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Pull requests from this
-  repository reuse their branch's push run instead of running everything twice. Pull requests from forks
-  still run their own checks.
+- **GitHub releases:** once CI passes on `Rebuild_v2`, `.github/workflows/release.yml` tags the
+  version in `app/build.gradle.kts` and publishes a release, but only after its `CHANGELOG.md`
+  section is dated. The release notes are that section, and the signed `eduinvoice-<version>.apk` is
+  attached. The workflow won't publish an APK signed with any other key, and it marks versions with
+  a suffix such as `-alpha03` as pre-releases (D12).
+- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Pull requests
+  from this repository reuse their branch's push run instead of running everything twice. Pull
+  requests from forks still run their own checks.
+- **`docs/ROADMAP.md`:** 13 improvements adapted from the sibling app Coursebook Pacer, each with
+  its current state in the code, tasks, a definition of done and a suggested order.
+- **`CLAUDE.md`** imports `AGENTS.md`, so Claude Code reads the same guide as every other agent.
+
+### Changed
+- Home, Students and Invoices read totals with SQL aggregates instead of loading every lesson.
+- Instrumented tests run against an in-memory database (`EduTestRunner`), never the real one.
+- Database schema version 3 (`invoices.document`) and backup format version 3, with automatic
+  upgrades.
+- **Targets Android 17** (`targetSdk` 37). None of its new rules for targeting apps touch
+  EduInvoice; see decision D13 in `docs/PRODUCT_SPEC.md`.
+- **Documentation reorganised** after Coursebook Pacer's layout:
+  - `README.md` gains a tech stack, CI and releases, project structure, footprint and contributing
+    sections. The signing-key setup now lives only there.
+  - `AGENTS.md` is reorganised into commands, architecture (how data flows from SQLite to the
+    screen), rules, recipes, gotchas and workflow. Its sandbox note is corrected: without Google
+    Maven nothing builds, not even `:core`.
+  - `docs/PRODUCT_SPEC.md` corrects R6, R7, R9, R10 and R11 and the Groups and Invoices features,
+    and puts the version history in one table. It adds build plugins to the register and D13. §8 now
+    describes release and distribution and opens with the outstanding Firebase key action. The
+    removed Play Store items moved to an appendix.
+  - The templates ask for `Schema.statements` and spec updates. Code comments cite the right rules
+    (R12, R13, D10).
+
+### Removed
+- **Play Store release items (D9, M1–M6):** the R8 `release` build type and its keep rules,
+  `assembleRelease` in CI, the `*.aab` ignore rule, the Play listing icon and the release-signing
+  note. CI now builds only the debug APK it signs and publishes.
 
 ### Fixed
-- **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing it
-  after changing the currency, your details, the student, a group name or lesson notes produces the
-  same document. Older invoices are frozen the first time they are shared.
+- **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing
+  it after changing the currency, your details, the student, a group name or lesson notes produces
+  the same document. Older invoices are frozen the first time they are shared.
 - **Updating the app no longer risks your data:** CI signs every debug build with the owner's key
   (secrets `SIGNING_KEYSTORE_B64` and `SIGNING_PASSWORD`, see README) and fails if its fingerprint
   differs from `SIGNING_CERT_SHA256`, so a new build installs over the previous one.
-- Deleting a student who only has a void invoice now explains why it is refused, instead of showing a
-  database error. Groups with invoiced lessons can no longer be deleted (archive them instead).
+- Deleting a student who only has a void invoice now explains why it is refused, instead of showing
+  a database error. Groups with invoiced lessons can no longer be deleted (archive them instead).
 - Restoring a backup checks it against the app's rules first. A bad currency, an impossible lesson
   length or a lesson on a void invoice is rejected and nothing changes.
-- Leaving the Settings screen while a backup is restoring, or right after saving, no longer loses the
-  backup's settings or your changes. Open screens always refresh after a change.
+- Leaving the Settings screen while a backup is restoring, or right after saving, no longer loses
+  the backup's settings or your changes. Open screens always refresh after a change.
 - Marking a paid lesson absent clears its payment, so it no longer disappears from the money totals
   with no way to fix it.
 - Changing the length of a saved lesson recalculates its fee again when the fee came from the rate.
@@ -41,45 +87,32 @@ Fixes from a full audit of the app.
 - TalkBack reads date, time and student pickers as labelled buttons.
 - Backup export no longer runs on the main thread.
 
-### Changed
-- Home, Students and Invoices read totals with SQL aggregates instead of loading every lesson.
-- Instrumented tests run against an in-memory database (`EduTestRunner`), never the real one.
-- Database schema version 3 (`invoices.document`) and backup format version 3, with automatic upgrades.
-- **Targets Android 17** (`targetSdk` 37). None of its new rules for targeting apps touch EduInvoice;
-  see `docs/PRODUCT_SPEC.md` §8.
-
-### Removed
-- **Play Store release items (D9, M1–M6):** the R8 `release` build type and its keep rules,
-  `assembleRelease` in CI, the `*.aab` ignore rule, the Play listing icon and the release-signing note.
-  CI now builds only the debug APK it signs and publishes.
-
 ## [2.0.0-alpha02] - 2026-10-10
 
 ### Added
-- **Bulk actions in Lessons:** long-press lessons to select several, then *Mark paid* or *Reschedule*
-  them to a new date and start time. Only unpaid, uninvoiced lessons can move; length and fee are kept.
+- **Bulk actions in Lessons:** long-press lessons to select several, then *Mark paid* or
+  *Reschedule* them to a new date and start time. Only unpaid, uninvoiced lessons can move; length
+  and fee are kept.
 - **Emulator tests in CI:** SQL repositories, the schema 1→2 migration and an end-to-end flow
   (add student → log lesson → invoice → void) run on an API 35 emulator.
 - Lint findings are printed into the CI log.
+- Approved test-only dependencies: `androidx.test:runner` 1.7.0, `androidx.test.ext:junit` 1.3.0 and
+  `androidx.compose.ui:ui-test-junit4` (Compose BOM). Nothing new ships in the APK.
 
 ### Changed
 - **No Play Store release (D9).** Release-only build items are marked for deletion and listed in
-  `docs/PRODUCT_SPEC.md` §8. Nothing was removed; the build and CI are unchanged.
+  `docs/PRODUCT_SPEC.md` (now its appendix). Nothing was removed; the build and CI are unchanged.
 - **Invoices are voided instead of deleted.** A void invoice stays listed and keeps its number, so a
   number never refers to two documents. Its lessons are released for re-invoicing.
 - Database schema version 2 (`invoices.voided_on`), with an automatic upgrade from version 1.
 - Backup format version 2 (`voidedOn` on invoices). Version 1 backups still import.
 - TalkBack now announces the *Log lesson* buttons on Home and on a student.
 - Locked lessons now say to *void* the invoice (not delete it) before changing them.
-- Android cloud backup excludes all app data (`data_extraction_rules.xml`): student data stays on the
-  phone unless the tutor exports a backup. Device-to-device transfer still works.
+- Android cloud backup excludes all app data (`data_extraction_rules.xml`): student data stays on
+  the phone unless the tutor exports a backup. Device-to-device transfer still works.
 - The launcher icon gained a monochrome layer for Android 13+ themed icons.
 - Documentation rewritten for day-to-day use. The rebuild brief became `docs/PRODUCT_SPEC.md`, the
   living spec with business rules R1–R11, decisions and the dependency register.
-
-### Dependencies
-- Approved test-only: `androidx.test:runner` 1.7.0, `androidx.test.ext:junit` 1.3.0 and
-  `androidx.compose.ui:ui-test-junit4` (Compose BOM). Nothing new ships in the APK.
 
 ## [2.0.0-alpha01] - 2026-10-10
 
@@ -103,14 +136,15 @@ Ground-up rebuild on `Rebuild_v2` under the Lightweight Android Project Rules
 - Storage: Room + SQLCipher replaced by framework SQLite; DataStore replaced by SharedPreferences.
 - Money is stored as integer cents and lesson fees are snapshotted when logged.
 
-### Fixed (compared to v0.x)
-- Per-lesson rates were ignored by the revenue screen.
-- Changing a student's rate rewrote the value of past lessons.
-- Lessons could be invoiced twice under concurrent edits (now enforced in one transaction).
-
 ### Removed
 - Multi-user login, SQLCipher encryption, Firebase Crashlytics/Analytics, sync and conflict
   resolution, reschedule batches and the "enterprise" infrastructure layers.
+
+### Fixed
+Compared to v0.x:
+- Per-lesson rates were ignored by the revenue screen.
+- Changing a student's rate rewrote the value of past lessons.
+- Lessons could be invoiced twice under concurrent edits (now enforced in one transaction).
 
 ## 0.x
 

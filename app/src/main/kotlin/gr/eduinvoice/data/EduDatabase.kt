@@ -74,7 +74,7 @@ class EduDatabase(
         const val NAME = "eduinvoice_v2.db"
         /**
          * 1: v2 baseline. 2: invoices.voided_on (invoices are voided, never deleted).
-         * 3: invoices.document (the content as issued, D7).
+         * 3: invoices.document (the content as issued, R12/D10).
          */
         const val VERSION = 3
 
