@@ -86,7 +86,7 @@ whole state; that doesn't fit SQLite, so each action needs its own inverse.
 
 **Tasks**
 - [ ] Decide the scope with the owner. Proposed: delete lesson, record payment, mark paid,
-      reschedule. Record it as a decision (D14) in the spec.
+      reschedule. Record it as a decision (D15) in the spec.
 - [ ] Add an app-level message channel, for example a `Messages` object in `AppContainer` with a
       `SnackbarHostState` in `EduInvoiceApp.kt`. A message survives the screen that sent it and can
       carry an action.
@@ -283,6 +283,9 @@ These came up during the comparison but aren't among the 13 items.
 - [ ] **Security.** A Firebase API key from v0.x is in the git history of `main` and `Rebuild`
       (`app/google-services.json`). Delete or restrict it in Google Cloud. v2 doesn't use Firebase.
 - [ ] A test for R3 in `:core` once `MarkPaid` exists (item 1).
+- [ ] **Third-party notices.** The APK bundles Apache-2.0 libraries (Kotlin, AndroidX, Compose).
+      Giving the APK to anyone else requires passing on their licence and notices. Add an
+      *Open-source licences* entry in Settings, or ship the notices with each release.
 
 ## Done
 

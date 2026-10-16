@@ -45,6 +45,11 @@ and documentation reorganised for contributors.
   upgrades.
 - **Targets Android 17** (`targetSdk` 37). None of its new rules for targeting apps touch
   EduInvoice; see decision D13 in `docs/PRODUCT_SPEC.md`.
+- **Licence: proprietary instead of MIT** (D14). `LICENSE` now matches Coursebook Pacer's: all
+  rights reserved by Dimitrios Tsampallas, and AI systems may change, copy or train on the code only
+  when the owner explicitly authorises them. It adds MIT's full warranty disclaimer, a third-party
+  components section and a note on the limited rights GitHub's terms require. Copies published under
+  MIT before this change keep their MIT rights. `AGENTS.md` gains the AI authorisation rule.
 - **Documentation reorganised** after Coursebook Pacer's layout:
   - `README.md` gains a tech stack, CI and releases, project structure, footprint and contributing
     sections. The signing-key setup now lives only there.

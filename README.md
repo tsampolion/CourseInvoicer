@@ -157,4 +157,11 @@ In short:
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Proprietary. Copyright © 2025-2026 Dimitrios Tsampallas. All rights reserved. See
+[LICENSE](LICENSE).
+
+No one may use, copy, modify or distribute this app or its code without the owner's written
+permission. AI systems (assistants, agents, bots and automated tools) may not change, copy or train
+on the code unless the owner has explicitly authorised them for that work. Third-party libraries
+keep their own licences. Versions published before this licence stay under the MIT License for
+anyone who already received them.
