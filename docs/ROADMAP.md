@@ -85,8 +85,8 @@ whole state; that doesn't fit SQLite, so each action needs its own inverse.
 | Import backup | `SqlBackupRepository.replaceAll` | Out of scope: tell the tutor to export first instead |
 
 **Tasks**
-- [ ] Decide the scope with the owner. Proposed: delete lesson, record payment, mark paid,
-      reschedule. Record it as a decision (D15) in the spec.
+- [x] Decide the scope with the owner: delete lesson, record payment, mark paid (one or in bulk),
+      reschedule. Recorded as D15 in the spec.
 - [ ] Add an app-level message channel, for example a `Messages` object in `AppContainer` with a
       `SnackbarHostState` in `EduInvoiceApp.kt`. A message survives the screen that sent it and can
       carry an action.
@@ -248,15 +248,15 @@ phone (deliberately unlike Coursebook Pacer). Device-to-device transfer uses the
 
 ## 11. Smaller footprint
 
-**Today.** The theme is a framework theme and icons are drawn in code (`AppIcons.kt`). There is no
-R8 build (D9), and the debug APK is about 12.5 MB.
+**Today.** The theme is a framework theme and icons are drawn in code (`AppIcons.kt`). Releases ship
+a minified build (D16); the debug APK is about 12.5 MB.
 
 **Tasks**
 - [ ] Add `androidResources { localeFilters += "en" }`. The UI is English-only, so this drops the
       translations AndroidX ships. Revisit when translations come (spec §5).
 - [ ] Measure the APK size before and after, and note both in the changelog.
-- [ ] Optional, needs owner approval: a minified, debug-signed `sideload` build type. R8 cut the APK
-      from 12.5 MB to 1.9 MB in alpha02. It needs keep rules and its own emulator run.
+- [x] A minified build signed with the owner's key, approved as D16. Releases ship it, and CI runs
+      an emulator smoke test on it.
 
 ## 12. App theme drives the system bars: done
 

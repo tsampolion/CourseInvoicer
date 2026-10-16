@@ -20,7 +20,7 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
-## [2.0.0-alpha03] - Unreleased
+## [2.0.0-alpha03] - 2026-10-16
 
 Fixes from a full audit of the app, GitHub releases, CI on every branch, Android 17 as the target,
 and documentation reorganised for contributors.
@@ -31,12 +31,16 @@ and documentation reorganised for contributors.
   section is dated. The release notes are that section, and the signed `eduinvoice-<version>.apk` is
   attached. The workflow won't publish an APK signed with any other key, and it marks versions with
   a suffix such as `-alpha03` as pre-releases (D12).
-- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Pull requests
-  from this repository reuse their branch's push run instead of running everything twice. Pull
-  requests from forks still run their own checks.
+- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Each push runs
+  CI once, and a pull request shows the checks of its head commit's push run, so nothing runs twice
+  and no check shows as skipped.
 - **`docs/ROADMAP.md`:** 13 improvements adapted from the sibling app Coursebook Pacer, each with
   its current state in the code, tasks, a definition of done and a suggested order.
 - **`CLAUDE.md`** imports `AGENTS.md`, so Claude Code reads the same guide as every other agent.
+- **Emulator smoke test for the minified APK:** CI installs it, launches it and runs 300 seeded
+  monkey events, and fails on any crash.
+- **Tags for every earlier version:** `v0.1.0` to `v0.32.1`, `v2.0.0-alpha01` and `v2.0.0-alpha02`
+  (rule in `docs/PRODUCT_SPEC.md`, appendix).
 
 ### Changed
 - Home, Students and Invoices read totals with SQL aggregates instead of loading every lesson.
@@ -59,16 +63,23 @@ and documentation reorganised for contributors.
   - `docs/PRODUCT_SPEC.md` corrects R6, R7, R9, R10 and R11 and the Groups and Invoices features,
     and puts the version history in one table. It adds build plugins to the register and D13. §8 now
     describes release and distribution. The removed Play Store items moved to an appendix.
+  - The templates ask for `Schema.statements` and spec updates. Code comments cite the right rules
+    (R12, R13, D10).
 - **Legacy Firebase key retired.** The owner deleted the v0.x Firebase project (`eduinvoiceapp`), so
   the API key in the history of `main` and `Rebuild` no longer works. Those branches are kept as
   history.
-  - The templates ask for `Schema.statements` and spec updates. Code comments cite the right rules
-    (R12, R13, D10).
+- **Releases ship a minified APK** (D16). The `release` build type is back: R8, resource shrinking,
+  signed with the owner's key. CI builds it next to the debug APK, checks both signatures and
+  uploads it as `app-release`; `release.yml` attaches it. It is 1.9 MB (1,906,154 bytes) against
+  12.5 MB for the debug APK, which stays the between-release build.
+- **Undo scope decided** (D15): deleting a lesson, recording a payment, marking paid and
+  rescheduling will get *Undo* instead of a confirmation dialog (roadmap item 2).
 
 ### Removed
 - **Play Store release items (D9, M1–M6):** the R8 `release` build type and its keep rules,
   `assembleRelease` in CI, the `*.aab` ignore rule, the Play listing icon and the release-signing
-  note. CI now builds only the debug APK it signs and publishes.
+  note. The R8 build and its rules came back later in this version as the sideloaded release build
+  (D16).
 
 ### Fixed
 - **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing
@@ -155,4 +166,5 @@ Compared to v0.x:
 
 ## 0.x
 
-The v0.x history (up to 0.32.1) is preserved in git and on the `Rebuild` and `main` branches.
+The v0.x history (up to 0.32.1) is preserved in git and on the `Rebuild` and `main` branches. Each
+v0.x version is tagged at the commit that first set its `versionName`.
