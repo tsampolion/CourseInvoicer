@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.core.backup
 
 import gr.edusuite.invoicer.core.invoice.InvoiceDocumentCodec
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
@@ -46,9 +47,10 @@ object BackupCodec {
 
     /**
      * 2: invoices gained `voidedOn`. 3: invoices gained `document`, the content as issued.
+     * 4: lessons gained `absenceCharge` and `absenceNote`, settings `showAddressOnStatements`.
      * Older files are still accepted.
      */
-    const val VERSION = 3L
+    const val VERSION = 4L
 
     fun encode(snapshot: BackupSnapshot): String = Json.write(
         mapOf(
@@ -106,10 +108,10 @@ object BackupCodec {
         }
 
         val invoicesById = invoices.associateBy { it.id }
-        if (invoicesById.size != invoices.size) reject("Two invoices share an id")
-        if (invoices.map { it.number }.toSet().size != invoices.size) reject("Two invoices share a number")
+        if (invoicesById.size != invoices.size) reject("Two statements share an id")
+        if (invoices.map { it.number }.toSet().size != invoices.size) reject("Two statements share a number")
         invoices.forEach {
-            if (it.id <= 0 || it.studentId !in studentIds) reject("Invoice ${it.number} is invalid")
+            if (it.id <= 0 || it.studentId !in studentIds) reject("Statement ${it.number} is invalid")
         }
 
         if (lessons.map { it.id }.toSet().size != lessons.size) reject("Two lessons share an id")
@@ -120,12 +122,16 @@ object BackupCodec {
                 isValidDuration(lesson.durationMinutes) &&
                 lesson.fee.cents >= 0
             if (!valid) reject("Lesson ${lesson.id} is invalid")
-            val invoice = lesson.invoiceId?.let {
-                invoicesById[it] ?: reject("Lesson ${lesson.id} is on a missing invoice")
+            // Mirrors SaveLesson: an absence that is not charged is never paid (R3).
+            if (lesson.isExcused && lesson.isPaid) {
+                reject("Lesson ${lesson.id} is an absence that is not charged, so it cannot be paid")
             }
-            // Mirrors CreateInvoice and VoidInvoice: one student per invoice, no absences, void invoices hold nothing.
-            if (invoice != null && (invoice.isVoid || invoice.studentId != lesson.studentId || lesson.absent)) {
-                reject("Lesson ${lesson.id} cannot be on invoice ${invoice.number}")
+            val invoice = lesson.invoiceId?.let {
+                invoicesById[it] ?: reject("Lesson ${lesson.id} is on a missing statement")
+            }
+            // Mirrors CreateInvoice and VoidInvoice: one student per statement, void statements hold nothing.
+            if (invoice != null && (invoice.isVoid || invoice.studentId != lesson.studentId)) {
+                reject("Lesson ${lesson.id} cannot be on statement ${invoice.number}")
             }
         }
     }
@@ -140,6 +146,7 @@ object BackupCodec {
         "defaultLessonMinutes" to defaultLessonMinutes.toLong(),
         "themeMode" to themeMode.name,
         "invoiceFooter" to invoiceFooter,
+        "showAddressOnStatements" to showAddressOnStatements,
     )
 
     // Backups made before 2.0.0 also hold "taxId"; the field was removed and is ignored on purpose.
@@ -155,6 +162,8 @@ object BackupCodec {
         defaultLessonMinutes = int("defaultLessonMinutes"),
         themeMode = enum<ThemeMode>("themeMode"),
         invoiceFooter = string("invoiceFooter"),
+        // Version 4; older backups predate the switch, which starts off.
+        showAddressOnStatements = if (containsKey("showAddressOnStatements")) boolean("showAddressOnStatements") else false,
     )
 
     private fun Student.toJson() = mapOf(
@@ -215,6 +224,8 @@ object BackupCodec {
         "notes" to notes,
         "paidOn" to paidOn?.toString(),
         "invoiceId" to invoiceId,
+        "absenceCharge" to absenceCharge.name,
+        "absenceNote" to absenceNote,
     )
 
     private fun Map<*, *>.toLesson() = Lesson(
@@ -229,6 +240,9 @@ object BackupCodec {
         notes = string("notes"),
         paidOn = dateOrNull("paidOn"),
         invoiceId = longOrNull("invoiceId"),
+        // Version 4; absences in older backups were never charged.
+        absenceCharge = if (containsKey("absenceCharge")) absenceCharge("absenceCharge") else AbsenceCharge.NONE,
+        absenceNote = if (containsKey("absenceNote")) string("absenceNote") else "",
     )
 
     private fun Invoice.toJson() = mapOf(
@@ -283,6 +297,12 @@ object BackupCodec {
     private fun Map<*, *>.date(key: String) = parse(key) { LocalDate.parse(it) }
 
     private fun Map<*, *>.dateOrNull(key: String) = if (field(key) == null) null else date(key)
+
+    private fun Map<*, *>.absenceCharge(key: String): AbsenceCharge {
+        val name = string(key)
+        return AbsenceCharge.entries.firstOrNull { it.name == name }
+            ?: throw BackupFormatException("Lesson ${get("id")} has an unknown absence charge '$name'")
+    }
 
     private inline fun <reified E : Enum<E>> Map<*, *>.enum(key: String): E {
         val name = string(key)

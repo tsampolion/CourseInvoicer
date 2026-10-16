@@ -42,7 +42,7 @@ class DeleteStudent(
             throw DomainException("This student has lessons. Archive them instead to keep the history.")
         }
         if (invoices.countInvoicesOfStudent(studentId) > 0) {
-            throw DomainException("This student has invoices, which are kept for good. Archive them instead.")
+            throw DomainException("This student has statements, which are kept for good. Archive them instead.")
         }
         students.deleteStudent(studentId)
     }

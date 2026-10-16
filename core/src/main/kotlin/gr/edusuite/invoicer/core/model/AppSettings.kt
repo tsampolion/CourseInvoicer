@@ -2,7 +2,7 @@ package gr.edusuite.invoicer.core.model
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-/** The tutor's details, printed at the top of every invoice. */
+/** The tutor's details, printed at the top of every statement. */
 data class BusinessProfile(
     val name: String = "",
     val address: String = "",
@@ -17,4 +17,6 @@ data class AppSettings(
     val defaultLessonMinutes: Int = 60,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val invoiceFooter: String = "",
+    /** Print [BusinessProfile.address] on new statements (R14). Off by default: a home address stays private. */
+    val showAddressOnStatements: Boolean = false,
 )
