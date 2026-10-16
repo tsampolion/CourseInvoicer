@@ -20,7 +20,7 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-10-16
 
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 
@@ -35,7 +35,7 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
   matching themed icon on Android 13 and later.
 - **Launcher Home**: the app opens on the EduSuite home header (logo, *Welcome to Course Invoicer*,
   *part of EduSuite apps*) and one button per section, each with a live figure: the outstanding
-  total on Dashboard, active students, groups, lessons not yet invoiced, unpaid statements, and
+  total on Dashboard, active students, groups, lessons on no statement yet, unpaid statements, and
   Settings. A section with nothing in it yet shows its button faded, and the button still opens it.
   *Log lesson* is one tap away once there is a student. The figures are counted in SQL, so Home
   never loads the lesson history.
@@ -72,7 +72,7 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
   longer marks releases *Pre-release*.
 - **Invoices are now Statements** everywhere you read them: screens, buttons, messages, the PDF and
   its file name (`statement-<number>.pdf`). Statements issued before this version keep the document
-  they were issued with (R12). The bottom bar tab still says *Invoices* until the new Home replaces it.
+  they were issued with (R12).
 - **Absences can go on statements** (R4): excused ones as 0.00 lines, late cancellations at their
   fee. A statement of excused absences only totals 0.00 and counts as paid at once; marking
   lessons paid pays only the charged ones.
@@ -85,8 +85,8 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
   field shows an error and the last valid value stays in use, while the other fields still save.
 
 ### Removed
-- **Tax ID (ΑΦΜ) field.** It is no longer stored, printed on invoices or written to backups, and the
-  saved value is deleted from the settings file. Old backups that contain it still import. Invoices
+- **Tax ID (ΑΦΜ) field.** It is no longer stored, printed on statements or written to backups, and the
+  saved value is deleted from the settings file. Old backups that contain it still import. Statements
   already issued keep the document they were issued with (R12).
 
 ## [2.0.0-alpha03] - 2026-10-16
