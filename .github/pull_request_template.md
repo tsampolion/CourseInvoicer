@@ -12,7 +12,7 @@
   `app/src/androidTest` for SQL/UI)
 - [ ] CI green, including emulator tests
 - [ ] No new dependency, or approval noted in `docs/PRODUCT_SPEC.md` §7
-- [ ] Schema change? `EduDatabase.VERSION` bumped, migration added, migration test added,
+- [ ] Schema change? `InvoicerDatabase.VERSION` bumped, migration added, migration test added,
   `Schema.statements` updated (fresh installs)
 - [ ] Data shape change? `BackupCodec.VERSION` bumped and older backups still import
 - [ ] New or changed business rule recorded in `docs/PRODUCT_SPEC.md` §2
