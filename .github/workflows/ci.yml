@@ -28,6 +28,21 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
 
+      # Before the first Gradle run, so the Gradle daemon starts with the key's path in its environment.
+      # The debug APK is what the tutor installs (README). Signing every build with one stable key lets a new
+      # build install over the previous one and keep the data. Without the secret, the build still passes
+      # but the APK is signed with a throwaway key; see README, "Install a test build".
+      - name: Use the stable debug signing key
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "::warning::Secret DEBUG_KEYSTORE_BASE64 is not set: this app-debug.apk cannot be installed over an earlier build. See README."
+            exit 0
+          fi
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/debug.keystore"
+          echo "EDUINVOICE_DEBUG_KEYSTORE=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
+
       - name: Unit tests
         run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
 

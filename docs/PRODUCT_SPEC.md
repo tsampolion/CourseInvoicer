@@ -25,15 +25,17 @@ comments and PRs.
 |---|------|-------------|
 | R1 | **Billing:** `HOURLY` fee = rate × minutes ÷ 60. `PER_LESSON` fee = rate. Money is integer cents, rounded half-up. | `Rate.feeFor` |
 | R2 | **Fee snapshot:** a lesson stores its fee when it is logged. Changing a rate never rewrites past lessons. | `Lesson.fee`, `SaveLesson` |
-| R3 | **Group lessons:** one row per member, billed at the *group* rate. Absent members get an `absent` row that is never charged. | `LogGroupLesson` |
+| R3 | **Group lessons:** one row per member, billed at the *group* rate. Absent members get an `absent` row that is never charged, and so is never paid either. | `LogGroupLesson`, `SaveLesson` |
 | R4 | **Invoices:** one student per invoice. Only lessons that are not invoiced and not absent can be added. A lesson is on at most one invoice. The database guards this in the same transaction. | `CreateInvoice`, `SqlInvoiceRepository` |
 | R5 | **Numbering:** invoice numbers run `YYYY-NNNN` per calendar year. They are **never reused**. | `InvoiceNumbering` |
 | R6 | **Voiding:** an invoice is voided, never deleted. Voiding releases its lessons so they can be invoiced again. The void invoice and its number stay visible. A void invoice cannot be shared. | `VoidInvoice` |
 | R7 | **Locking:** while a lesson is on an invoice, its student, date, time, duration, fee and attendance are read-only, and it cannot be deleted. Notes and the paid flag stay editable. | `SaveLesson`, `DeleteLesson` |
 | R8 | **Rescheduling:** several lessons can move to a new date and start time in one step, but only if none of them is paid or invoiced. Duration and fee are kept. | `RescheduleLessons` |
 | R9 | **Outstanding** = sum of fees of lessons that are unpaid and not absent. | `Reports` |
-| R10 | **Archiving:** archived students and groups leave lists and pickers but keep their history. A student can be deleted only if they have no lessons. | `DeleteStudent` |
-| R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction. A malformed file changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
+| R10 | **Archiving:** archived students and groups leave lists and pickers but keep their history. A student can be deleted only if they have no lessons and no invoices (void ones included). A group can be deleted only if none of its lessons is invoiced; its other lessons are kept without the group. | `DeleteStudent`, `DeleteGroup` |
+| R11 | **Backups** are versioned JSON. Restoring replaces all data and settings in one step. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
+| R12 | **Issued documents:** an invoice's content (seller, bill-to, lines, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Invoices created before schema 3 are frozen the first time they are shared. An invoice is paid once it has lessons and all are paid. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
+| R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. | `SettingsRules`, `SaveSettings` |
 
 ## 3. Data model
 
@@ -42,16 +44,18 @@ comments and PRs.
 | Student | name, class, guardian, phone, email, rate (cents + type), notes, archived | |
 | StudentGroup | name, class, rate, member ids, archived | Members are stored in `group_members` |
 | Lesson | student, group?, date, start time, minutes, fee, absent, notes, paidOn?, invoice? | `paidOn` is the payment record |
-| Invoice | number, student, issue date, total, notes, voidedOn? | Never deleted (R6) |
+| Invoice | number, student, issue date, total, notes, voidedOn?, document? | Never deleted (R6). `document` is the content as issued (R12) |
 | AppSettings | business details, currency, default lesson length, theme, invoice footer | SharedPreferences |
 
 Version history:
 - Database schema (`EduDatabase.VERSION`):
   - 1 = 2.0.0-alpha01
   - 2 = `invoices.voided_on` (2.0.0-alpha02)
+  - 3 = `invoices.document` (2.0.0-alpha03)
 - Backup format (`BackupCodec.VERSION`):
   - 1 = alpha01
   - 2 = adds `voidedOn`. v1 files still import.
+  - 3 = adds `document`. v1 and v2 files still import.
 
 ## 4. Features
 
@@ -89,6 +93,8 @@ Version history:
 | D7 | Invoices are voided, not deleted | A parent may already hold the PDF, so a number must never mean two documents. | alpha02 |
 | D8 | Instrumented tests on an emulator in CI | The SQLite layer and the whole UI flow can only be verified on Android. Test-only dependencies were approved. | alpha02 |
 | D9 | No Play Store release. Release-only items are marked for deletion, not removed | The app is installed from CI builds. Marking first keeps the change reversible until the owner confirms each removal. | alpha02 |
+| D10 | Freeze each invoice's document when it is issued (R12) | D7's promise that a number means one document also covers its content, not just its number. | alpha03 |
+| D11 | CI signs debug builds with one key kept in a GitHub secret | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build. | alpha03 |
 
 ## 7. Dependency register
 
@@ -107,8 +113,8 @@ first. Record each approval here.
 
 Under D9 the app will not be released on the Google Play Store. The items below exist only to ship a
 release, so they are **marked for deletion but not removed**. The build and CI behave as before.
-Each item is tagged *marked for deletion (D9)* where it lives. To list them, run
-`git grep -i "marked for deletion"`. To delete one, remove it and its row here in the same pull
+Each text item is tagged *marked for deletion (D9)* where it lives. To list them, run
+`git grep -i "marked for deletion"`. M6 is a binary file and is listed only here. To delete one, remove it and its row here in the same pull
 request.
 
 | # | Item | Where | Why it is release-only | Before deleting |
@@ -117,7 +123,8 @@ request.
 | M2 | `release` build type: R8 minify and resource shrinking | `app/build.gradle.kts` | Its output is only useful once signed and shipped. Unsigned, it cannot be installed. | It is the only small build: 1.9 MB, against 12.5 MB for debug, which is also slower. It is how the "minimal APK" goal is measured. If the app is ever shared outside Play (sideloaded), keep it and add signing instead. |
 | M3 | R8 keep rules | `app/proguard-rules.pro` | Read only by the release build type. | Delete together with M2. |
 | M4 | `assembleRelease` in CI | `.github/workflows/ci.yml`, step *Assemble debug and release* | Builds the release APK and runs `lintVitalRelease` on every pull request, about 1.5 minutes per run. | Delete with M2. Keep `assembleDebug`: it builds the APK the README installs. *Report APK sizes* then lists only the debug APK. |
-| M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 | Describe a signed release that will not happen. | Delete with M2. Keep the rule "never commit keystores or passwords". |
+| M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 | Describe a signed release that will not happen. | Delete with M2. Keep the rule "never commit keystores or passwords" and the debug-key note. |
+| M6 | Play listing icon `app/src/main/ic_launcher-playstore.png` | `app/src/main/` | The 512 px icon for a Play Store listing. Nothing in the build uses it. | Nothing. A PNG cannot carry a tag, so this row is its only marker. |
 
 **Related, but kept:**
 - The `.gitignore` signing patterns (`*.jks`, `*.keystore`, `keystore.properties`). They stop a key
@@ -132,7 +139,7 @@ request.
 - a `PLAY_INTEGRITY_ENABLED` flag (`Rebuild`)
 - the `play-services-auth` dependency (`main`)
 - ABI splits for release builds (`Rebuild`)
-- the 512 px Play listing icon `app/src/main/ic_launcher-playstore.png`
+- the same 512 px Play listing icon as M6
 - a Privacy Policy screen, which a Play listing requires
 - `app/google-services.json` (Firebase)
 - a CI release build step (`Rebuild`)

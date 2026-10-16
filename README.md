@@ -3,7 +3,7 @@
 An offline Android app for private tutors. Keep a register of students and groups, log lessons, see
 who owes what, record payments and send PDF invoices. All data stays on the phone.
 
-**Version:** 2.0.0-alpha02 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.0.0-alpha03 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 ## Install a test build
 
@@ -11,8 +11,24 @@ who owes what, record payments and send PDF invoices. All data stays on the phon
 2. Download the `app-debug` artifact and unzip it.
 3. Copy `app-debug.apk` to the phone, open it, and allow installs from that app when asked.
 
-Debug builds install over each other and keep your data. Uninstalling the app deletes its data, so
-export a backup first (see below).
+A new build installs over the previous one and keeps your data, **as long as both were signed with
+the project's debug key** (the `DEBUG_KEYSTORE_BASE64` secret below). If Android says *App not
+installed*, the builds have different keys: export a backup, uninstall, install the new build and
+import the backup. Uninstalling deletes all data, so always export a backup first.
+
+**One-time setup of the debug key** (repository owner). Until it is done, each CI build is signed
+with a throwaway key and cannot update the previous one; CI prints a warning.
+
+```bash
+keytool -genkeypair -keystore eduinvoice-debug.keystore -alias androiddebugkey \
+  -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=Android Debug,O=Android,C=US"
+base64 -w0 eduinvoice-debug.keystore   # macOS: base64 -i eduinvoice-debug.keystore
+```
+
+Add the output as the repository secret `DEBUG_KEYSTORE_BASE64` (*Settings → Secrets and variables
+→ Actions*), keep the keystore file somewhere safe outside the repository, and re-run CI. Switching
+to the stable key needs one last export, uninstall and import.
 
 ## Using the app
 
@@ -44,8 +60,11 @@ You need JDK 17 or newer and the Android SDK. Set `ANDROID_HOME`, or put `sdk.di
 ./gradlew :app:testDebugUnitTest        # ViewModel and navigation tests
 ./gradlew :app:lintDebug                # Android lint
 ./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:connectedDebugAndroidTest  # needs a running emulator or device
+./gradlew :app:connectedDebugAndroidTest  # needs a running emulator
 ```
+
+Run the instrumented tests on an emulator, not on the phone you use: the tests themselves use a
+throwaway database, but Gradle uninstalls the app when they finish, which deletes its data.
 
 ## Project map
 

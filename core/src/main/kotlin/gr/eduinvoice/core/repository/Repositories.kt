@@ -2,9 +2,12 @@ package gr.eduinvoice.core.repository
 
 import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
+import gr.eduinvoice.core.model.InvoicePayment
 import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
+import gr.eduinvoice.core.report.StudentBalance
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
@@ -36,17 +39,26 @@ interface GroupRepository {
 }
 
 interface LessonRepository {
-    fun observeLessons(): Flow<List<Lesson>>
-
     fun observeLessonsBetween(from: LocalDate, to: LocalDate): Flow<List<Lesson>>
 
     fun observeLessonsOfStudent(studentId: Long): Flow<List<Lesson>>
+
+    /**
+     * What each student owes, largest balance first: the same result as [gr.eduinvoice.core.report.Reports.balances]
+     * over every lesson, computed without loading the lesson history.
+     */
+    fun observeBalances(): Flow<List<StudentBalance>>
+
+    /** Payment progress of every invoice that has lessons, by invoice id. */
+    fun observeInvoicePayments(): Flow<Map<Long, InvoicePayment>>
 
     suspend fun getLesson(id: Long): Lesson?
 
     suspend fun getLessons(ids: Collection<Long>): List<Lesson>
 
     suspend fun getLessonsOfInvoice(invoiceId: Long): List<Lesson>
+
+    suspend fun getLessonsOfGroup(groupId: Long): List<Lesson>
 
     suspend fun countLessonsOfStudent(studentId: Long): Int
 
@@ -71,6 +83,8 @@ interface InvoiceRepository {
 
     suspend fun invoiceNumbers(): List<String>
 
+    suspend fun countInvoicesOfStudent(studentId: Long): Int
+
     /**
      * Atomically stores [invoice] and links [lessonIds] to it. When [paidOn] is set, lessons that are
      * still unpaid are marked paid on that date.
@@ -82,10 +96,14 @@ interface InvoiceRepository {
      * The invoice row (and therefore its number) is kept.
      */
     suspend fun voidInvoice(id: Long, on: LocalDate)
+
+    /** Stores the document of an invoice that has none yet. An issued document is never replaced. */
+    suspend fun setDocument(id: Long, document: InvoiceDocument)
 }
 
 interface SettingsRepository {
     val settings: StateFlow<AppSettings>
 
+    /** Persists the new settings before [settings] emits them. Updates run one at a time and always finish. */
     suspend fun update(transform: (AppSettings) -> AppSettings)
 }

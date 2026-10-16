@@ -3,6 +3,8 @@ package gr.eduinvoice.data
 import gr.eduinvoice.core.backup.BackupRepository
 import gr.eduinvoice.core.backup.BackupSnapshot
 import gr.eduinvoice.core.repository.SettingsRepository
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.time.Instant
 
 class SqlBackupRepository(
@@ -20,8 +22,11 @@ class SqlBackupRepository(
         )
     }
 
-    /** Replaces everything in one transaction; a broken backup leaves the current data untouched. */
-    override suspend fun replaceAll(snapshot: BackupSnapshot) {
+    /**
+     * Replaces everything in one transaction; a broken backup leaves the current data untouched. Once the
+     * data is replaced, the backup's settings are applied too, even if the caller is cancelled (R11).
+     */
+    override suspend fun replaceAll(snapshot: BackupSnapshot) = withContext(NonCancellable) {
         db.write(*Table.entries.toTypedArray()) { d ->
             listOf("lessons", "invoices", "group_members", "student_groups", "students").forEach { table ->
                 d.delete(table, null, null)

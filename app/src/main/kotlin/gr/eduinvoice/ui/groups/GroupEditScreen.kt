@@ -45,7 +45,7 @@ fun GroupEditScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GroupEditViewModel = appViewModel {
-        GroupEditViewModel(groupId, it.groupRepository, it.studentRepository)
+        GroupEditViewModel(groupId, it.groupRepository, it.studentRepository, it.lessonRepository)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()

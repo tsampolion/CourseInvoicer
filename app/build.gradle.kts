@@ -12,9 +12,19 @@ android {
         minSdk = 26
         targetSdk = 36
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 201
-        versionName = "2.0.0-alpha02"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 202
+        versionName = "2.0.0-alpha03"
+        // Runs instrumented tests against a throwaway database (app/src/androidTest/.../EduTestRunner.kt).
+        testInstrumentationRunner = "gr.eduinvoice.EduTestRunner"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // CI signs every debug build with the same key, so a new build installs over the previous one
+            // and keeps the tutor's data (see README, "Install a test build"). Locally, the default
+            // ~/.android/debug.keystore is used.
+            providers.environmentVariable("EDUINVOICE_DEBUG_KEYSTORE").orNull?.let { storeFile = file(it) }
+        }
     }
 
     buildTypes {

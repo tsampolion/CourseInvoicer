@@ -19,7 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +46,9 @@ fun StudentsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val formats = LocalFormats.current
+    // The field owns its text so typing never waits for the filtered list (or the database) to update.
+    var query by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(query) { viewModel.onQueryChange(query) }
     ScreenScaffold(
         title = "Students",
         modifier = modifier,
@@ -52,8 +59,8 @@ fun StudentsScreen(
     ) { padding ->
         Column(Modifier.padding(padding)) {
             OutlinedTextField(
-                value = state.query,
-                onValueChange = viewModel::onQueryChange,
+                value = query,
+                onValueChange = { query = it },
                 placeholder = { Text("Search name, class, phone") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),

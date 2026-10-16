@@ -1,5 +1,5 @@
 ## What and why
-<!-- What changed, and the problem it solves. Link the issue or spec rule (R1–R11) it touches. -->
+<!-- What changed, and the problem it solves. Link the issue or spec rule (R1–R13) it touches. -->
 
 ## How to test
 <!-- Commands you ran and manual steps a reviewer can repeat on a device. -->

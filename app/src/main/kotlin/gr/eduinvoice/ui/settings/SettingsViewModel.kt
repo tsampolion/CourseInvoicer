@@ -7,7 +7,8 @@ import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.ThemeMode
 import gr.eduinvoice.core.repository.SettingsRepository
-import gr.eduinvoice.core.usecase.MAX_LESSON_MINUTES
+import gr.eduinvoice.core.usecase.SaveSettings
+import gr.eduinvoice.core.usecase.SettingsRules
 import gr.eduinvoice.data.BackupFiles
 import gr.eduinvoice.ui.common.launchCatching
 import gr.eduinvoice.ui.common.plural
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.util.Currency
 import java.util.Locale
 
 data class SettingsForm(
@@ -43,6 +43,7 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val backupFiles: BackupFiles,
 ) : ViewModel() {
+    private val saveSettings = SaveSettings(settings)
     private val mutableState = MutableStateFlow(SettingsUiState(form = settings.settings.value.toForm()))
     val state: StateFlow<SettingsUiState> = mutableState.asStateFlow()
 
@@ -52,30 +53,31 @@ class SettingsViewModel(
 
     fun save() {
         val form = state.value.form
+        // Highlight the fields first; SaveSettings applies the same rules (and trims) when saving.
         val currency = form.currencyCode.trim().uppercase(Locale.ROOT)
-        val currencyValid = runCatching { Currency.getInstance(currency) }.isSuccess
-        val minutes = form.defaultMinutes.toIntOrNull()?.takeIf { it in 1..MAX_LESSON_MINUTES }
+        val currencyValid = SettingsRules.isValidCurrency(currency)
+        val minutes = form.defaultMinutes.toIntOrNull()?.takeIf(SettingsRules::isValidLessonMinutes)
         if (!currencyValid || minutes == null) {
             mutableState.update { it.copy(currencyError = !currencyValid, minutesError = minutes == null) }
             return
         }
         launchCatching(::showMessage) {
-            settings.update {
+            saveSettings(
                 AppSettings(
                     business = BusinessProfile(
-                        name = form.name.trim(),
-                        address = form.address.trim(),
-                        taxId = form.taxId.trim(),
-                        phone = form.phone.trim(),
-                        email = form.email.trim(),
-                        iban = form.iban.trim(),
+                        name = form.name,
+                        address = form.address,
+                        taxId = form.taxId,
+                        phone = form.phone,
+                        email = form.email,
+                        iban = form.iban,
                     ),
                     currencyCode = currency,
                     defaultLessonMinutes = minutes,
                     themeMode = form.themeMode,
-                    invoiceFooter = form.footer.trim(),
-                )
-            }
+                    invoiceFooter = form.footer,
+                ),
+            )
             mutableState.update { it.copy(form = settings.settings.value.toForm()) }
             showMessage("Settings saved")
         }

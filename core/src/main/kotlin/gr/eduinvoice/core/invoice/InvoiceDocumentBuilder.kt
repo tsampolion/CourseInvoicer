@@ -3,23 +3,12 @@ package gr.eduinvoice.core.invoice
 import gr.eduinvoice.core.format.Formats
 import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
+import gr.eduinvoice.core.model.InvoicePayment
 import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.Student
 
-/** Fully formatted invoice content. The Android PDF renderer only lays it out. */
-data class InvoiceDocument(
-    val number: String,
-    val issueDate: String,
-    val seller: List<String>,
-    val billTo: List<String>,
-    val lines: List<Line>,
-    val total: String,
-    val paid: Boolean,
-    val notes: List<String>,
-) {
-    data class Line(val date: String, val description: String, val duration: String, val amount: String)
-}
-
+/** Formats an invoice's content from the current data; see [InvoiceDocument] for when it is frozen. */
 object InvoiceDocumentBuilder {
     fun build(
         invoice: Invoice,
@@ -68,7 +57,7 @@ object InvoiceDocumentBuilder {
             billTo = billTo,
             lines = lines,
             total = formats.money(invoice.total),
-            paid = lessons.isNotEmpty() && lessons.all { it.isPaid },
+            paid = InvoicePayment.of(lessons).isPaid,
             notes = notes,
         )
     }

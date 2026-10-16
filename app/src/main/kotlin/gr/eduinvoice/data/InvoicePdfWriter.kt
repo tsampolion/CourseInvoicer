@@ -8,23 +8,31 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.core.content.FileProvider
-import gr.eduinvoice.core.invoice.InvoiceDocument
+import gr.eduinvoice.core.model.InvoiceDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /** Renders an [InvoiceDocument] to an A4 PDF with the framework PdfDocument API and shares it. */
 class InvoicePdfWriter(private val context: Context) {
-    /** Writes the PDF to the app cache and returns a content:// Uri that other apps can read. */
+    /**
+     * Writes the PDF to the app cache and returns a content:// Uri that other apps can read. The file is
+     * written under a temporary name and then renamed, so an app still reading an earlier copy never sees
+     * a half-written file.
+     */
     suspend fun write(document: InvoiceDocument): Uri = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, DIRECTORY).apply { mkdirs() }
         val file = File(dir, "invoice-${document.number.replace(Regex("[^A-Za-z0-9_-]"), "_")}.pdf")
+        val partial = File.createTempFile("${file.name}.", ".part", dir)
         val pdf = PdfDocument()
         try {
             InvoiceLayout(pdf).render(document)
-            file.outputStream().use(pdf::writeTo)
+            partial.outputStream().use(pdf::writeTo)
+            if (!partial.renameTo(file)) throw IOException("Could not save ${file.name}")
         } finally {
             pdf.close()
+            partial.delete()
         }
         FileProvider.getUriForFile(context, "${context.packageName}.files", file)
     }
@@ -45,6 +53,10 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
     private val descriptionX = margin + 84f
     private val durationX = right - 150f
     private val descriptionWidth = durationX - descriptionX - 12f
+
+    /** The seller block shares the top of the page with the INVOICE / number column on the right. */
+    private val sellerWidth = right - margin - 170f
+    private val fullWidth = right - margin
 
     private val ink = Color.rgb(0x1C, 0x1B, 0x1F)
     private val muted = Color.rgb(0x60, 0x5D, 0x66)
@@ -78,8 +90,11 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
     private fun drawHeader(doc: InvoiceDocument) {
         val top = y
         doc.seller.forEachIndexed { index, line ->
-            canvas.drawText(line, margin, y + 12f, if (index == 0) heading else body)
-            y += 14f
+            val paint = if (index == 0) heading else body
+            wrap(line, paint, sellerWidth).forEach { text ->
+                canvas.drawText(text, margin, y + 12f, paint)
+                y += 14f
+            }
         }
         var rightY = top
         drawRight("INVOICE", rightY + 20f, title)
@@ -97,8 +112,11 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
         canvas.drawText("BILL TO", margin, y, label)
         y += 14f
         doc.billTo.forEachIndexed { index, line ->
-            canvas.drawText(line, margin, y, if (index == 0) heading else body)
-            y += 14f
+            val paint = if (index == 0) heading else body
+            wrap(line, paint, fullWidth).forEach { text ->
+                canvas.drawText(text, margin, y, paint)
+                y += 14f
+            }
         }
         y += 16f
     }
@@ -141,7 +159,7 @@ private class InvoiceLayout(private val pdf: PdfDocument) {
     }
 
     private fun drawNotes(notes: List<String>) {
-        notes.flatMap { wrap(it, small, right - margin) + "" }.forEach { text ->
+        notes.flatMap { wrap(it, small, fullWidth) + "" }.forEach { text ->
             if (y + 12f > bottom) {
                 finishPage()
                 startPage()

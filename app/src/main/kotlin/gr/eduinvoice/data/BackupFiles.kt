@@ -16,7 +16,8 @@ class BackupFiles(
     private val backups: BackupRepository,
 ) {
     suspend fun export(uri: Uri) {
-        val json = BackupCodec.encode(backups.readAll())
+        // Encoding years of lessons builds a large string: keep it off the main thread.
+        val json = withContext(Dispatchers.Default) { BackupCodec.encode(backups.readAll()) }
         withContext(Dispatchers.IO) {
             val stream = context.contentResolver.openOutputStream(uri, "wt")
                 ?: throw IOException("Cannot write to the selected file")

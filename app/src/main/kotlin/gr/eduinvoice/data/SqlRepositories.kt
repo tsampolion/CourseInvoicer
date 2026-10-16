@@ -1,11 +1,16 @@
 package gr.eduinvoice.data
 
 import android.database.sqlite.SQLiteDatabase
+import gr.eduinvoice.core.invoice.InvoiceDocumentCodec
 import gr.eduinvoice.core.model.DomainException
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
+import gr.eduinvoice.core.model.InvoicePayment
 import gr.eduinvoice.core.model.Lesson
+import gr.eduinvoice.core.model.Money
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
+import gr.eduinvoice.core.report.StudentBalance
 import gr.eduinvoice.core.repository.GroupRepository
 import gr.eduinvoice.core.repository.InvoiceRepository
 import gr.eduinvoice.core.repository.LessonRepository
@@ -84,14 +89,27 @@ internal fun SQLiteDatabase.allGroups(): List<StudentGroup> {
 }
 
 class SqlLessonRepository(private val db: EduDatabase) : LessonRepository {
-    override fun observeLessons(): Flow<List<Lesson>> =
-        db.observe(Table.LESSONS) { it.lessons("1 = 1") }
-
     override fun observeLessonsBetween(from: LocalDate, to: LocalDate): Flow<List<Lesson>> =
         db.observe(Table.LESSONS) { it.lessons("date BETWEEN ? AND ?", from.toString(), to.toString()) }
 
     override fun observeLessonsOfStudent(studentId: Long): Flow<List<Lesson>> =
         db.observe(Table.LESSONS) { it.lessons("student_id = ?", studentId) }
+
+    // Same rule as Lesson.isOutstanding: unpaid and charged (not absent, fee above zero).
+    override fun observeBalances(): Flow<List<StudentBalance>> = db.observe(Table.LESSONS) { d ->
+        d.select(
+            "SELECT student_id, SUM(fee_cents) AS owed, COUNT(*) AS open_count FROM lessons " +
+                "WHERE paid_on IS NULL AND absent = 0 AND fee_cents > 0 " +
+                "GROUP BY student_id ORDER BY owed DESC, student_id",
+        ).readAll { StudentBalance(it.long("student_id"), Money(it.long("owed")), it.int("open_count")) }
+    }
+
+    override fun observeInvoicePayments(): Flow<Map<Long, InvoicePayment>> = db.observe(Table.LESSONS) { d ->
+        d.select(
+            "SELECT invoice_id, COUNT(*) AS linked, SUM(CASE WHEN paid_on IS NULL THEN 1 ELSE 0 END) AS unpaid " +
+                "FROM lessons WHERE invoice_id IS NOT NULL GROUP BY invoice_id",
+        ).readAll { it.long("invoice_id") to InvoicePayment(it.int("linked"), it.int("unpaid")) }.toMap()
+    }
 
     override suspend fun getLesson(id: Long): Lesson? = db.read { it.lessons("id = ?", id).firstOrNull() }
 
@@ -103,6 +121,9 @@ class SqlLessonRepository(private val db: EduDatabase) : LessonRepository {
 
     override suspend fun getLessonsOfInvoice(invoiceId: Long): List<Lesson> =
         db.read { it.lessons("invoice_id = ?", invoiceId) }
+
+    override suspend fun getLessonsOfGroup(groupId: Long): List<Lesson> =
+        db.read { it.lessons("group_id = ?", groupId) }
 
     override suspend fun countLessonsOfStudent(studentId: Long): Int = db.read { d ->
         d.select("SELECT COUNT(*) FROM lessons WHERE student_id = ?", studentId)
@@ -163,6 +184,10 @@ class SqlInvoiceRepository(private val db: EduDatabase) : InvoiceRepository {
         d.select("SELECT number FROM invoices").readAll { it.getString(0) }
     }
 
+    override suspend fun countInvoicesOfStudent(studentId: Long): Int = db.read { d ->
+        d.select("SELECT COUNT(*) FROM invoices WHERE student_id = ?", studentId).readAll { it.getInt(0) }.first()
+    }
+
     override suspend fun createInvoice(invoice: Invoice, lessonIds: Collection<Long>, paidOn: LocalDate?): Long =
         db.write(Table.INVOICES, Table.LESSONS) { d ->
             val invoiceId = d.insertOrThrow("invoices", null, invoice.toValues())
@@ -193,6 +218,15 @@ class SqlInvoiceRepository(private val db: EduDatabase) : InvoiceRepository {
             d.execSQL(
                 "UPDATE invoices SET voided_on = ? WHERE id = ? AND voided_on IS NULL",
                 arrayOf<Any?>(on.toString(), id),
+            )
+        }
+    }
+
+    override suspend fun setDocument(id: Long, document: InvoiceDocument) {
+        db.write(Table.INVOICES) { d ->
+            d.execSQL(
+                "UPDATE invoices SET document = ? WHERE id = ? AND document IS NULL",
+                arrayOf<Any?>(InvoiceDocumentCodec.encode(document), id),
             )
         }
     }

@@ -5,11 +5,16 @@ import gr.eduinvoice.core.model.Money
 import gr.eduinvoice.core.model.Rate
 import gr.eduinvoice.core.model.RateType
 import gr.eduinvoice.core.model.Student
+import gr.eduinvoice.core.model.StudentGroup
 import gr.eduinvoice.core.testing.InMemoryRepositories
 import gr.eduinvoice.core.usecase.CreateInvoice
+import gr.eduinvoice.core.usecase.InvoiceRenderer
+import gr.eduinvoice.ui.groups.GroupEditViewModel
 import gr.eduinvoice.ui.home.HomeViewModel
+import gr.eduinvoice.ui.invoices.InvoicesViewModel
 import gr.eduinvoice.ui.lessons.LessonEditViewModel
 import gr.eduinvoice.ui.lessons.LessonsViewModel
+import gr.eduinvoice.ui.students.StudentsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -31,6 +36,7 @@ class ViewModelsTest {
     val mainDispatcher = MainDispatcherRule()
 
     private val repos = InMemoryRepositories()
+    private val createInvoice = CreateInvoice(repos, repos, InvoiceRenderer(repos, repos, repos.settingsRepository))
 
     private suspend fun addStudent(name: String, rate: Rate = Rate(Money(2000), RateType.HOURLY)) =
         repos.saveStudent(Student(firstName = name, rate = rate))
@@ -99,7 +105,7 @@ class ViewModelsTest {
     fun `invoiced lessons open read-only`() = runTest {
         val maria = addStudent("Maria")
         val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
-        CreateInvoice(repos, repos)(maria, listOf(id), LocalDate.parse("2026-03-31"))
+        createInvoice(maria, listOf(id), LocalDate.parse("2026-03-31"))
 
         val viewModel = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
         viewModel.setDuration("30")
@@ -139,5 +145,84 @@ class ViewModelsTest {
         assertFalse("paid lessons cannot be rescheduled", viewModel.state.value.canReschedule)
         viewModel.previousMonth()
         assertEquals(emptySet<Long>(), viewModel.state.value.selected)
+    }
+
+    @Test
+    fun `a saved fee follows the length only while it still matches the rate`() = runTest {
+        val maria = addStudent("Maria")
+        val fromRate = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val byHand = repos.saveLesson(lesson(maria, "2026-03-11", 2500))
+
+        val following = LessonEditViewModel(fromRate, 0, repos, repos, repos, repos.settingsRepository)
+        following.setDuration("90")
+        assertEquals("30.00", following.state.value.fee)
+
+        val fixed = LessonEditViewModel(byHand, 0, repos, repos, repos, repos.settingsRepository)
+        fixed.setDuration("90")
+        assertEquals("25.00", fixed.state.value.fee)
+    }
+
+    @Test
+    fun `marking a lesson absent clears its payment`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000, paidOn = "2026-03-10"))
+        val viewModel = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
+        assertTrue(viewModel.state.value.paid)
+
+        viewModel.setAbsent(true)
+        viewModel.save()
+
+        assertFalse(viewModel.state.value.paid)
+        val saved = repos.getLesson(id)!!
+        assertTrue(saved.absent)
+        assertNull(saved.paidOn)
+    }
+
+    @Test
+    fun `students list filters by the search text and shows balances`() = runTest {
+        val maria = addStudent("Maria")
+        addStudent("Nikos")
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val viewModel = StudentsViewModel(repos, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        assertEquals(listOf("Maria", "Nikos"), viewModel.state.value.rows.map { it.student.firstName })
+        assertEquals(Money(2000), viewModel.state.value.rows.first().outstanding)
+
+        viewModel.onQueryChange("nik")
+        assertEquals(listOf("Nikos"), viewModel.state.value.rows.map { it.student.firstName })
+    }
+
+    @Test
+    fun `invoices list shows paid once every lesson is paid`() = runTest {
+        val maria = addStudent("Maria")
+        val a = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val b = repos.saveLesson(lesson(maria, "2026-03-11", 2000))
+        val invoice = createInvoice(maria, listOf(a, b), LocalDate.parse("2026-03-31"))
+        val viewModel = InvoicesViewModel(repos, repos, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        repos.setPaid(listOf(a), LocalDate.parse("2026-04-01"))
+        assertFalse(viewModel.state.value.items.single().paid)
+        repos.setPaid(listOf(b), LocalDate.parse("2026-04-01"))
+        assertTrue(viewModel.state.value.items.single().paid)
+
+        viewModel.markVoid(invoice)
+        assertFalse("a void invoice is never shown as paid", viewModel.state.value.items.single().paid)
+    }
+
+    @Test
+    fun `a group with invoiced lessons is not deleted`() = runTest {
+        val maria = addStudent("Maria")
+        val groupId = repos.saveGroup(StudentGroup(name = "B1", rate = Rate(Money(1200), RateType.HOURLY)))
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 1200).copy(groupId = groupId))
+        createInvoice(maria, listOf(id), LocalDate.parse("2026-03-31"))
+        val viewModel = GroupEditViewModel(groupId, repos, repos, repos)
+
+        viewModel.delete()
+
+        assertFalse(viewModel.state.value.done)
+        assertTrue(viewModel.state.value.message!!.contains("Archive"))
+        assertEquals(groupId, repos.getLesson(id)?.groupId)
     }
 }

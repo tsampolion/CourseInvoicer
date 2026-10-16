@@ -4,7 +4,7 @@ The playbook for coding agents and contributors. It covers the rules, where thin
 common changes, and what to run before you push. For product behaviour, see
 [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
 
-**Version:** 2.0.0-alpha02
+**Version:** 2.0.0-alpha03
 
 ## 1. Non-negotiable rules
 
@@ -45,6 +45,8 @@ common changes, and what to run before you push. For product behaviour, see
 4. Update `Mappers.kt`.
 5. Add a migration test from a frozen copy of the previous schema in
    `app/src/androidTest/.../data/SqlRepositoriesTest.kt`.
+6. If the field has rules, check them again in `BackupCodec` validation: a restored file must obey the
+   same rules as typed data (R11).
 
 **Add a business rule:**
 1. Write a use case in `core/usecase`.
@@ -58,8 +60,11 @@ common changes, and what to run before you push. For product behaviour, see
 3. Dispatch the route in `ui/EduInvoiceApp.kt`.
 
 **Write to the database:**
-- Go through `db.write(Table…)` and list every table you touch, so open screens refresh.
+- Go through `db.write(Table…)` and list every table you touch, so open screens refresh. A write
+  always finishes and notifies, even if its caller is cancelled.
 - Keep multi-row changes in one `db.write` block so they are atomic.
+- Screens that only need totals use repository aggregates (`observeBalances`,
+  `observeInvoicePayments`). Don't load the whole lesson history to sum it.
 
 **Code marked for deletion:** anything tagged `MARKED FOR DELETION (D9)` stays until the owner
 confirms. Don't build on it. Delete an item together with its row in `docs/PRODUCT_SPEC.md` §8.
@@ -80,6 +85,10 @@ framework isn't enough, then wait for approval.
   findings are printed into the CI log.
 - Every behaviour change comes with a test: `:core` for rules, `app/src/test` for ViewModels,
   `app/src/androidTest` for SQL and UI flows.
+- `InMemoryRepositories` must fail where SQLite fails (foreign keys, the invoice link guard). When you
+  add a constraint to the schema, add it to the fake and to `InMemoryRepositoriesTest`.
+- Instrumented tests run through `EduTestRunner`, which starts the app on an in-memory database and
+  its own settings file. Run them on an emulator: Gradle uninstalls the app afterwards.
 
 **Known sandbox limits:** some cloud sandboxes block `dl.google.com`, which also blocks Google Maven.
 There, only `:core` builds locally, and CI is the source of truth for `:app`.
@@ -91,7 +100,8 @@ There, only `:core` builds locally, and CI is the source of truth for `:app`.
   in `README.md`, this file and `CHANGELOG.md` the same.
 - *Marked for deletion (D9):* release signing is not configured, and it isn't planned because the
   app is not going to the Play Store. `assembleRelease` produces an unsigned APK.
-- Never commit keystores or passwords.
+- Never commit keystores or passwords. CI signs debug builds with the key in the
+  `DEBUG_KEYSTORE_BASE64` secret so updates install over each other (README, *Install a test build*).
 
 ## 6. Pull requests
 

@@ -2,6 +2,7 @@ package gr.eduinvoice.data
 
 import android.content.ContentValues
 import android.database.Cursor
+import gr.eduinvoice.core.invoice.InvoiceDocumentCodec
 import gr.eduinvoice.core.model.Invoice
 import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.Money
@@ -98,6 +99,7 @@ internal fun Cursor.toInvoice() = Invoice(
     total = Money(long("total_cents")),
     notes = string("notes"),
     voidedOn = stringOrNull("voided_on")?.let(LocalDate::parse),
+    document = stringOrNull("document")?.let(InvoiceDocumentCodec::decode),
 )
 
 internal fun Invoice.toValues(includeId: Boolean = false) = ContentValues().apply {
@@ -108,4 +110,5 @@ internal fun Invoice.toValues(includeId: Boolean = false) = ContentValues().appl
     put("total_cents", total.cents)
     put("notes", notes)
     put("voided_on", voidedOn?.toString())
+    put("document", document?.let(InvoiceDocumentCodec::encode))
 }

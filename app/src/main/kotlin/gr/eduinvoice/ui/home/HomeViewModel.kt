@@ -3,14 +3,18 @@ package gr.eduinvoice.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import gr.eduinvoice.core.model.Money
+import gr.eduinvoice.core.model.sumOfMoney
 import gr.eduinvoice.core.report.PeriodSummary
 import gr.eduinvoice.core.report.Reports
 import gr.eduinvoice.core.repository.LessonRepository
 import gr.eduinvoice.core.repository.StudentRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
@@ -27,6 +31,7 @@ data class HomeUiState(
     val activeStudents: Int = 0,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     students: StudentRepository,
     lessons: LessonRepository,
@@ -34,15 +39,21 @@ class HomeViewModel(
 ) : ViewModel() {
     private val month = MutableStateFlow(YearMonth.from(today))
 
+    // Only the selected month's lessons are loaded; balances are aggregated by the repository.
+    private val monthSummary = month.flatMapLatest { selected ->
+        lessons.observeLessonsBetween(selected.atDay(1), selected.atEndOfMonth())
+            .map { selected to Reports.summarize(it, selected) }
+    }
+
     val state: StateFlow<HomeUiState> =
-        combine(students.observeStudents(), lessons.observeLessons(), month) { studentList, lessonList, selected ->
+        combine(students.observeStudents(), lessons.observeBalances(), monthSummary) { studentList, balances, summary ->
             val names = studentList.associate { it.id to it.fullName }
             HomeUiState(
                 loading = false,
-                month = selected,
-                summary = Reports.summarize(lessonList, selected),
-                outstanding = Reports.outstanding(lessonList),
-                debtors = Reports.balances(lessonList).map {
+                month = summary.first,
+                summary = summary.second,
+                outstanding = balances.sumOfMoney { it.outstanding },
+                debtors = balances.map {
                     Debtor(it.studentId, names[it.studentId].orEmpty(), it.outstanding, it.openLessons)
                 },
                 activeStudents = studentList.count { !it.archived },

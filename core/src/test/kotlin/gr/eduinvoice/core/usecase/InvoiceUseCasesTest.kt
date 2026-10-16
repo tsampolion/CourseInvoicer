@@ -1,12 +1,20 @@
 package gr.eduinvoice.core.usecase
 
+import gr.eduinvoice.core.createInvoiceUseCase
 import gr.eduinvoice.core.euros
 import gr.eduinvoice.core.lesson
+import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.DomainException
+import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.StudentGroup
+import gr.eduinvoice.core.renderer
+import gr.eduinvoice.core.hourly
 import gr.eduinvoice.core.student
 import gr.eduinvoice.core.testing.InMemoryRepositories
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,7 +22,8 @@ import java.time.LocalDate
 
 class InvoiceUseCasesTest {
     private val repos = InMemoryRepositories()
-    private val createInvoice = CreateInvoice(repos, repos)
+    private val createInvoice = repos.createInvoiceUseCase()
+    private val getDocument = GetInvoiceDocument(repos, repos, repos.renderer())
     private val issueDate = LocalDate.parse("2026-03-31")
 
     @Test
@@ -85,6 +94,59 @@ class InvoiceUseCasesTest {
         assertEquals(voidDate, repos.getInvoice(invoice.id)?.voidedOn)
         assertNull(repos.getLesson(id)?.invoiceId)
         assertEquals("2026-0002", createInvoice(maria, listOf(id), issueDate).number)
+    }
+
+    @Test
+    fun `the issued document never changes, only its paid status does`() = runTest {
+        val maria = repos.saveStudent(student())
+        val groupId = repos.saveGroup(StudentGroup(name = "B1", rate = hourly("12"), memberIds = setOf(maria)))
+        val lessonId = repos.saveLesson(lesson(maria).copy(groupId = groupId, notes = "Unit 4"))
+        repos.settingsRepository.update { it.copy(business = BusinessProfile(name = "Tutor A", iban = "GR01")) }
+        val invoice = createInvoice(maria, listOf(lessonId), issueDate)
+        val issued = getDocument(invoice.id)
+        assertEquals(invoice.document, issued)
+        assertEquals(listOf("Tutor A"), issued.seller)
+        assertEquals("Group lesson · B1 — Unit 4", issued.lines.single().description)
+        assertFalse(issued.paid)
+
+        // Everything a re-render would read changes (D7)...
+        repos.settingsRepository.update {
+            it.copy(currencyCode = "GBP", business = BusinessProfile(name = "Tutor B"), invoiceFooter = "New")
+        }
+        repos.saveStudent(repos.getStudent(maria)!!.copy(firstName = "Renamed"))
+        repos.saveGroup(repos.getGroup(groupId)!!.copy(name = "Renamed group"))
+        SaveLesson(repos)(repos.getLesson(lessonId)!!.copy(notes = "Edited"))
+
+        // ...but the shared document is the one the parent already holds; only the payment is live.
+        assertEquals(issued, getDocument(invoice.id))
+        repos.setPaid(listOf(lessonId), LocalDate.parse("2026-04-05"))
+        assertEquals(issued.copy(paid = true), getDocument(invoice.id))
+    }
+
+    @Test
+    fun `invoices issued before documents were stored are frozen when first shared`() = runTest {
+        val maria = repos.saveStudent(student())
+        val lessonId = repos.saveLesson(lesson(maria))
+        val legacy = Invoice(number = "2026-0001", studentId = maria, issueDate = issueDate, total = euros("20"))
+        val id = repos.createInvoice(legacy, listOf(lessonId), paidOn = null)
+        repos.settingsRepository.update { it.copy(business = BusinessProfile(name = "Tutor A")) }
+
+        val first = getDocument(id)
+        assertNotNull(repos.getInvoice(id)?.document)
+        repos.settingsRepository.update { it.copy(business = BusinessProfile(name = "Tutor B")) }
+
+        assertEquals(listOf("Tutor A"), first.seller)
+        assertEquals(first, getDocument(id))
+    }
+
+    @Test
+    fun `void invoices cannot be shared`() = runTest {
+        val maria = repos.saveStudent(student())
+        val invoice = createInvoice(maria, listOf(repos.saveLesson(lesson(maria))), issueDate)
+        VoidInvoice(repos)(invoice.id, issueDate)
+
+        assertRejected("void") { getDocument(invoice.id) }
+        assertRejected("not found") { getDocument(999) }
     }
 
     @Test

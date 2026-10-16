@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -42,6 +43,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -102,18 +108,26 @@ fun ScreenScaffold(
     )
 }
 
-/** Shows [message] once in the snackbar, then reports it as consumed. */
+/**
+ * Shows [message] once in the snackbar, then reports it as consumed. It is consumed even if the screen is
+ * left while it shows, so it does not appear again on return, but a newer message that replaced it is
+ * never consumed by mistake.
+ */
 @Composable
 fun MessageEffect(message: String?, snackbarHostState: SnackbarHostState, onShown: () -> Unit) {
+    val latest by rememberUpdatedState(message)
     LaunchedEffect(message) {
         if (message != null) {
-            snackbarHostState.showSnackbar(message)
-            onShown()
+            try {
+                snackbarHostState.showSnackbar(message)
+            } finally {
+                if (latest == message) onShown()
+            }
         }
     }
 }
 
-/** A read-only text field that opens a picker when tapped. */
+/** A read-only text field that opens a picker when tapped. TalkBack reads it as one labelled button. */
 @Composable
 fun PickerField(
     label: String,
@@ -134,10 +148,20 @@ fun PickerField(
             isError = isError,
             supportingText = supportingText?.let { { Text(it) } },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            // When enabled, the overlay below is the accessible control; the field would only repeat it.
+            modifier = Modifier.fillMaxWidth().then(if (enabled) Modifier.clearAndSetSemantics {} else Modifier),
         )
         if (enabled) {
-            Box(Modifier.matchParentSize().clickable(onClick = onClick))
+            val name = label.removeSuffix(" *")
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .semantics {
+                        contentDescription = "$name: $value"
+                        if (isError) error(supportingText ?: "Required")
+                    }
+                    .clickable(onClickLabel = "Change ${name.lowercase()}", role = Role.Button, onClick = onClick),
+            )
         }
     }
 }

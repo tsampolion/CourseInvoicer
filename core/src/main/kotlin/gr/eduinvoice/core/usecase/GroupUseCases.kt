@@ -17,6 +17,22 @@ class SaveGroup(private val groups: GroupRepository) {
 }
 
 /**
+ * Deleting a group keeps its lessons but detaches them from the group. Invoiced lessons keep their group
+ * (R7), so a group with invoiced lessons can only be archived.
+ */
+class DeleteGroup(
+    private val groups: GroupRepository,
+    private val lessons: LessonRepository,
+) {
+    suspend operator fun invoke(groupId: Long) {
+        if (lessons.getLessonsOfGroup(groupId).any { it.isInvoiced }) {
+            throw DomainException("Some of this group's lessons are on an invoice. Archive the group instead.")
+        }
+        groups.deleteGroup(groupId)
+    }
+}
+
+/**
  * Logs one group session: a lesson row for every attending student, billed at the group rate, and a
  * non-billable `absent` row for every absent student so attendance history is kept.
  */

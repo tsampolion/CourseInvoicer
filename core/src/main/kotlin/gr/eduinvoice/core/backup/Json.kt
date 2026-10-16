@@ -6,9 +6,13 @@ import java.util.Locale
  * Minimal JSON reader/writer for backups, so :core needs no serialization library.
  *
  * Values map to Kotlin types: object → Map<String, Any?>, array → List<Any?>, string → String,
- * integer → Long, other numbers → Double, true/false → Boolean, null → null.
+ * integer → Long, other numbers → Double, true/false → Boolean, null → null. Nesting is limited to
+ * [MAX_DEPTH] levels, so a hostile file fails with a [BackupFormatException] instead of a stack overflow.
  */
 internal object Json {
+    /** Real backups nest about six levels deep. */
+    const val MAX_DEPTH = 64
+
     fun write(value: Any?): String = StringBuilder().also { it.appendValue(value, indent = 0) }.toString()
 
     fun parse(text: String): Any? {
@@ -75,6 +79,7 @@ internal object Json {
 
     private class Parser(private val text: String) {
         private var pos = 0
+        private var depth = 0
 
         fun atEnd() = pos >= text.length
 
@@ -88,13 +93,22 @@ internal object Json {
             skipWhitespace()
             if (atEnd()) throw error("Unexpected end of input")
             return when (val char = text[pos]) {
-                '{' -> readObject()
-                '[' -> readArray()
+                '{' -> nested { readObject() }
+                '[' -> nested { readArray() }
                 '"' -> readString()
                 't' -> readLiteral("true", true)
                 'f' -> readLiteral("false", false)
                 'n' -> readLiteral("null", null)
                 else -> if (char == '-' || char.isDigit()) readNumber() else throw error("Unexpected '$char'")
+            }
+        }
+
+        private inline fun <T> nested(read: () -> T): T {
+            if (++depth > MAX_DEPTH) throw error("Nested more than $MAX_DEPTH levels deep")
+            try {
+                return read()
+            } finally {
+                depth--
             }
         }
 

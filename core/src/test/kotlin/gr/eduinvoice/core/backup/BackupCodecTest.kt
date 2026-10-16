@@ -5,6 +5,8 @@ import gr.eduinvoice.core.lesson
 import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
+import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.StudentGroup
 import gr.eduinvoice.core.model.ThemeMode
 import gr.eduinvoice.core.perLesson
@@ -38,7 +40,23 @@ class BackupCodecTest {
             lesson(studentId = 2, id = 5, absent = true).copy(groupId = 3, notes = "\u0001 control"),
         ),
         invoices = listOf(
-            Invoice(id = 6, number = "2026-0001", studentId = 1, issueDate = LocalDate.parse("2026-03-31"), total = euros("20")),
+            Invoice(
+                id = 6,
+                number = "2026-0001",
+                studentId = 1,
+                issueDate = LocalDate.parse("2026-03-31"),
+                total = euros("20"),
+                document = InvoiceDocument(
+                    number = "2026-0001",
+                    issueDate = "31 Mar 2026",
+                    seller = listOf("Δημήτρης Τ.", "Οδός 1"),
+                    billTo = listOf("Maria Papadopoulou"),
+                    lines = listOf(InvoiceDocument.Line("2 Mar 2026", "Lesson — \"quoted\"", "1 h", "€20.00")),
+                    total = "€20.00",
+                    paid = false,
+                    notes = emptyList(),
+                ),
+            ),
             Invoice(
                 id = 7,
                 number = "2026-0002",
@@ -60,22 +78,54 @@ class BackupCodecTest {
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("""{"hello": 1}""") }
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("[1, 2]") }
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode("not json") }
-        val future = BackupCodec.encode(snapshot).replace("\"version\": 2", "\"version\": 3")
+        val future = BackupCodec.encode(snapshot).replace("\"version\": 3", "\"version\": 4")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(future) }
         assertTrue(error.message!!.contains("newer"))
     }
 
     @Test
     fun `reads version 1 backups written before invoices could be voided`() {
-        val v1 = BackupCodec.encode(snapshot)
-            .replace("\"version\": 2", "\"version\": 1")
+        val v1 = BackupCodec.encode(snapshot.withoutDocuments())
+            .replace("\"version\": 3", "\"version\": 1")
             .replace(Regex(",\\s*\"voidedOn\": (null|\"[0-9-]+\")"), "")
+            .replace(Regex(",\\s*\"document\": null"), "")
         assertTrue("fixture must not mention voidedOn", "voidedOn" !in v1)
-
+        assertTrue("fixture must not mention document", "document" !in v1)
+        // A void invoice holds no lessons, so a v1 file with every invoice open is still consistent.
         val decoded = BackupCodec.decode(v1)
 
-        assertEquals(snapshot.invoices.map { it.copy(voidedOn = null) }, decoded.invoices)
+        assertEquals(snapshot.withoutDocuments().invoices.map { it.copy(voidedOn = null) }, decoded.invoices)
         assertEquals(snapshot.lessons, decoded.lessons)
+    }
+
+    @Test
+    fun `reads version 2 backups written before documents were stored`() {
+        val v2 = BackupCodec.encode(snapshot.withoutDocuments())
+            .replace("\"version\": 3", "\"version\": 2")
+            .replace(Regex(",\\s*\"document\": null"), "")
+        assertTrue("fixture must not mention document", "document" !in v2)
+
+        assertEquals(snapshot.withoutDocuments(), BackupCodec.decode(v2))
+    }
+
+    @Test
+    fun `rejects files that break the app's rules and names the problem`() {
+        fun rejects(broken: BackupSnapshot, messagePart: String) {
+            val text = BackupCodec.encode(broken)
+            val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(text) }
+            assertTrue("'${error.message}' should mention '$messagePart'", error.message!!.contains(messagePart))
+        }
+        val lessonOnInvoice = snapshot.lessons.first()
+        fun withLesson(extra: Lesson) = snapshot.copy(lessons = snapshot.lessons + extra)
+
+        rejects(snapshot.copy(settings = snapshot.settings.copy(currencyCode = "XX")), "currency")
+        rejects(snapshot.copy(settings = snapshot.settings.copy(defaultLessonMinutes = 0)), "lesson length")
+        rejects(snapshot.copy(students = snapshot.students + snapshot.students.first()), "share an id")
+        rejects(withLesson(lessonOnInvoice.copy(id = 9, durationMinutes = 900)), "Lesson 9")
+        rejects(withLesson(lessonOnInvoice.copy(id = 9, studentId = 99)), "Lesson 9")
+        rejects(withLesson(lessonOnInvoice.copy(id = 9, invoiceId = 7)), "invoice 2026-0002")
+        rejects(withLesson(lessonOnInvoice.copy(id = 9, invoiceId = 70)), "missing invoice")
+        rejects(snapshot.copy(groups = snapshot.groups.map { it.copy(memberIds = it.memberIds + 99) }), "Group 3")
     }
 
     @Test
@@ -93,4 +143,6 @@ class BackupCodecTest {
         assertEquals(snapshot.copy(exportedAt = restored.exportedAt), restored)
         assertEquals(8L, repos.saveStudent(student()))
     }
+
+    private fun BackupSnapshot.withoutDocuments() = copy(invoices = invoices.map { it.copy(document = null) })
 }
