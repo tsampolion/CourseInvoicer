@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 
 Fixes from a full audit of the app.
 
+### Added
+- **GitHub releases:** once CI passes on `Rebuild_v2`, `.github/workflows/release.yml` tags the version in
+  `app/build.gradle.kts` and publishes a release, but only after its `CHANGELOG.md` section is dated. The
+  release notes are that section, and the signed `eduinvoice-<version>.apk` is attached. The workflow won't
+  publish an APK signed with any other key, and it marks versions with a suffix such as `-alpha03` as
+  pre-releases (D12).
+- **CI runs on every branch push**, not only on `main`, `Rebuild` and `Rebuild_v2`. Pull requests from this
+  repository reuse their branch's push run instead of running everything twice. Pull requests from forks
+  still run their own checks.
+
 ### Fixed
 - **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing it
   after changing the currency, your details, the student, a group name or lesson notes produces the

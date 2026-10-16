@@ -76,8 +76,9 @@ framework isn't enough, then wait for approval.
 ```
 
 - `:core:test` runs with no Android SDK. It is the minimum check in restricted sandboxes.
-- CI (`.github/workflows/ci.yml`) runs the line above. A second job boots an API 35 emulator and runs `connectedDebugAndroidTest`. Lint
-  findings are printed into the CI log.
+- CI (`.github/workflows/ci.yml`) runs the line above on every branch push, on pull requests from
+  forks and on manual dispatch. A second job boots an API 35 emulator and runs
+  `connectedDebugAndroidTest`. Lint findings are printed into the CI log.
 - Every behaviour change comes with a test: `:core` for rules, `app/src/test` for ViewModels,
   `app/src/androidTest` for SQL and UI flows.
 - `InMemoryRepositories` must fail where SQLite fails (foreign keys, the invoice link guard). When you
@@ -90,9 +91,14 @@ There, only `:core` builds locally, and CI is the source of truth for `:app`.
 
 ## 5. Versions and releases
 
-- Every PR adds an entry to `CHANGELOG.md`.
-- A release bumps `versionCode` and `versionName` in `app/build.gradle.kts`. Keep the version shown
-  in `README.md`, this file and `CHANGELOG.md` the same.
+- Every PR adds an entry to `CHANGELOG.md`, under the `## [<versionName>] - Unreleased` section.
+- Versions are SemVer: `MAJOR.MINOR.PATCH`, with an optional pre-release suffix such as `-alpha03`.
+- **To start a version:** bump `versionCode` by one, set `versionName` in `app/build.gradle.kts` and
+  open a `## [X.Y.Z] - Unreleased` section in `CHANGELOG.md`. Keep the version shown in
+  `README.md`, this file and `CHANGELOG.md` the same.
+- **To release it:** replace `Unreleased` with the date (`## [X.Y.Z] - YYYY-MM-DD`) and merge. Don't
+  tag by hand: `.github/workflows/release.yml` tags and publishes it once CI passes on `Rebuild_v2`.
+  Its header comment says what it checks and how to release an older commit.
 - There is no Play Store release and no release build (D9). The debug APK from CI is what gets
   installed.
 - Never commit keystores or passwords. CI signs debug builds with the owner's key (secrets
