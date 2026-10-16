@@ -133,7 +133,6 @@ object BackupCodec {
     private fun AppSettings.toJson() = mapOf(
         "businessName" to business.name,
         "businessAddress" to business.address,
-        "taxId" to business.taxId,
         "phone" to business.phone,
         "email" to business.email,
         "iban" to business.iban,
@@ -143,11 +142,11 @@ object BackupCodec {
         "invoiceFooter" to invoiceFooter,
     )
 
+    // Backups made before 2.0.0 also hold "taxId"; the field was removed and is ignored on purpose.
     private fun Map<*, *>.toSettings() = AppSettings(
         business = BusinessProfile(
             name = string("businessName"),
             address = string("businessAddress"),
-            taxId = string("taxId"),
             phone = string("phone"),
             email = string("email"),
             iban = string("iban"),

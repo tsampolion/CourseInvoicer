@@ -36,7 +36,7 @@ The rule numbers are referenced from code comments and PRs.
 | R10 | **Archiving:** archived students and groups move to the *Archived* filter and keep their history. Archived students leave the student pickers, and an archived group has no *Log lesson* button. A student can be deleted only if they have no lessons and no invoices (void ones included). A group can be deleted only if none of its lessons is invoiced; its other lessons are kept without the group. | `DeleteStudent`, `DeleteGroup` |
 | R11 | **Backups** are versioned JSON. Restoring replaces all data in one transaction, then applies the backup's settings. Once a restore starts, cancelling it does not stop it half-way. A file that is malformed or breaks a rule above (unknown currency, impossible lesson length, a lesson on a void or missing invoice…) is rejected and changes nothing. Older backup versions keep importing. | `BackupCodec`, `SqlBackupRepository` |
 | R12 | **Issued documents:** an invoice's content (seller, bill-to, lines, totals, notes, formatting) is frozen when it is created. Later changes to settings, the student, group names or lesson notes never change it. Only the *PAID* mark is live. Invoices created before schema 3 are frozen the first time they are shared. An invoice is paid once it has lessons and all are paid. | `CreateInvoice`, `GetInvoiceDocument`, `InvoicePayment` |
-| R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. | `SettingsRules`, `SaveSettings` |
+| R13 | **Settings:** the currency is an ISO 4217 code and the default lesson length is 1–720 minutes, both when saving and when restoring. Settings save as they are typed, each field checked on its own: invalid input is never stored, the stored value stays in use and the field shows an inline error, while valid fields still save. | `SettingsRules`, `SaveSettings`, `SettingsViewModel` |
 
 ## 3. Data model
 
@@ -46,7 +46,7 @@ The rule numbers are referenced from code comments and PRs.
 | StudentGroup | name, class, rate, member ids, archived | Members are stored in `group_members` |
 | Lesson | student, group?, date, start time, minutes, fee, absent, notes, paidOn?, invoice? | `paidOn` is the payment record |
 | Invoice | number, student, issue date, total, notes, voidedOn?, document? | Never deleted (R6). `document` is the content as issued (R12) |
-| AppSettings | business details, currency, default lesson length, theme, invoice footer | SharedPreferences |
+| AppSettings | business details (name, address, phone, email, IBAN), currency, default lesson length, theme, invoice footer | SharedPreferences. The Tax ID was removed in 2.0.0 |
 
 Version history:
 
@@ -55,6 +55,7 @@ Version history:
 | 2.0.0-alpha01 | 1 | 1 | v2 baseline. |
 | 2.0.0-alpha02 | 2 | 2 | Adds `invoices.voided_on` (backup field `voidedOn`) for voiding (R6). Schema 1 upgrades automatically. v1 backups still import. |
 | 2.0.0-alpha03 | 3 | 3 | Adds `invoices.document` (backup field `document`), the content as issued (R12). Schema 2 upgrades automatically. v1 and v2 backups still import. |
+| 2.0.0 | 3 | 3 | Drops the settings field `taxId`: no longer written, and ignored when an older backup has it. |
 
 ## 4. Features
 
@@ -65,7 +66,7 @@ Version history:
 | Groups | Filter *Active* or *Archived*. Create or edit a group with members and a rate. Log a group lesson with attendance. Archive, restore or delete a group. |
 | Lessons | Browse by month and filter by all, unpaid or not invoiced. Add, edit or delete a lesson. Tick a lesson as paid. **Long-press to select several**, then *Mark paid* or *Reschedule*. |
 | Invoices | Create an invoice from a student's open lessons, optionally marking them paid. Share it as an A4 PDF. Tap an issued invoice to share it again. See whether each is paid, unpaid or void. Void it. |
-| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Export or import a JSON backup. |
+| Settings | Set the business details printed on invoices, the currency, the default lesson length, the theme and the invoice footer. Changes save as you type, with no *Save* button; the theme applies at once. Export or import a JSON backup. |
 
 ## 5. Out of scope and backlog
 

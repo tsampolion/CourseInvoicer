@@ -19,6 +19,12 @@ import kotlinx.coroutines.withContext
 /** Settings in SharedPreferences (no DataStore dependency), exposed as a StateFlow. */
 class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : SettingsRepository {
     private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)
+
+    init {
+        // The Tax ID was removed in 2.0.0: delete what older versions stored (a no-op once it is gone).
+        if (prefs.contains(REMOVED_TAX_ID)) prefs.edit { remove(REMOVED_TAX_ID) }
+    }
+
     private val state = MutableStateFlow(prefs.readSettings())
     private val writes = Mutex()
 
@@ -44,7 +50,6 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             business = BusinessProfile(
                 name = getString(BUSINESS_NAME, null).orEmpty(),
                 address = getString(BUSINESS_ADDRESS, null).orEmpty(),
-                taxId = getString(TAX_ID, null).orEmpty(),
                 phone = getString(PHONE, null).orEmpty(),
                 email = getString(EMAIL, null).orEmpty(),
                 iban = getString(IBAN, null).orEmpty(),
@@ -60,7 +65,6 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         edit(commit = true) {
             putString(BUSINESS_NAME, settings.business.name)
             putString(BUSINESS_ADDRESS, settings.business.address)
-            putString(TAX_ID, settings.business.taxId)
             putString(PHONE, settings.business.phone)
             putString(EMAIL, settings.business.email)
             putString(IBAN, settings.business.iban)
@@ -76,7 +80,6 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
 
         private const val BUSINESS_NAME = "business_name"
         private const val BUSINESS_ADDRESS = "business_address"
-        private const val TAX_ID = "tax_id"
         private const val PHONE = "phone"
         private const val EMAIL = "email"
         private const val IBAN = "iban"
@@ -84,5 +87,8 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         private const val DEFAULT_MINUTES = "default_minutes"
         private const val THEME = "theme"
         private const val FOOTER = "invoice_footer"
+
+        /** Written by versions before 2.0.0; removed on load. */
+        private const val REMOVED_TAX_ID = "tax_id"
     }
 }

@@ -111,7 +111,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 | `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch and the bottom bar |
 | `app/…/ui/nav/Navigation.kt` | `Route`, `Navigator`, `NavHost` |
 | `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen |
-| `app/…/ui/common`, `ui/theme` | Shared components, icons, `appViewModel {}`, `launchCatching`; `InvoicerTheme` |
+| `app/…/ui/common`, `ui/theme` | Shared components (`CommitField` for fields that save as you type), icons, `appViewModel {}`, `launchCatching`; `InvoicerTheme` |
 | `app/src/test` | JVM tests: `ViewModelsTest`, `NavigatorTest` |
 | `app/src/androidTest` | Emulator tests: `SqlRepositoriesTest` (SQL, migrations), `EndToEndTest` |
 
