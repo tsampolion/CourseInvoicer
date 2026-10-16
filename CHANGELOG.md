@@ -1,4 +1,9 @@
 # Changelog
+## [0.32.2] - Unreleased
+
+### Documentation
+- Added `docs/STYLE_GUIDE.md` UI style guide with overview image `docs/images/style-guide-overview.svg`.
+
 ## [0.32.1] - 2026-01-19
 
 ### Fixed

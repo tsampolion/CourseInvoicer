@@ -26,6 +26,7 @@ Welcome to the comprehensive documentation for EduInvoiceApp, a professional And
 - **[Database Schema](DATABASE_SCHEMA.md)** - Database structure and relationships
 - **[Security Guide](SECURITY.md)** - Security features and implementation
 - **[Performance Guide](PERFORMANCE.md)** - Performance optimization and monitoring
+- **[UI Style Guide](STYLE_GUIDE.md)** - Colours, typography, spacing, components and UI conventions
 
 ### 📋 Project Management
 - **[Changelog](../CHANGELOG.md)** - Complete version history

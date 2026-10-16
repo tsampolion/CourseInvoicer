@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" font-family="Roboto, Arial, sans-serif">
+  <rect width="1200" height="900" fill="#FFFBFE"/>
+  <text x="40" y="52" font-size="30" font-weight="700" fill="#1C1B1F">EduInvoice UI Style Guide — Overview</text>
+  <text x="40" y="78" font-size="14" fill="#625B71">Material 3 · Jetpack Compose · tokens from ui/theme and ui/design</text>
+
+  <!-- Colour -->
+  <text x="40" y="122" font-size="18" font-weight="700" fill="#1C1B1F">1 · Colour</text>
+  <text x="40" y="142" font-size="12" fill="#625B71">Dynamic colour on Android 12+; fallback palette below</text>
+  <g font-size="11">
+    <rect x="40" y="154" width="100" height="56" rx="8" fill="#6650A4"/><text x="48" y="174" fill="#fff">primary (light)</text><text x="48" y="200" fill="#fff">#6650A4</text>
+    <rect x="150" y="154" width="100" height="56" rx="8" fill="#625B71"/><text x="158" y="174" fill="#fff">secondary</text><text x="158" y="200" fill="#fff">#625B71</text>
+    <rect x="260" y="154" width="100" height="56" rx="8" fill="#7D5260"/><text x="268" y="174" fill="#fff">tertiary</text><text x="268" y="200" fill="#fff">#7D5260</text>
+    <rect x="40" y="218" width="100" height="56" rx="8" fill="#D0BCFF"/><text x="48" y="238" fill="#1C1B1F">primary (dark)</text><text x="48" y="264" fill="#1C1B1F">#D0BCFF</text>
+    <rect x="150" y="218" width="100" height="56" rx="8" fill="#CCC2DC"/><text x="158" y="238" fill="#1C1B1F">secondary</text><text x="158" y="264" fill="#1C1B1F">#CCC2DC</text>
+    <rect x="260" y="218" width="100" height="56" rx="8" fill="#EFB8C8"/><text x="268" y="238" fill="#1C1B1F">tertiary</text><text x="268" y="264" fill="#1C1B1F">#EFB8C8</text>
+    <text x="40" y="298" font-size="12" font-weight="700" fill="#1C1B1F">AppColors containers</text>
+    <rect x="40" y="306" width="80" height="40" rx="8" fill="#EADDFF"/><text x="46" y="330" fill="#21005D">primary</text>
+    <rect x="128" y="306" width="80" height="40" rx="8" fill="#E8DEF8"/><text x="134" y="330" fill="#1D192B">secondary</text>
+    <rect x="216" y="306" width="80" height="40" rx="8" fill="#FFD8E4"/><text x="222" y="330" fill="#31111D">tertiary</text>
+    <rect x="304" y="306" width="80" height="40" rx="8" fill="#DFF5E1" stroke="#9CCC9F"/><text x="310" y="330" fill="#1B5E20">success*</text>
+    <rect x="392" y="306" width="80" height="40" rx="8" fill="#F9DEDC"/><text x="398" y="330" fill="#410E0B">error</text>
+    <text x="40" y="364" font-size="11" fill="#B3261E">* hardcoded #DFF5E1 — not dark-mode aware</text>
+  </g>
+
+  <!-- Typography -->
+  <text x="40" y="410" font-size="18" font-weight="700" fill="#1C1B1F">2 · Typography (MaterialTheme.typography)</text>
+  <g fill="#1C1B1F">
+    <text x="40" y="446" font-size="22">titleLarge</text><text x="300" y="446" font-size="12" fill="#625B71">22sp · screen title (SlimHeader)</text>
+    <text x="40" y="478" font-size="16" font-weight="500">titleMedium</text><text x="300" y="478" font-size="12" fill="#625B71">16sp · card titles, metric values</text>
+    <text x="40" y="506" font-size="14">bodyMedium</text><text x="300" y="506" font-size="12" fill="#625B71">14sp · default body text</text>
+    <text x="40" y="530" font-size="12">bodySmall</text><text x="300" y="530" font-size="12" fill="#625B71">12sp · secondary details</text>
+    <text x="40" y="552" font-size="11" font-weight="500">labelSmall</text><text x="300" y="552" font-size="12" fill="#625B71">11sp · metric labels, chips</text>
+  </g>
+
+  <!-- Spacing -->
+  <text x="40" y="604" font-size="18" font-weight="700" fill="#1C1B1F">3 · Spacing (8dp grid)</text>
+  <g font-size="11" fill="#1C1B1F">
+    <rect x="40" y="618" width="8" height="18" fill="#6650A4"/><text x="150" y="631">4dp  icon gaps</text>
+    <rect x="40" y="642" width="16" height="18" fill="#6650A4"/><text x="150" y="655">8dp  Dimensions.PaddingSmall</text>
+    <rect x="40" y="666" width="24" height="18" fill="#6650A4"/><text x="150" y="679">12dp header / row spacing</text>
+    <rect x="40" y="690" width="32" height="18" fill="#6650A4"/><text x="150" y="703">16dp Dimensions.PaddingMedium</text>
+    <rect x="40" y="714" width="48" height="18" fill="#6650A4"/><text x="150" y="727">24dp section gap</text>
+    <rect x="40" y="738" width="64" height="18" fill="#6650A4"/><text x="150" y="751">32dp large / empty-state</text>
+  </g>
+
+  <!-- Shapes -->
+  <text x="40" y="800" font-size="18" font-weight="700" fill="#1C1B1F">4 · Shapes (corner radius)</text>
+  <g font-size="11" fill="#1C1B1F" text-anchor="middle">
+    <rect x="40" y="814" width="56" height="40" rx="4" fill="#E8DEF8"/><text x="68" y="870">4 xs</text>
+    <rect x="110" y="814" width="56" height="40" rx="8" fill="#E8DEF8"/><text x="138" y="870">8 s</text>
+    <rect x="180" y="814" width="56" height="40" rx="12" fill="#EADDFF" stroke="#6650A4"/><text x="208" y="870">12 m (cards)</text>
+    <rect x="250" y="814" width="56" height="40" rx="16" fill="#E8DEF8"/><text x="278" y="870">16 l</text>
+    <rect x="320" y="814" width="56" height="40" rx="20" fill="#E8DEF8"/><text x="348" y="870">32 xl</text>
+  </g>
+
+  <!-- Anatomy -->
+  <text x="640" y="122" font-size="18" font-weight="700" fill="#1C1B1F">5 · Screen anatomy</text>
+  <rect x="640" y="140" width="320" height="640" rx="36" fill="#1C1B1F"/>
+  <rect x="652" y="152" width="296" height="616" rx="26" fill="#FFFBFE"/>
+  <!-- header -->
+  <text x="668" y="208" font-size="20" fill="#1C1B1F">≡</text>
+  <text x="700" y="208" font-size="20" fill="#1C1B1F">Students</text>
+  <text x="914" y="208" font-size="18" fill="#1C1B1F">⋮</text>
+  <line x1="652" y1="226" x2="948" y2="226" stroke="#E7E0EC"/>
+  <!-- metric cards -->
+  <rect x="668" y="242" width="84" height="64" rx="12" fill="#EADDFF"/><text x="710" y="264" font-size="10" text-anchor="middle" fill="#21005D">Lessons</text><text x="710" y="290" font-size="16" font-weight="500" text-anchor="middle" fill="#21005D">24</text>
+  <rect x="758" y="242" width="84" height="64" rx="12" fill="#EADDFF"/><text x="800" y="264" font-size="10" text-anchor="middle" fill="#21005D">Students</text><text x="800" y="290" font-size="16" font-weight="500" text-anchor="middle" fill="#21005D">12</text>
+  <rect x="848" y="242" width="84" height="64" rx="12" fill="#DFF5E1"/><text x="890" y="264" font-size="10" text-anchor="middle" fill="#1B5E20">Paid</text><text x="890" y="290" font-size="16" font-weight="500" text-anchor="middle" fill="#1B5E20">€480</text>
+  <!-- form card -->
+  <rect x="668" y="322" width="264" height="190" rx="12" fill="#EADDFF"/>
+  <text x="684" y="350" font-size="16" font-weight="500" fill="#21005D">Student details</text>
+  <rect x="684" y="364" width="232" height="44" rx="4" fill="none" stroke="#79747E"/><text x="696" y="391" font-size="14" fill="#49454F">Name</text>
+  <rect x="684" y="418" width="232" height="44" rx="4" fill="none" stroke="#79747E"/><text x="696" y="445" font-size="14" fill="#49454F">Email</text>
+  <rect x="816" y="474" width="100" height="28" rx="14" fill="#6650A4"/><text x="866" y="493" font-size="13" text-anchor="middle" fill="#fff">Save</text>
+  <!-- list cards -->
+  <rect x="668" y="528" width="264" height="64" rx="12" fill="#F3EDF7"/><text x="684" y="556" font-size="16" font-weight="500" fill="#1C1B1F">Maria P.</text><text x="684" y="578" font-size="12" fill="#49454F">Mon 17:00 · Maths</text>
+  <rect x="668" y="602" width="264" height="64" rx="12" fill="#F3EDF7"/><text x="684" y="630" font-size="16" font-weight="500" fill="#1C1B1F">Nikos K.</text><text x="684" y="652" font-size="12" fill="#49454F">Wed 18:30 · Physics</text>
+  <!-- annotations -->
+  <g font-size="12" fill="#1C1B1F">
+    <line x1="948" y1="200" x2="985" y2="200" stroke="#B3261E"/><text x="990" y="196" font-weight="700">SlimHeader</text><text x="990" y="212" fill="#625B71">titleLarge · 16dp h / 8dp v</text>
+    <line x1="932" y1="274" x2="985" y2="274" stroke="#B3261E"/><text x="990" y="270" font-weight="700">MetricCard</text><text x="990" y="286" fill="#625B71">labelSmall + titleMedium</text>
+    <line x1="932" y1="380" x2="985" y2="380" stroke="#B3261E"/><text x="990" y="376" font-weight="700">FormCard</text><text x="990" y="392" fill="#625B71">primaryContainer</text><text x="990" y="408" fill="#625B71">16dp padding · 12dp radius</text>
+    <line x1="932" y1="560" x2="985" y2="560" stroke="#B3261E"/><text x="990" y="556" font-weight="700">List Card</text><text x="990" y="572" fill="#625B71">titleMedium + bodySmall</text><text x="990" y="588" fill="#625B71">8dp between items</text>
+    <text x="640" y="812" font-weight="700">EdgeToEdgeScaffold wraps the screen;</text>
+    <text x="640" y="830" fill="#625B71">all text via stringResource(); icons Icons.Default /</text>
+    <text x="640" y="848" fill="#625B71">AutoMirrored; touch targets ≥ 48dp.</text>
+  </g>
+</svg>
