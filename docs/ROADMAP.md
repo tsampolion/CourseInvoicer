@@ -198,8 +198,9 @@ use-case tests cover the rules. Gaps:
 
 ## 8. Saving and corrupt data
 
-**Today.** Every write commits at once: `db.write` is a `NonCancellable` transaction, and settings
-use `commit()`. So, unlike Coursebook Pacer, nothing needs flushing in `onStop`. Gaps:
+**Today.** Every database write commits at once: `db.write` is a `NonCancellable` transaction, and
+settings use `commit()`. Settings save as you type, 0.4 s after the last keystroke; the Settings
+screen flushes a waiting save on Back and in `onStop`, and a started save always finishes. Gaps:
 - **Corrupt database.** `InvoicerDatabase` uses the framework's default error handler, which *deletes* a
   corrupt database file without asking. Coursebook Pacer keeps the bad file as `.bad` and starts
   clean.

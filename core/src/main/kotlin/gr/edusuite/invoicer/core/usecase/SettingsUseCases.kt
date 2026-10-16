@@ -12,6 +12,13 @@ object SettingsRules {
 
     fun isValidLessonMinutes(minutes: Int): Boolean = isValidDuration(minutes)
 
+    /** [text] as a stored currency code (trimmed, upper case), or null if it is not an ISO 4217 code. */
+    fun normalisedCurrency(text: String): String? =
+        text.trim().uppercase(Locale.ROOT).takeIf { it.isNotEmpty() && isValidCurrency(it) }
+
+    /** [text] as a default lesson length in minutes, or null if it is not a whole number in range. */
+    fun lessonMinutes(text: String): Int? = text.trim().toIntOrNull()?.takeIf { isValidLessonMinutes(it) }
+
     fun validate(settings: AppSettings) {
         if (!isValidCurrency(settings.currencyCode)) {
             throw DomainException("'${settings.currencyCode}' is not a currency code, e.g. EUR")
@@ -28,7 +35,6 @@ class SaveSettings(private val settings: SettingsRepository) {
             business = new.business.copy(
                 name = new.business.name.trim(),
                 address = new.business.address.trim(),
-                taxId = new.business.taxId.trim(),
                 phone = new.business.phone.trim(),
                 email = new.business.email.trim(),
                 iban = new.business.iban.trim(),

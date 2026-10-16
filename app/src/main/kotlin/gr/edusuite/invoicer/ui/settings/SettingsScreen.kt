@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.ui.settings
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +19,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,15 +30,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.BuildConfig
 import gr.edusuite.invoicer.core.model.ThemeMode
+import gr.edusuite.invoicer.core.usecase.MAX_LESSON_MINUTES
+import gr.edusuite.invoicer.ui.common.CommitField
 import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.appViewModel
-import gr.edusuite.invoicer.ui.students.TextInput
 import java.time.LocalDate
 
 @Composable
@@ -54,6 +56,15 @@ fun SettingsScreen(
     val form = state.form
     MessageEffect(state.message, snackbar, viewModel::messageShown)
 
+    // Settings save as you type; save what is still waiting before the screen goes away. System Back
+    // clears this screen's ViewModel at once, so it is handled here rather than by the NavHost.
+    val leave = {
+        viewModel.flush()
+        onBack()
+    }
+    BackHandler(onBack = leave)
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flush() }
+
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         it?.let(viewModel::exportBackup)
     }
@@ -64,9 +75,8 @@ fun SettingsScreen(
     ScreenScaffold(
         title = "Settings",
         modifier = modifier,
-        onBack = onBack,
+        onBack = leave,
         snackbarHostState = snackbar,
-        actions = { TextButton(onClick = viewModel::save, enabled = !state.busy) { Text("Save") } },
     ) { padding ->
         Column(
             Modifier
@@ -79,42 +89,66 @@ fun SettingsScreen(
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
             Section("Your details", "Printed at the top of every invoice.")
-            TextInput("Name or business name", form.name, { v -> viewModel.update { it.copy(name = v) } }, capitalize = true)
-            OutlinedTextField(
+            CommitField(
+                value = form.name,
+                onValueChange = viewModel::onName,
+                label = "Name or business name",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            CommitField(
                 value = form.address,
-                onValueChange = { v -> viewModel.update { it.copy(address = v) } },
-                label = { Text("Address") },
+                onValueChange = viewModel::onAddress,
+                label = "Address",
+                singleLine = false,
                 minLines = 2,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                modifier = Modifier.fillMaxWidth(),
             )
-            TextInput("Tax ID (ΑΦΜ)", form.taxId, { v -> viewModel.update { it.copy(taxId = v) } })
-            TextInput("Phone", form.phone, { v -> viewModel.update { it.copy(phone = v) } }, keyboardType = KeyboardType.Phone)
-            TextInput("Email", form.email, { v -> viewModel.update { it.copy(email = v) } }, keyboardType = KeyboardType.Email)
-            TextInput("IBAN for payments", form.iban, { v -> viewModel.update { it.copy(iban = v) } })
+            CommitField(
+                value = form.phone,
+                onValueChange = viewModel::onPhone,
+                label = "Phone",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            )
+            CommitField(
+                value = form.email,
+                onValueChange = viewModel::onEmail,
+                label = "Email",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            )
+            CommitField(
+                value = form.iban,
+                onValueChange = viewModel::onIban,
+                label = "IBAN for payments",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+            )
 
             Section("Invoices & lessons")
-            TextInput(
-                "Currency code (e.g. EUR)",
-                form.currencyCode,
-                { v -> viewModel.update { it.copy(currencyCode = v.take(3)) } },
+            CommitField(
+                value = form.currencyCode,
+                onValueChange = viewModel::onCurrency,
+                label = "Currency code (e.g. EUR)",
                 isError = state.currencyError,
-                error = "Use a 3-letter ISO code such as EUR, GBP or USD",
+                supportingText = if (state.currencyError) "Use a 3-letter ISO code such as EUR, GBP or USD" else null,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                inputFilter = { it.take(3) },
+                // "eur" is stored as "EUR": that is the same value, so the typed text stays.
+                sameValue = { local, incoming -> local.trim().equals(incoming.trim(), ignoreCase = true) },
             )
-            TextInput(
-                "Default lesson length (minutes)",
-                form.defaultMinutes,
-                { v -> viewModel.update { it.copy(defaultMinutes = v.filter(Char::isDigit).take(3)) } },
+            CommitField(
+                value = form.defaultMinutes,
+                onValueChange = viewModel::onMinutes,
+                label = "Default lesson length (minutes)",
                 isError = state.minutesError,
-                error = "Between 1 and 720",
-                keyboardType = KeyboardType.Number,
+                supportingText = if (state.minutesError) "Between 1 and $MAX_LESSON_MINUTES" else null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                inputFilter = { text -> text.filter(Char::isDigit).take(3) },
             )
-            OutlinedTextField(
+            CommitField(
                 value = form.footer,
-                onValueChange = { v -> viewModel.update { it.copy(footer = v) } },
-                label = { Text("Invoice footer (e.g. thank-you note)") },
+                onValueChange = viewModel::onFooter,
+                label = "Invoice footer (e.g. thank-you note)",
+                singleLine = false,
                 minLines = 2,
-                modifier = Modifier.fillMaxWidth(),
             )
 
             Section("Appearance")
@@ -122,7 +156,7 @@ fun SettingsScreen(
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = form.themeMode == mode,
-                        onClick = { viewModel.update { it.copy(themeMode = mode) } },
+                        onClick = { viewModel.onTheme(mode) },
                         label = {
                             Text(
                                 when (mode) {

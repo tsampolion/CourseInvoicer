@@ -21,7 +21,6 @@ class InvoiceDocumentTest {
         business = BusinessProfile(
             name = "Dimitris Tutoring",
             address = "1 Main St\nAthens",
-            taxId = "123456789",
             email = "d@example.com",
             iban = "GR16 0110 1250",
         ),
@@ -49,9 +48,10 @@ class InvoiceDocumentTest {
         assertEquals("2026-0003", doc.number)
         assertEquals("31 Mar 2026", doc.issueDate)
         assertEquals(
-            listOf("Dimitris Tutoring", "1 Main St", "Athens", "Tax ID: 123456789", "d@example.com"),
+            listOf("Dimitris Tutoring", "1 Main St", "Athens", "d@example.com"),
             doc.seller,
         )
+        assertFalse("no Tax ID line", doc.seller.any { "Tax ID" in it })
         assertEquals(listOf("Maria Papadopoulou", "c/o Eleni", "6900000000"), doc.billTo)
         assertEquals(
             listOf(

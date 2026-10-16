@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.data
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import gr.edusuite.invoicer.core.model.DomainException
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -154,6 +156,29 @@ class SqlRepositoriesTest {
         assertEquals(snapshot.invoices, restored.invoices)
         // New rows continue after the restored ids instead of colliding with them.
         assertTrue(student("After restore") > snapshot.students.maxOf { it.id })
+    }
+
+    @Test
+    fun settingsDropTheRemovedTaxIdWhenLoaded() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val file = "settings-tax-id-test"
+        val prefs = context.getSharedPreferences(file, Context.MODE_PRIVATE)
+        prefs.edit(commit = true) {
+            clear()
+            putString("business_name", "Tutor")
+            putString("tax_id", "123456789")
+        }
+        try {
+            val settings = PrefsSettingsRepository(context, file).settings.value
+            assertEquals("Tutor", settings.business.name)
+            assertFalse(prefs.contains("tax_id"))
+
+            // Loading again finds nothing to remove and keeps the rest.
+            assertEquals("Tutor", PrefsSettingsRepository(context, file).settings.value.business.name)
+            assertFalse(prefs.contains("tax_id"))
+        } finally {
+            context.deleteSharedPreferences(file)
+        }
     }
 
     @Test

@@ -1,23 +1,31 @@
 package gr.edusuite.invoicer.ui
 
+import android.content.ContextWrapper
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
+import gr.edusuite.invoicer.core.model.ThemeMode
 import gr.edusuite.invoicer.core.testing.InMemoryRepositories
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
+import gr.edusuite.invoicer.data.BackupFiles
 import gr.edusuite.invoicer.ui.groups.GroupEditViewModel
 import gr.edusuite.invoicer.ui.home.HomeViewModel
 import gr.edusuite.invoicer.ui.invoices.InvoicesViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonEditViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonsViewModel
+import gr.edusuite.invoicer.ui.settings.SAVE_DEBOUNCE_MS
+import gr.edusuite.invoicer.ui.settings.SettingsViewModel
 import gr.edusuite.invoicer.ui.students.StudentsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -224,5 +232,91 @@ class ViewModelsTest {
         assertFalse(viewModel.state.value.done)
         assertTrue(viewModel.state.value.message!!.contains("Archive"))
         assertEquals(groupId, repos.getLesson(id)?.groupId)
+    }
+
+    private val stored get() = repos.settingsRepository.settings.value
+
+    // Backup files are not exercised here, so the stubbed Context behind them is never used.
+    private fun settingsViewModel() =
+        SettingsViewModel(repos.settingsRepository, BackupFiles(ContextWrapper(null), repos))
+
+    /** Runs the debounced save (a task due exactly at the new time needs runCurrent). */
+    private fun TestScope.pauseTyping() {
+        advanceTimeBy(SAVE_DEBOUNCE_MS)
+        runCurrent()
+    }
+
+    @Test
+    fun `settings save once typing pauses`() = runTest {
+        val viewModel = settingsViewModel()
+
+        viewModel.onName("Dimitris")
+        advanceTimeBy(SAVE_DEBOUNCE_MS - 1)
+        viewModel.onName("Dimitris T. ")
+        advanceTimeBy(SAVE_DEBOUNCE_MS - 1)
+        assertEquals("nothing is saved while typing", "", stored.business.name)
+
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals("Dimitris T.", stored.business.name)
+        assertEquals("the typed text is left alone", "Dimitris T. ", viewModel.state.value.form.name)
+    }
+
+    @Test
+    fun `invalid settings keep the stored value while the other fields save`() = runTest {
+        val viewModel = settingsViewModel()
+
+        viewModel.onCurrency("XY")
+        viewModel.onMinutes("0")
+        viewModel.onName("Tutor")
+        assertFalse("no error while typing", viewModel.state.value.currencyError)
+        pauseTyping()
+
+        assertEquals("EUR", stored.currencyCode)
+        assertEquals(60, stored.defaultLessonMinutes)
+        assertEquals("Tutor", stored.business.name)
+        assertTrue(viewModel.state.value.currencyError)
+        assertTrue(viewModel.state.value.minutesError)
+        assertEquals("XY", viewModel.state.value.form.currencyCode)
+
+        viewModel.onCurrency("gbp")
+        viewModel.onMinutes("45")
+        assertFalse("valid text clears the error", viewModel.state.value.currencyError)
+        assertFalse(viewModel.state.value.minutesError)
+        pauseTyping()
+
+        assertEquals("GBP", stored.currencyCode)
+        assertEquals(45, stored.defaultLessonMinutes)
+        assertFalse(viewModel.state.value.currencyError)
+        assertNull(viewModel.state.value.message)
+    }
+
+    @Test
+    fun `the theme saves at once with any typing still pending`() = runTest {
+        val viewModel = settingsViewModel()
+
+        viewModel.onFooter("Thanks")
+        viewModel.onTheme(ThemeMode.DARK)
+
+        assertEquals(ThemeMode.DARK, stored.themeMode)
+        assertEquals("Thanks", stored.invoiceFooter)
+        assertEquals(ThemeMode.DARK, viewModel.state.value.form.themeMode)
+    }
+
+    @Test
+    fun `flush saves pending typing without waiting`() = runTest {
+        val viewModel = settingsViewModel()
+
+        viewModel.onEmail("t@example.com")
+        viewModel.onIban("GR16 0110")
+        viewModel.flush()
+
+        assertEquals("t@example.com", stored.business.email)
+        assertEquals("GR16 0110", stored.business.iban)
+
+        repos.settingsRepository.update { it.copy(invoiceFooter = "Changed elsewhere") }
+        pauseTyping()
+        viewModel.flush()
+        assertEquals("nothing left to save", "Changed elsewhere", stored.invoiceFooter)
     }
 }

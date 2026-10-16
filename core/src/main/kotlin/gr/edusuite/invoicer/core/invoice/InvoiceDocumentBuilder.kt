@@ -22,7 +22,6 @@ object InvoiceDocumentBuilder {
         val seller = listOf(
             business.name,
             business.address,
-            business.taxId.takeIf { it.isNotBlank() }?.let { "Tax ID: $it" }.orEmpty(),
             listOf(business.phone, business.email).filter { it.isNotBlank() }.joinToString(" · "),
         ).flatMap { it.lines() }.filter { it.isNotBlank() }
 
