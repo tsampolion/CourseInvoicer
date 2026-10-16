@@ -56,7 +56,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   every open screen refreshes after a change. Settings are not a table: `PrefsSettingsRepository`
   keeps them in SharedPreferences and exposes a `StateFlow`.
 - **Rules.** Use cases in `core/usecase` (`SaveLesson`, `CreateInvoice`, `VoidInvoice`, …) enforce
-  the business rules R1–R13 and throw `DomainException` with a message the user can read. ViewModels
+  the business rules R1–R15 and throw `DomainException` with a message the user can read. ViewModels
   build the use cases they need from the repositories they receive (for example
   `LessonEditViewModel` creates `SaveLesson(lessons)`).
 - **ViewModels.** Each screen has one, exposing a single `state`. List screens `combine` repository
@@ -107,11 +107,11 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 | `core/…/model` | `Money`, `Rate`, `Student`, `StudentGroup`, `Lesson`, `Invoice`, `InvoiceDocument`, `AppSettings` |
 | `core/…/usecase` | Rules that span repositories: `SaveLesson`, `CreateInvoice`, `VoidInvoice`, `RescheduleLessons`, … |
 | `core/…/repository` | Repository interfaces |
-| `core/…/report`, `invoice`, `backup`, `format` | Summaries, invoice numbering and document, backup codec, `Formats` |
-| `core/src/testFixtures` | `InMemoryRepositories` (every data repository) and `InMemorySettingsRepository` |
+| `core/…/report`, `invoice`, `backup`, `format` | Summaries, the month-end reminder schedule (`InvoiceReminder`, R15), invoice numbering and document, backup codec, `Formats` |
+| `core/src/testFixtures` | `InMemoryRepositories` (every data repository), `InMemorySettingsRepository` and `InMemoryReminderStateRepository` |
 | `app/…/AppContainer.kt` | The object graph |
 | `app/…/MainActivity.kt` | Theme, edge-to-edge, `LocalAppContainer`, the root composable |
-| `app/…/data` | `InvoicerDatabase` (schema, migrations), SQL repositories, settings, backup files, PDF |
+| `app/…/data` | `InvoicerDatabase` (schema, migrations), SQL repositories, settings and reminder state (SharedPreferences), backup files, PDF |
 | `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch |
 | `app/…/ui/nav/Navigation.kt` | `Route`, `Navigator`, `NavHost` |
 | `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen; `ui/home` is the launcher, `ui/dashboard` the month's figures and who owes |

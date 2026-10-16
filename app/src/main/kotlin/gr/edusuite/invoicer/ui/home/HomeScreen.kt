@@ -10,13 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
@@ -33,6 +36,7 @@ import gr.edusuite.invoicer.ui.common.SuiteTone
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.theme.Invoicer
+import java.time.format.DateTimeFormatter
 
 /**
  * The launcher: the EduSuite home header, then one button per section with a live subtitle. A section that
@@ -49,11 +53,30 @@ fun HomeScreen(
     onLogLesson: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = appViewModel {
-        HomeViewModel(it.studentRepository, it.groupRepository, it.lessonRepository, it.invoiceRepository)
+        HomeViewModel(
+            it.studentRepository,
+            it.groupRepository,
+            it.lessonRepository,
+            it.invoiceRepository,
+            it.settingsRepository,
+            it.reminderStateRepository,
+        )
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val formats = LocalFormats.current
+    state.reminder?.let { reminder ->
+        ReminderDialog(
+            reminder = reminder,
+            onCreateStatements = {
+                viewModel.dismissReminder()
+                onOpenStatements()
+            },
+            onRemindTomorrow = viewModel::remindTomorrow,
+            onDone = viewModel::doneForMonth,
+            onDismiss = viewModel::dismissReminder,
+        )
+    }
     // Until the counts load, subtitles stay blank rather than showing zeros.
     fun subtitle(text: () -> String): String = if (state.loading) "" else text()
 
@@ -182,4 +205,35 @@ fun HomeScreen(
             }
         }
     }
+}
+
+/** The month-end reminder (R15). Back or a tap outside only hides it; the buttons answer it. */
+@Composable
+private fun ReminderDialog(
+    reminder: ReminderPrompt,
+    onCreateStatements: () -> Unit,
+    onRemindTomorrow: () -> Unit,
+    onDone: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val locale = LocalFormats.current.locale
+    val monthName = remember(reminder.month, locale) {
+        reminder.month.format(DateTimeFormatter.ofPattern("LLLL", locale)).replaceFirstChar { it.titlecase(locale) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Time to invoice $monthName") },
+        text = {
+            Text(
+                "${plural(reminder.lessons, "lesson")} for ${plural(reminder.students, "student")} " +
+                    (if (reminder.lessons == 1) "isn't" else "aren't") + " on a statement yet.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onCreateStatements) { Text("Create statements") } },
+        // The dialog lays its buttons out in a row that wraps, so all three fit on a narrow phone.
+        dismissButton = {
+            TextButton(onClick = onDone) { Text("Done for this month") }
+            TextButton(onClick = onRemindTomorrow) { Text("Remind me tomorrow") }
+        },
+    )
 }

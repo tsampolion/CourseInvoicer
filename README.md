@@ -42,6 +42,7 @@ always export a backup first.
 | Send a statement again | Home → **Statements** → tap the statement. It is the same document as the first time. |
 | Cancel a statement | Home → **Statements** → ✕ → **Void**. The number is never reused, and the lessons can go on a new statement. |
 | See the month's earnings and who owes what | Home → **Dashboard** |
+| Change or turn off the month-end reminder to send statements | Home → ⚙ Settings → *Reminders* |
 
 **Back up regularly:** Settings → *Backup* → **Export** saves a JSON file. Keep it off the phone,
 for example in cloud storage or email. **Import** replaces *all* data on the phone with the backup.

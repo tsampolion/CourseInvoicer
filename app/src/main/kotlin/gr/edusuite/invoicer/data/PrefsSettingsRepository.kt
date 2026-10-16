@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
+import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.ThemeMode
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,12 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             defaultLessonMinutes = getInt(DEFAULT_MINUTES, defaults.defaultLessonMinutes),
             themeMode = ThemeMode.entries.firstOrNull { it.name == getString(THEME, null) } ?: defaults.themeMode,
             invoiceFooter = getString(FOOTER, null).orEmpty(),
+            reminders = ReminderSettings(
+                enabled = getBoolean(REMINDERS, defaults.reminders.enabled),
+                earlyDecember = getBoolean(REMIND_EARLY_DECEMBER, defaults.reminders.earlyDecember),
+                earlyJune = getBoolean(REMIND_EARLY_JUNE, defaults.reminders.earlyJune),
+                earlyEaster = getBoolean(REMIND_EARLY_EASTER, defaults.reminders.earlyEaster),
+            ),
             showAddressOnStatements = getBoolean(SHOW_ADDRESS, defaults.showAddressOnStatements),
         )
     }
@@ -73,6 +80,10 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             putInt(DEFAULT_MINUTES, settings.defaultLessonMinutes)
             putString(THEME, settings.themeMode.name)
             putString(FOOTER, settings.invoiceFooter)
+            putBoolean(REMINDERS, settings.reminders.enabled)
+            putBoolean(REMIND_EARLY_DECEMBER, settings.reminders.earlyDecember)
+            putBoolean(REMIND_EARLY_JUNE, settings.reminders.earlyJune)
+            putBoolean(REMIND_EARLY_EASTER, settings.reminders.earlyEaster)
             putBoolean(SHOW_ADDRESS, settings.showAddressOnStatements)
         }
     }
@@ -89,6 +100,10 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         private const val DEFAULT_MINUTES = "default_minutes"
         private const val THEME = "theme"
         private const val FOOTER = "invoice_footer"
+        private const val REMINDERS = "reminders"
+        private const val REMIND_EARLY_DECEMBER = "remind_early_december"
+        private const val REMIND_EARLY_JUNE = "remind_early_june"
+        private const val REMIND_EARLY_EASTER = "remind_early_easter"
         private const val SHOW_ADDRESS = "show_address_on_statements"
 
         /** Written by versions before 2.0.0; removed on load. */

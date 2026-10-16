@@ -19,4 +19,16 @@ data class AppSettings(
     val invoiceFooter: String = "",
     /** Print [BusinessProfile.address] on new statements (R14). Off by default: a home address stays private. */
     val showAddressOnStatements: Boolean = false,
+    val reminders: ReminderSettings = ReminderSettings(),
+)
+
+/**
+ * The month-end reminder to send statements (R15). [enabled] turns every reminder off; each early switch
+ * moves that month's reminder from the 29th to the 21st.
+ */
+data class ReminderSettings(
+    val enabled: Boolean = true,
+    val earlyDecember: Boolean = true,
+    val earlyJune: Boolean = true,
+    val earlyEaster: Boolean = true,
 )

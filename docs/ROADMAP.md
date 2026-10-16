@@ -7,7 +7,7 @@ where the code stands today, what to change, and when it counts as done.
 
 Tick a box in the pull request that does the work. When an item is done, move it to *Done* at the
 end and note the version it shipped in. Product behaviour still belongs in
-[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md): when a task changes a rule (R1–R13) or makes a decision,
+[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md): when a task changes a rule (R1–R15) or makes a decision,
 update the spec in the same pull request.
 
 ## Order of work

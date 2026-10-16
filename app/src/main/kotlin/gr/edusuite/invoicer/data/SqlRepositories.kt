@@ -11,6 +11,7 @@ import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.report.StudentBalance
+import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
@@ -124,6 +125,16 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
 
     override fun observeUninvoicedCount(): Flow<Int> =
         db.observe(Table.LESSONS) { it.count("SELECT COUNT(*) FROM lessons WHERE invoice_id IS NULL") }
+
+    override fun observeUninvoicedSummary(from: LocalDate, to: LocalDate): Flow<UninvoicedSummary> =
+        db.observe(Table.LESSONS) { d ->
+            d.select(
+                "SELECT COUNT(*) AS open_count, COUNT(DISTINCT student_id) AS student_count FROM lessons " +
+                    "WHERE invoice_id IS NULL AND date BETWEEN ? AND ?",
+                from.toString(),
+                to.toString(),
+            ).readAll { UninvoicedSummary(it.int("open_count"), it.int("student_count")) }.first()
+        }
 
     override suspend fun getLesson(id: Long): Lesson? = db.read { it.lessons("id = ?", id).firstOrNull() }
 

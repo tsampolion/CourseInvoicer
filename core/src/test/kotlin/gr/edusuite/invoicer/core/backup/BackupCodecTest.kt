@@ -11,6 +11,7 @@ import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.model.ThemeMode
 import gr.edusuite.invoicer.core.perLesson
@@ -217,6 +218,23 @@ class BackupCodecTest {
         val broken = BackupCodec.encode(snapshot).replace("\"feeCents\"", "\"fee\"")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(broken) }
         assertEquals("Missing field 'feeCents'", error.message)
+    }
+
+    @Test
+    fun `round trips the reminder switches and defaults them in older files`() {
+        val reminders = ReminderSettings(enabled = true, earlyDecember = false, earlyJune = true, earlyEaster = false)
+        val withReminders = snapshot.copy(settings = snapshot.settings.copy(reminders = reminders))
+        assertEquals(withReminders, BackupCodec.decode(BackupCodec.encode(withReminders)))
+        val off = snapshot.copy(settings = snapshot.settings.copy(reminders = ReminderSettings(enabled = false)))
+        assertEquals(off, BackupCodec.decode(BackupCodec.encode(off)))
+
+        val older = BackupCodec.encode(withReminders).replace(Regex(",\\s*\"remind[A-Za-z]+\": (true|false)"), "")
+        assertTrue("fixture must not mention reminders", "remind" !in older)
+        assertEquals(ReminderSettings(), BackupCodec.decode(older).settings.reminders)
+
+        val broken = BackupCodec.encode(withReminders).replace("\"remindEarlyJune\": true", "\"remindEarlyJune\": 1")
+        val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(broken) }
+        assertEquals("Invalid value for 'remindEarlyJune'", error.message)
     }
 
     @Test

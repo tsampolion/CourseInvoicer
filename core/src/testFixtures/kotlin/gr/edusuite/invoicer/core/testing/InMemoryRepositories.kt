@@ -8,13 +8,16 @@ import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.report.Reports
 import gr.edusuite.invoicer.core.report.StudentBalance
+import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
+import gr.edusuite.invoicer.core.repository.ReminderStateRepository
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import kotlinx.coroutines.flow.Flow
@@ -136,6 +139,11 @@ class InMemoryRepositories :
     override fun observeLessonCount(): Flow<Int> = data.map { it.lessons.size }
 
     override fun observeUninvoicedCount(): Flow<Int> = data.map { d -> d.lessons.values.count { !it.isInvoiced } }
+
+    override fun observeUninvoicedSummary(from: LocalDate, to: LocalDate): Flow<UninvoicedSummary> = data.map { d ->
+        val open = d.lessons.values.filter { !it.isInvoiced && it.date in from..to }
+        UninvoicedSummary(lessons = open.size, students = open.map { it.studentId }.distinct().size)
+    }
 
     override suspend fun getLesson(id: Long): Lesson? = data.value.lessons[id]
 
@@ -278,5 +286,15 @@ class InMemorySettingsRepository(initial: AppSettings = AppSettings()) : Setting
 
     override suspend fun update(transform: (AppSettings) -> AppSettings) {
         state.update(transform)
+    }
+}
+
+class InMemoryReminderStateRepository(initial: ReminderState = ReminderState()) : ReminderStateRepository {
+    private val mutableState = MutableStateFlow(initial)
+
+    override val state: StateFlow<ReminderState> = mutableState.asStateFlow()
+
+    override suspend fun update(transform: (ReminderState) -> ReminderState) {
+        mutableState.update(transform)
     }
 }

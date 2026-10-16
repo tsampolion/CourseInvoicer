@@ -5,9 +5,11 @@ import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.report.StudentBalance
+import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
@@ -57,6 +59,12 @@ interface LessonRepository {
 
     /** How many lessons are on no invoice yet, absences included. */
     fun observeUninvoicedCount(): Flow<Int>
+
+    /**
+     * How many lessons dated [from]..[to] (inclusive) are on no invoice yet, absences included, and for how
+     * many students.
+     */
+    fun observeUninvoicedSummary(from: LocalDate, to: LocalDate): Flow<UninvoicedSummary>
 
     suspend fun getLesson(id: Long): Lesson?
 
@@ -124,4 +132,12 @@ interface SettingsRepository {
 
     /** Persists the new settings before [settings] emits them. Updates run one at a time and always finish. */
     suspend fun update(transform: (AppSettings) -> AppSettings)
+}
+
+/** The tutor's answers to the month-end reminder (R15), kept on the device and never backed up. */
+interface ReminderStateRepository {
+    val state: StateFlow<ReminderState>
+
+    /** Persists the new state before [state] emits it. Updates run one at a time and always finish. */
+    suspend fun update(transform: (ReminderState) -> ReminderState)
 }
