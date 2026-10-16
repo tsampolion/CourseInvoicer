@@ -1,5 +1,6 @@
 package gr.eduinvoice.core.usecase
 
+import gr.eduinvoice.core.createInvoiceUseCase
 import gr.eduinvoice.core.euros
 import gr.eduinvoice.core.lesson
 import gr.eduinvoice.core.student
@@ -37,7 +38,7 @@ class LessonUseCasesTest {
     fun `invoiced lessons keep their billing fields but allow notes and payment`() = runTest {
         val maria = repos.saveStudent(student())
         val id = repos.saveLesson(lesson(maria))
-        CreateInvoice(repos, repos)(maria, listOf(id), LocalDate.parse("2026-03-31"))
+        repos.createInvoiceUseCase()(maria, listOf(id), LocalDate.parse("2026-03-31"))
         val invoiced = repos.getLesson(id)!!
 
         assertRejected("void the invoice") { saveLesson(invoiced.copy(fee = euros("99"))) }
@@ -49,6 +50,16 @@ class LessonUseCasesTest {
         assertEquals("homework", updated.notes)
         assertEquals(invoiced.invoiceId, updated.invoiceId)
         assertEquals(LocalDate.parse("2026-04-02"), updated.paidOn)
+    }
+
+    @Test
+    fun `absences are never paid`() = runTest {
+        val maria = repos.saveStudent(student())
+        val id = saveLesson(lesson(maria, paidOn = "2026-03-10"))
+
+        saveLesson(repos.getLesson(id)!!.copy(absent = true))
+
+        assertNull(repos.getLesson(id)?.paidOn)
     }
 
     @Test
@@ -106,7 +117,7 @@ class LessonUseCasesTest {
         val open = repos.saveLesson(lesson(maria))
         val paid = repos.saveLesson(lesson(maria, paidOn = "2026-03-10"))
         val invoiced = repos.saveLesson(lesson(maria))
-        CreateInvoice(repos, repos)(maria, listOf(invoiced), LocalDate.parse("2026-03-31"))
+        repos.createInvoiceUseCase()(maria, listOf(invoiced), LocalDate.parse("2026-03-31"))
         val reschedule = RescheduleLessons(repos)
         val date = LocalDate.parse("2026-05-01")
 

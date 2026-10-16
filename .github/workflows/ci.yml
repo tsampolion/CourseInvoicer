@@ -28,6 +28,28 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
 
+      # Before the first Gradle run, so the Gradle daemon starts with the key in its environment.
+      # The debug APK is what the tutor installs (README). Signing every build with the owner's key lets a
+      # new build install over the previous one and keep the data. Without the secrets the build still
+      # passes, but the APK is signed with a throwaway key; see README, "Install a test build".
+      - name: Use the owner's signing key
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ vars.SIGNING_KEY_ALIAS || 'release' }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_B64" ] || [ -z "$SIGNING_PASSWORD" ]; then
+            echo "::warning::Secrets SIGNING_KEYSTORE_B64 and SIGNING_PASSWORD are not both set: this app-debug.apk is signed with a throwaway key and cannot be installed over an earlier build. See README."
+            exit 0
+          fi
+          echo "::add-mask::$SIGNING_PASSWORD"
+          echo "$SIGNING_KEYSTORE_B64" | base64 --decode --ignore-garbage > "$RUNNER_TEMP/eduinvoice-signing.p12"
+          {
+            echo "EDUINVOICE_DEBUG_KEYSTORE=$RUNNER_TEMP/eduinvoice-signing.p12"
+            echo "EDUINVOICE_KEYSTORE_PASSWORD=$SIGNING_PASSWORD"
+            echo "EDUINVOICE_KEY_ALIAS=$SIGNING_KEY_ALIAS"
+          } >> "$GITHUB_ENV"
+
       - name: Unit tests
         run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
 
@@ -43,10 +65,29 @@ jobs:
           jq -r '.runs[].results[] | "\(.level) \(.ruleId): \(.message.text) @ \(.locations[0].physicalLocation.artifactLocation.uri // "?"):\(.locations[0].physicalLocation.region.startLine // "?")"' "$SARIF" | tee lint-findings.txt
           echo "Lint findings: $(wc -l < lint-findings.txt)"
 
-      # MARKED FOR DELETION (D9): assembleRelease (R8 + lintVitalRelease). Keep assembleDebug,
-      # which builds the APK the README installs. See docs/PRODUCT_SPEC.md §8.
-      - name: Assemble debug and release
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+      # Builds the APK the README installs. There is no release build (D9).
+      - name: Assemble debug
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      # Fails the build if the APK was not signed with the key whose fingerprint is in the repository
+      # variable SIGNING_CERT_SHA256 (any format: colons and case are ignored).
+      - name: Check the signing certificate
+        env:
+          EXPECTED_SHA256: ${{ vars.SIGNING_CERT_SHA256 }}
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          CERTS="$("$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk)"
+          echo "$CERTS" | grep -E "certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
+          ACTUAL="$(echo "$CERTS" | grep -m1 "certificate SHA-256 digest" | sed 's/.*digest: //' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+          EXPECTED="$(echo "$EXPECTED_SHA256" | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+          if [ -z "$EXPECTED" ]; then
+            echo "::warning::Repository variable SIGNING_CERT_SHA256 is not set, so the signing key was not checked."
+          elif [ "$ACTUAL" = "$EXPECTED" ]; then
+            echo "Signed with the owner's key (fingerprint matches SIGNING_CERT_SHA256)." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::app-debug.apk is signed with $ACTUAL, not the expected SIGNING_CERT_SHA256 $EXPECTED."
+            exit 1
+          fi
 
       - name: Report APK sizes
         run: ls -l app/build/outputs/apk/*/*.apk | tee -a "$GITHUB_STEP_SUMMARY"

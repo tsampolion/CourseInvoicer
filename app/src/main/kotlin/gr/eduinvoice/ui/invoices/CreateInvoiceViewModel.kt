@@ -12,6 +12,7 @@ import gr.eduinvoice.core.repository.InvoiceRepository
 import gr.eduinvoice.core.repository.LessonRepository
 import gr.eduinvoice.core.repository.StudentRepository
 import gr.eduinvoice.core.usecase.CreateInvoice
+import gr.eduinvoice.core.usecase.InvoiceRenderer
 import gr.eduinvoice.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,9 +45,10 @@ class CreateInvoiceViewModel(
     private val groups: GroupRepository,
     private val lessons: LessonRepository,
     invoices: InvoiceRepository,
+    renderer: InvoiceRenderer,
     today: LocalDate = LocalDate.now(),
 ) : ViewModel() {
-    private val createInvoice = CreateInvoice(lessons, invoices)
+    private val createInvoice = CreateInvoice(lessons, invoices, renderer)
     private val mutableState = MutableStateFlow(CreateInvoiceUiState(issueDate = today))
     val state: StateFlow<CreateInvoiceUiState> = mutableState.asStateFlow()
 

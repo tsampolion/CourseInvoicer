@@ -35,19 +35,18 @@ class InvoicesViewModel(
     val state: StateFlow<InvoicesUiState> = combine(
         invoices.observeInvoices(),
         students.observeStudents(),
-        lessons.observeLessons(),
+        lessons.observeInvoicePayments(),
         message,
-    ) { invoiceList, studentList, lessonList, currentMessage ->
+    ) { invoiceList, studentList, payments, currentMessage ->
         val names = studentList.associate { it.id to it.fullName }
-        val lessonsByInvoice = lessonList.filter { it.invoiceId != null }.groupBy { it.invoiceId }
         InvoicesUiState(
             loading = false,
             items = invoiceList.map { invoice ->
-                val linked = lessonsByInvoice[invoice.id].orEmpty()
                 InvoiceItem(
                     invoice = invoice,
                     studentName = names[invoice.studentId].orEmpty(),
-                    paid = !invoice.isVoid && linked.isNotEmpty() && linked.all { it.isPaid },
+                    // A void invoice has released its lessons, so it is never paid.
+                    paid = payments[invoice.id]?.isPaid == true,
                 )
             },
             message = currentMessage,

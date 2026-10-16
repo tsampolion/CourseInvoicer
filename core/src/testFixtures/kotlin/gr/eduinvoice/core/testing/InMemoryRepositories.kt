@@ -3,10 +3,15 @@ package gr.eduinvoice.core.testing
 import gr.eduinvoice.core.backup.BackupRepository
 import gr.eduinvoice.core.backup.BackupSnapshot
 import gr.eduinvoice.core.model.AppSettings
+import gr.eduinvoice.core.model.DomainException
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
+import gr.eduinvoice.core.model.InvoicePayment
 import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
+import gr.eduinvoice.core.report.Reports
+import gr.eduinvoice.core.report.StudentBalance
 import gr.eduinvoice.core.repository.GroupRepository
 import gr.eduinvoice.core.repository.InvoiceRepository
 import gr.eduinvoice.core.repository.LessonRepository
@@ -20,7 +25,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 
-/** In-memory implementation of every repository, mirroring the SQLite behaviour, for tests. */
+/**
+ * In-memory implementation of every repository for tests. It mirrors the SQLite schema's integrity rules
+ * (foreign keys, the invoice link guard), so a use case that relies on them fails here as on a device.
+ */
 class InMemoryRepositories :
     StudentRepository,
     GroupRepository,
@@ -70,6 +78,8 @@ class InMemoryRepositories :
     }
 
     override suspend fun deleteStudent(id: Long) {
+        // invoices.student_id is ON DELETE RESTRICT.
+        check(data.value.invoices.values.none { it.studentId == id }) { "FOREIGN KEY constraint failed" }
         data.update { d ->
             d.copy(
                 students = d.students - id,
@@ -108,13 +118,20 @@ class InMemoryRepositories :
 
     private val lessonOrder = compareByDescending<Lesson> { it.date }.thenByDescending { it.startTime }.thenBy { it.id }
 
-    override fun observeLessons(): Flow<List<Lesson>> = data.map { it.lessons.values.sortedWith(lessonOrder) }
-
     override fun observeLessonsBetween(from: LocalDate, to: LocalDate): Flow<List<Lesson>> =
         data.map { d -> d.lessons.values.filter { it.date in from..to }.sortedWith(lessonOrder) }
 
     override fun observeLessonsOfStudent(studentId: Long): Flow<List<Lesson>> =
         data.map { d -> d.lessons.values.filter { it.studentId == studentId }.sortedWith(lessonOrder) }
+
+    override fun observeBalances(): Flow<List<StudentBalance>> =
+        data.map { Reports.balances(it.lessons.values.toList()) }
+
+    override fun observeInvoicePayments(): Flow<Map<Long, InvoicePayment>> = data.map { d ->
+        d.lessons.values.filter { it.invoiceId != null }
+            .groupBy { it.invoiceId!! }
+            .mapValues { (_, linked) -> InvoicePayment.of(linked) }
+    }
 
     override suspend fun getLesson(id: Long): Lesson? = data.value.lessons[id]
 
@@ -122,6 +139,9 @@ class InMemoryRepositories :
 
     override suspend fun getLessonsOfInvoice(invoiceId: Long): List<Lesson> =
         data.value.lessons.values.filter { it.invoiceId == invoiceId }.sortedWith(lessonOrder)
+
+    override suspend fun getLessonsOfGroup(groupId: Long): List<Lesson> =
+        data.value.lessons.values.filter { it.groupId == groupId }.sortedWith(lessonOrder)
 
     override suspend fun countLessonsOfStudent(studentId: Long): Int =
         data.value.lessons.values.count { it.studentId == studentId }
@@ -160,8 +180,16 @@ class InMemoryRepositories :
 
     override suspend fun invoiceNumbers(): List<String> = data.value.invoices.values.map { it.number }
 
+    override suspend fun countInvoicesOfStudent(studentId: Long): Int =
+        data.value.invoices.values.count { it.studentId == studentId }
+
     override suspend fun createInvoice(invoice: Invoice, lessonIds: Collection<Long>, paidOn: LocalDate?): Long {
         check(data.value.invoices.values.none { it.number == invoice.number }) { "UNIQUE constraint failed" }
+        // Same all-or-nothing guard as the SQL update: every lesson must exist, be uninvoiced and not absent.
+        val linkable = lessonIds.distinct().map { data.value.lessons[it] }
+        if (linkable.any { it == null || it.invoiceId != null || it.absent }) {
+            throw DomainException("Some lessons are already on an invoice")
+        }
         val id = allocateId()
         data.update { d ->
             d.copy(
@@ -181,6 +209,17 @@ class InMemoryRepositories :
                 invoices = d.invoices + (id to invoice.copy(voidedOn = invoice.voidedOn ?: on)),
                 lessons = d.lessons.mapValues { (_, l) -> if (l.invoiceId == id) l.copy(invoiceId = null) else l },
             )
+        }
+    }
+
+    override suspend fun setDocument(id: Long, document: InvoiceDocument) {
+        data.update { d ->
+            val invoice = d.invoices[id]
+            if (invoice == null || invoice.document != null) {
+                d
+            } else {
+                d.copy(invoices = d.invoices + (id to invoice.copy(document = document)))
+            }
         }
     }
 

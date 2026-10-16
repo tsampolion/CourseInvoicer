@@ -3,7 +3,7 @@
 An offline Android app for private tutors. Keep a register of students and groups, log lessons, see
 who owes what, record payments and send PDF invoices. All data stays on the phone.
 
-**Version:** 2.0.0-alpha02 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.0.0-alpha03 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 ## Install a test build
 
@@ -11,8 +11,26 @@ who owes what, record payments and send PDF invoices. All data stays on the phon
 2. Download the `app-debug` artifact and unzip it.
 3. Copy `app-debug.apk` to the phone, open it, and allow installs from that app when asked.
 
-Debug builds install over each other and keep your data. Uninstalling the app deletes its data, so
-export a backup first (see below).
+A new build installs over the previous one and keeps your data, **as long as both were signed with
+the owner's key**. If Android says *App not installed*, the builds have different keys: export a
+backup, uninstall, install the new build and import the backup. Uninstalling deletes all data, so
+always export a backup first.
+
+**Signing key setup** (repository owner, once). CI signs every `app-debug.apk` with your key and
+checks its fingerprint. In *Settings → Secrets and variables → Actions* add:
+
+| Kind | Name | Value |
+|------|------|-------|
+| Secret | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
+| Secret | `SIGNING_PASSWORD` | The keystore password |
+| Variable | `SIGNING_CERT_SHA256` | The certificate's SHA-256 fingerprint from `keytool -list -v` |
+| Variable (optional) | `SIGNING_KEY_ALIAS` | Only if your alias is not `release` |
+
+Create the key with `keytool -genkeypair -keystore eduinvoice-release.p12 -storetype PKCS12 -alias
+release -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=EduInvoice"`, keep tested backups of the
+file and the password, and never commit them. Until the secrets exist, CI warns and signs with a
+throwaway key. The job summary shows which certificate signed each build. Moving to your key needs
+one last export, uninstall and import.
 
 ## Using the app
 
@@ -44,8 +62,11 @@ You need JDK 17 or newer and the Android SDK. Set `ANDROID_HOME`, or put `sdk.di
 ./gradlew :app:testDebugUnitTest        # ViewModel and navigation tests
 ./gradlew :app:lintDebug                # Android lint
 ./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:connectedDebugAndroidTest  # needs a running emulator or device
+./gradlew :app:connectedDebugAndroidTest  # needs a running emulator
 ```
+
+Run the instrumented tests on an emulator, not on the phone you use: the tests themselves use a
+throwaway database, but Gradle uninstalls the app when they finish, which deletes its data.
 
 ## Project map
 

@@ -114,7 +114,11 @@ fun LessonEditScreen(
                 prefix = LocalFormats.current.currencySymbol,
                 enabled = editable,
                 isError = state.feeError,
-                supportingText = if (state.feeError) "Enter an amount" else "Calculated from the rate; you can change it",
+                supportingText = when {
+                    state.feeError -> "Enter an amount"
+                    state.feeEdited -> "Fixed amount: changing the length keeps it"
+                    else -> "Calculated from the rate; you can change it"
+                },
             )
             SwitchRow("Absent (not charged)", state.absent, viewModel::setAbsent, enabled = editable)
             SwitchRow("Paid", state.paid, viewModel::setPaid, enabled = !state.absent)

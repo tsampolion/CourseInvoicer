@@ -5,20 +5,28 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import gr.eduinvoice.core.model.DomainException
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoicePayment
 import gr.eduinvoice.core.model.Lesson
 import gr.eduinvoice.core.model.Money
 import gr.eduinvoice.core.model.Rate
 import gr.eduinvoice.core.model.RateType
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
+import gr.eduinvoice.core.report.Reports
 import gr.eduinvoice.core.testing.InMemorySettingsRepository
 import gr.eduinvoice.core.usecase.CreateInvoice
+import gr.eduinvoice.core.usecase.DeleteGroup
+import gr.eduinvoice.core.usecase.DeleteLesson
+import gr.eduinvoice.core.usecase.DeleteStudent
+import gr.eduinvoice.core.usecase.GetInvoiceDocument
+import gr.eduinvoice.core.usecase.InvoiceRenderer
 import gr.eduinvoice.core.usecase.RescheduleLessons
 import gr.eduinvoice.core.usecase.VoidInvoice
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -26,6 +34,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.LocalTime
+import java.util.Locale
 
 /** Runs the real SQLite repositories (in-memory database) on a device or emulator. */
 @RunWith(AndroidJUnit4::class)
@@ -35,6 +44,9 @@ class SqlRepositoriesTest {
     private lateinit var groups: SqlGroupRepository
     private lateinit var lessons: SqlLessonRepository
     private lateinit var invoices: SqlInvoiceRepository
+    private val settings = InMemorySettingsRepository()
+    private lateinit var renderer: InvoiceRenderer
+    private lateinit var createInvoice: CreateInvoice
 
     private val march31 = LocalDate.parse("2026-03-31")
 
@@ -45,6 +57,8 @@ class SqlRepositoriesTest {
         groups = SqlGroupRepository(db)
         lessons = SqlLessonRepository(db)
         invoices = SqlInvoiceRepository(db)
+        renderer = InvoiceRenderer(students, groups, settings) { Locale.UK }
+        createInvoice = CreateInvoice(lessons, invoices, renderer)
     }
 
     @After
@@ -79,7 +93,7 @@ class SqlRepositoriesTest {
         val maria = student()
         val a = lessons.saveLesson(lesson(maria))
         val b = lessons.saveLesson(lesson(maria, fee = 1500))
-        val create = CreateInvoice(lessons, invoices)
+        val create = createInvoice
 
         val invoice = create(maria, listOf(a, b), march31, markPaid = true)
         assertEquals("2026-0001", invoice.number)
@@ -127,7 +141,7 @@ class SqlRepositoriesTest {
     fun backupRestoreReplacesEverything() = runTest {
         val maria = student()
         val lessonId = lessons.saveLesson(lesson(maria))
-        CreateInvoice(lessons, invoices)(maria, listOf(lessonId), march31)
+        createInvoice(maria, listOf(lessonId), march31)
         val backups = SqlBackupRepository(db, InMemorySettingsRepository())
         val snapshot = backups.readAll()
 
@@ -166,6 +180,7 @@ class SqlRepositoriesTest {
             val invoice: Invoice = upgradedInvoices.observeInvoices().first().single()
             assertEquals("2026-0001", invoice.number)
             assertNull(invoice.voidedOn)
+            assertNull(invoice.document)
             assertEquals(1L, SqlLessonRepository(upgraded).getLessonsOfInvoice(invoice.id).single().studentId)
 
             upgradedInvoices.voidInvoice(invoice.id, LocalDate.parse("2026-04-01"))
@@ -177,7 +192,95 @@ class SqlRepositoriesTest {
         }
     }
 
+    @Test
+    fun upgradesAVersion2DatabaseAndFreezesOldInvoicesWhenFirstShared() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "migration-v2-test.db"
+        context.deleteDatabase(name)
+        context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { v2 ->
+            V1_SCHEMA.forEach(v2::execSQL)
+            V2_CHANGES.forEach(v2::execSQL)
+            v2.execSQL("INSERT INTO students (first_name, rate_cents, rate_type) VALUES ('Maria', 2000, 'HOURLY')")
+            v2.execSQL(
+                "INSERT INTO invoices (number, student_id, issue_date, total_cents) VALUES ('2026-0001', 1, '2026-03-31', 2000)",
+            )
+            v2.execSQL(
+                "INSERT INTO lessons (student_id, date, start_time, duration_minutes, fee_cents, invoice_id) " +
+                    "VALUES (1, '2026-03-10', '17:00', 60, 2000, 1)",
+            )
+            v2.version = 2
+        }
+
+        val upgraded = EduDatabase(context, name = name)
+        try {
+            val upgradedInvoices = SqlInvoiceRepository(upgraded)
+            val renderer = InvoiceRenderer(SqlStudentRepository(upgraded), SqlGroupRepository(upgraded), settings) {
+                Locale.UK
+            }
+            val getDocument = GetInvoiceDocument(SqlLessonRepository(upgraded), upgradedInvoices, renderer)
+            assertNull(upgradedInvoices.getInvoice(1)?.document)
+
+            val shared = getDocument(1)
+            settings.update { it.copy(invoiceFooter = "Changed later") }
+
+            assertEquals(shared, upgradedInvoices.getInvoice(1)?.document)
+            assertEquals(shared, getDocument(1))
+            assertEquals(EduDatabase.VERSION, upgraded.readableDatabase.version)
+        } finally {
+            upgraded.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
+    fun aggregatesMatchTheRulesInCore() = runTest {
+        val maria = student()
+        val nikos = student("Nikos")
+        val a = lessons.saveLesson(lesson(maria, fee = 2000))
+        val b = lessons.saveLesson(lesson(maria, fee = 1500).copy(paidOn = march31))
+        lessons.saveLesson(lesson(nikos, fee = 3000))
+        lessons.saveLesson(lesson(nikos, fee = 900).copy(absent = true))
+        lessons.saveLesson(lesson(nikos, fee = 0))
+        val invoice = createInvoice(maria, listOf(a, b), march31)
+        val all = lessons.getLessons(listOf(a, b)) + lessons.observeLessonsOfStudent(nikos).first()
+
+        assertEquals(Reports.balances(all), lessons.observeBalances().first())
+        assertEquals(mapOf(invoice.id to InvoicePayment(2, 1)), lessons.observeInvoicePayments().first())
+    }
+
+    @Test
+    fun deleteRulesHoldOnSqlite() = runTest {
+        val maria = student()
+        val groupId = groups.saveGroup(StudentGroup(name = "B1", rate = Rate(Money(1200), RateType.HOURLY)))
+        val lessonId = lessons.saveLesson(lesson(maria).copy(groupId = groupId))
+        val invoice = createInvoice(maria, listOf(lessonId), march31)
+
+        val groupError = runCatching { DeleteGroup(groups, lessons)(groupId) }.exceptionOrNull()
+        assertTrue("$groupError", groupError is DomainException)
+        assertEquals(groupId, lessons.getLesson(lessonId)?.groupId)
+
+        VoidInvoice(invoices)(invoice.id, march31)
+        DeleteLesson(lessons)(lessonId)
+        val studentError = runCatching { DeleteStudent(students, lessons, invoices)(maria) }.exceptionOrNull()
+        assertTrue("a void invoice keeps its student: $studentError", studentError is DomainException)
+        assertNotNull(students.getStudent(maria))
+    }
+
+    @Test
+    fun anIssuedDocumentIsStoredOnceAndNeverReplaced() = runTest {
+        val maria = student()
+        val invoice = createInvoice(maria, listOf(lessons.saveLesson(lesson(maria))), march31)
+        val issued = invoice.document!!
+
+        invoices.setDocument(invoice.id, issued.copy(total = "€999.00"))
+
+        assertEquals(issued, invoices.getInvoice(invoice.id)?.document)
+    }
+
     private companion object {
+        /** Frozen copy of the version 2 changes (2.0.0-alpha02). Never edit. */
+        val V2_CHANGES = listOf("ALTER TABLE invoices ADD COLUMN voided_on TEXT")
+
         /** Frozen copy of schema version 1 (2.0.0-alpha01). Never edit: it is what users upgrade from. */
         val V1_SCHEMA = listOf(
             "CREATE TABLE students (id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT NOT NULL, " +

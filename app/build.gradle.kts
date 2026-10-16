@@ -10,20 +10,26 @@ android {
     defaultConfig {
         applicationId = "gr.eduinvoice"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 201
-        versionName = "2.0.0-alpha02"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 202
+        versionName = "2.0.0-alpha03"
+        // Runs instrumented tests against a throwaway database (app/src/androidTest/.../EduTestRunner.kt).
+        testInstrumentationRunner = "gr.eduinvoice.EduTestRunner"
     }
 
-    buildTypes {
-        // MARKED FOR DELETION (D9): no Play Store release. See docs/PRODUCT_SPEC.md §8 before deleting:
-        // this is also the only small (R8) build.
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+    signingConfigs {
+        getByName("debug") {
+            // CI signs every debug build with the owner's key (secrets SIGNING_KEYSTORE_B64 and
+            // SIGNING_PASSWORD), so a new build installs over the previous one and keeps the tutor's data
+            // (README, "Install a test build"). Without these variables the default debug key is used.
+            providers.environmentVariable("EDUINVOICE_DEBUG_KEYSTORE").orNull?.let { path ->
+                val password = providers.environmentVariable("EDUINVOICE_KEYSTORE_PASSWORD").orNull ?: "android"
+                storeFile = file(path)
+                storePassword = password
+                keyPassword = password // PKCS12 keys share the keystore password.
+                keyAlias = providers.environmentVariable("EDUINVOICE_KEY_ALIAS").orNull ?: "androiddebugkey"
+            }
         }
     }
 

@@ -5,8 +5,12 @@ import gr.eduinvoice.core.model.Money
 import gr.eduinvoice.core.model.Rate
 import gr.eduinvoice.core.model.RateType
 import gr.eduinvoice.core.model.Student
+import gr.eduinvoice.core.testing.InMemoryRepositories
+import gr.eduinvoice.core.usecase.CreateInvoice
+import gr.eduinvoice.core.usecase.InvoiceRenderer
 import java.time.LocalDate
 import java.time.LocalTime
+import java.util.Locale
 
 fun euros(amount: String): Money = requireNotNull(Money.parse(amount)) { "bad amount $amount" }
 
@@ -35,3 +39,8 @@ fun lesson(
     absent = absent,
     paidOn = paidOn?.let(LocalDate::parse),
 )
+
+/** Renders documents in a fixed locale so assertions do not depend on the machine. */
+fun InMemoryRepositories.renderer() = InvoiceRenderer(this, this, settingsRepository) { Locale.UK }
+
+fun InMemoryRepositories.createInvoiceUseCase() = CreateInvoice(this, this, renderer())

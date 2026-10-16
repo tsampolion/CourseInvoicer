@@ -52,7 +52,7 @@ class StudentDetailViewModel(
 
     private val events = MutableStateFlow(Events())
     private val recordPaymentUseCase = RecordPayment(lessons)
-    private val deleteStudent = DeleteStudent(students, lessons)
+    private val deleteStudent = DeleteStudent(students, lessons, invoices)
 
     val state: StateFlow<StudentDetailUiState> = combine(
         students.observeStudent(studentId),

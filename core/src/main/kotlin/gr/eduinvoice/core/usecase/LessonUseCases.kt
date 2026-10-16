@@ -11,8 +11,10 @@ import java.time.LocalTime
 
 const val MAX_LESSON_MINUTES = 12 * 60
 
+fun isValidDuration(minutes: Int): Boolean = minutes in 1..MAX_LESSON_MINUTES
+
 internal fun validateDuration(minutes: Int) {
-    if (minutes !in 1..MAX_LESSON_MINUTES) {
+    if (!isValidDuration(minutes)) {
         throw DomainException("Duration must be between 1 and $MAX_LESSON_MINUTES minutes")
     }
 }
@@ -21,7 +23,8 @@ class SaveLesson(private val lessons: LessonRepository) {
     suspend operator fun invoke(lesson: Lesson): Long {
         validateDuration(lesson.durationMinutes)
         if (lesson.fee.cents < 0) throw DomainException("Fee cannot be negative")
-        val normalized = lesson.copy(notes = lesson.notes.trim())
+        // Absences are never charged (R3), so they carry no payment either.
+        val normalized = lesson.copy(notes = lesson.notes.trim(), paidOn = lesson.paidOn.takeUnless { lesson.absent })
         if (lesson.id == 0L) return lessons.saveLesson(normalized.copy(invoiceId = null))
 
         val existing = lessons.getLesson(lesson.id) ?: throw DomainException("Lesson not found")

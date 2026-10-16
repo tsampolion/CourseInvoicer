@@ -8,22 +8,34 @@ import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.ThemeMode
 import gr.eduinvoice.core.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Settings in SharedPreferences (no DataStore dependency), exposed as a StateFlow. */
-class PrefsSettingsRepository(context: Context) : SettingsRepository {
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : SettingsRepository {
+    private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)
     private val state = MutableStateFlow(prefs.readSettings())
+    private val writes = Mutex()
 
     override val settings: StateFlow<AppSettings> = state.asStateFlow()
 
+    /**
+     * One update at a time, each written to disk before it is published, and never abandoned halfway:
+     * what the screens show is always what survives a restart.
+     */
     override suspend fun update(transform: (AppSettings) -> AppSettings) {
-        val updated = state.updateAndGet(transform)
-        withContext(Dispatchers.IO) { prefs.writeSettings(updated) }
+        writes.withLock {
+            withContext(NonCancellable + Dispatchers.IO) {
+                val updated = transform(state.value)
+                prefs.writeSettings(updated)
+                state.value = updated
+            }
+        }
     }
 
     private fun SharedPreferences.readSettings(): AppSettings {
@@ -59,16 +71,18 @@ class PrefsSettingsRepository(context: Context) : SettingsRepository {
         }
     }
 
-    private companion object {
-        const val BUSINESS_NAME = "business_name"
-        const val BUSINESS_ADDRESS = "business_address"
-        const val TAX_ID = "tax_id"
-        const val PHONE = "phone"
-        const val EMAIL = "email"
-        const val IBAN = "iban"
-        const val CURRENCY = "currency"
-        const val DEFAULT_MINUTES = "default_minutes"
-        const val THEME = "theme"
-        const val FOOTER = "invoice_footer"
+    companion object {
+        const val FILE_NAME = "settings"
+
+        private const val BUSINESS_NAME = "business_name"
+        private const val BUSINESS_ADDRESS = "business_address"
+        private const val TAX_ID = "tax_id"
+        private const val PHONE = "phone"
+        private const val EMAIL = "email"
+        private const val IBAN = "iban"
+        private const val CURRENCY = "currency"
+        private const val DEFAULT_MINUTES = "default_minutes"
+        private const val THEME = "theme"
+        private const val FOOTER = "invoice_footer"
     }
 }

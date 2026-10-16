@@ -8,7 +8,9 @@ import gr.eduinvoice.core.model.RateType
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
 import gr.eduinvoice.core.repository.GroupRepository
+import gr.eduinvoice.core.repository.LessonRepository
 import gr.eduinvoice.core.repository.StudentRepository
+import gr.eduinvoice.core.usecase.DeleteGroup
 import gr.eduinvoice.core.usecase.SaveGroup
 import gr.eduinvoice.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,8 +46,10 @@ class GroupEditViewModel(
     private val groupId: Long,
     private val groups: GroupRepository,
     private val students: StudentRepository,
+    lessons: LessonRepository,
 ) : ViewModel() {
     private val saveGroup = SaveGroup(groups)
+    private val deleteGroup = DeleteGroup(groups, lessons)
     private val mutableState = MutableStateFlow(GroupEditUiState(isNew = groupId == 0L))
     val state: StateFlow<GroupEditUiState> = mutableState.asStateFlow()
 
@@ -98,7 +102,7 @@ class GroupEditViewModel(
     }
 
     fun delete() = launchCatching(::fail) {
-        groups.deleteGroup(groupId)
+        deleteGroup(groupId)
         mutableState.update { it.copy(done = true) }
     }
 

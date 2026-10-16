@@ -1,5 +1,6 @@
 package gr.eduinvoice.core.usecase
 
+import gr.eduinvoice.core.createInvoiceUseCase
 import gr.eduinvoice.core.euros
 import gr.eduinvoice.core.hourly
 import gr.eduinvoice.core.lesson
@@ -30,7 +31,7 @@ class StudentAndGroupUseCasesTest {
 
     @Test
     fun `students with lessons cannot be deleted`() = runTest {
-        val delete = DeleteStudent(repos, repos)
+        val delete = DeleteStudent(repos, repos, repos)
         val maria = repos.saveStudent(student())
         val nikos = repos.saveStudent(student(firstName = "Nikos"))
         repos.saveLesson(lesson(maria))
@@ -38,6 +39,36 @@ class StudentAndGroupUseCasesTest {
         assertRejected("Archive") { delete(maria) }
         delete(nikos)
         assertNull(repos.getStudent(nikos))
+    }
+
+    @Test
+    fun `students with invoices cannot be deleted, even once their lessons are gone`() = runTest {
+        val maria = repos.saveStudent(student())
+        val lessonId = repos.saveLesson(lesson(maria))
+        val invoice = repos.createInvoiceUseCase()(maria, listOf(lessonId), LocalDate.parse("2026-03-31"))
+        VoidInvoice(repos)(invoice.id, LocalDate.parse("2026-04-01"))
+        DeleteLesson(repos)(lessonId)
+
+        assertRejected("invoices") { DeleteStudent(repos, repos, repos)(maria) }
+        assertEquals("Maria", repos.getStudent(maria)?.firstName)
+    }
+
+    @Test
+    fun `groups with invoiced lessons can only be archived`() = runTest {
+        val maria = repos.saveStudent(student())
+        val invoicedGroup = repos.saveGroup(StudentGroup(name = "A", rate = hourly("12"), memberIds = setOf(maria)))
+        val plainGroup = repos.saveGroup(StudentGroup(name = "B", rate = hourly("12"), memberIds = setOf(maria)))
+        val invoicedLesson = repos.saveLesson(lesson(maria).copy(groupId = invoicedGroup))
+        val plainLesson = repos.saveLesson(lesson(maria).copy(groupId = plainGroup))
+        repos.createInvoiceUseCase()(maria, listOf(invoicedLesson), LocalDate.parse("2026-03-31"))
+        val delete = DeleteGroup(repos, repos)
+
+        assertRejected("Archive") { delete(invoicedGroup) }
+        assertEquals(invoicedGroup, repos.getLesson(invoicedLesson)?.groupId)
+
+        delete(plainGroup)
+        assertNull(repos.getGroup(plainGroup))
+        assertNull("lessons are kept, without the group", repos.getLesson(plainLesson)?.groupId)
     }
 
     @Test

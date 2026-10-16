@@ -14,5 +14,5 @@ assignees: ''
 
 ## Fit with the spec
 - [ ] I checked `docs/PRODUCT_SPEC.md` §5: it is not listed as dropped or out of scope (or I explain why that should change)
-- [ ] Would it change a business rule (R1–R11)? If yes, which:
+- [ ] Would it change a business rule (R1–R13)? If yes, which:
 - [ ] Would it need a new library? If yes, which and why the framework is not enough (needs approval)

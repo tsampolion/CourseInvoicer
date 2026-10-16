@@ -6,6 +6,7 @@ import gr.eduinvoice.core.lesson
 import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.Invoice
+import gr.eduinvoice.core.model.InvoiceDocument
 import gr.eduinvoice.core.student
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -71,6 +72,15 @@ class InvoiceDocumentTest {
     fun `paid when every lesson is paid`() {
         val lessons = listOf(lesson(studentId = 1, paidOn = "2026-03-31"))
         assertTrue(InvoiceDocumentBuilder.build(invoice, maria, lessons, emptyMap(), settings, formats).paid)
+    }
+
+    @Test
+    fun `stored form keeps everything but the live paid flag`() {
+        val lessons = listOf(lesson(studentId = 1, paidOn = "2026-03-31").copy(notes = "\"quoted\" \\ ☺"))
+        val doc = InvoiceDocumentBuilder.build(invoice, maria, lessons, emptyMap(), settings, formats)
+        assertTrue(doc.paid)
+
+        assertEquals(doc.copy(paid = false), InvoiceDocumentCodec.decode(InvoiceDocumentCodec.encode(doc)))
     }
 
     @Test

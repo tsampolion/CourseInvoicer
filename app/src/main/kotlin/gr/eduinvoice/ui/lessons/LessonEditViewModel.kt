@@ -34,7 +34,10 @@ data class LessonEditUiState(
     val time: LocalTime,
     val duration: String,
     val fee: String = "",
-    /** Once the user types a fee we stop recalculating it from the rate. */
+    /**
+     * The fee no longer follows the rate: the user typed it, or a saved lesson's fee differs from what the
+     * rate gives for its length (set by hand, or the rate changed since, R2).
+     */
     val feeEdited: Boolean = false,
     val absent: Boolean = false,
     val paid: Boolean = false,
@@ -86,15 +89,16 @@ class LessonEditViewModel(
             mutableState.update { current ->
                 val loaded = current.copy(loading = false, students = pickable, groupName = group?.name)
                 if (existing != null) {
+                    val rate = group?.rate ?: all.firstOrNull { it.id == existing.studentId }?.rate
                     loaded.copy(
                         studentId = existing.studentId,
                         date = existing.date,
                         time = existing.startTime,
                         duration = existing.durationMinutes.toString(),
                         fee = existing.fee.toPlainString(),
-                        feeEdited = true,
+                        feeEdited = rate?.feeFor(existing.durationMinutes) != existing.fee,
                         absent = existing.absent,
-                        paid = existing.isPaid,
+                        paid = existing.isPaid && !existing.absent,
                         notes = existing.notes,
                         locked = existing.isInvoiced,
                     )
@@ -118,7 +122,8 @@ class LessonEditViewModel(
 
     fun setFee(text: String) = edit { it.copy(fee = text, feeEdited = true, feeError = false) }
 
-    fun setAbsent(absent: Boolean) = edit { it.copy(absent = absent) }
+    /** Absences are never charged, so marking one absent also clears its payment (see SaveLesson). */
+    fun setAbsent(absent: Boolean) = edit { it.copy(absent = absent, paid = it.paid && !absent) }
 
     fun setPaid(paid: Boolean) = mutableState.update { it.copy(paid = paid) }
 

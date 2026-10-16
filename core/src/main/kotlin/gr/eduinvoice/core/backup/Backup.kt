@@ -1,5 +1,6 @@
 package gr.eduinvoice.core.backup
 
+import gr.eduinvoice.core.invoice.InvoiceDocumentCodec
 import gr.eduinvoice.core.model.AppSettings
 import gr.eduinvoice.core.model.BusinessProfile
 import gr.eduinvoice.core.model.Invoice
@@ -10,6 +11,9 @@ import gr.eduinvoice.core.model.RateType
 import gr.eduinvoice.core.model.Student
 import gr.eduinvoice.core.model.StudentGroup
 import gr.eduinvoice.core.model.ThemeMode
+import gr.eduinvoice.core.usecase.MAX_LESSON_MINUTES
+import gr.eduinvoice.core.usecase.SettingsRules
+import gr.eduinvoice.core.usecase.isValidDuration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeParseException
@@ -36,8 +40,11 @@ interface BackupRepository {
 /** Versioned JSON format for [BackupSnapshot]. */
 object BackupCodec {
     const val FORMAT = "eduinvoice-backup"
-    /** 2: invoices gained `voidedOn`. Version 1 files are still accepted. */
-    const val VERSION = 2L
+    /**
+     * 2: invoices gained `voidedOn`. 3: invoices gained `document`, the content as issued.
+     * Older files are still accepted.
+     */
+    const val VERSION = 3L
 
     fun encode(snapshot: BackupSnapshot): String = Json.write(
         mapOf(
@@ -52,6 +59,7 @@ object BackupCodec {
         ),
     )
 
+    /** Parses and validates a backup. A file that breaks a business rule is rejected as a whole (R11). */
     fun decode(text: String): BackupSnapshot {
         val root = Json.parse(text) as? Map<*, *> ?: throw BackupFormatException("Not an EduInvoice backup")
         if (root["format"] != FORMAT) throw BackupFormatException("Not an EduInvoice backup")
@@ -64,7 +72,57 @@ object BackupCodec {
             groups = root.objects("groups").map { it.toGroup() },
             lessons = root.objects("lessons").map { it.toLesson() },
             invoices = root.objects("invoices").map { it.toInvoice() },
-        )
+        ).also { it.validate() }
+    }
+
+    /** The rules the app enforces when data is entered, checked again for data that comes from a file. */
+    private fun BackupSnapshot.validate() {
+        fun reject(message: String): Nothing = throw BackupFormatException(message)
+
+        if (!SettingsRules.isValidCurrency(settings.currencyCode)) {
+            reject("Unknown currency '${settings.currencyCode}'")
+        }
+        if (!SettingsRules.isValidLessonMinutes(settings.defaultLessonMinutes)) {
+            reject("Default lesson length must be between 1 and $MAX_LESSON_MINUTES minutes")
+        }
+
+        val studentIds = students.map { it.id }.toSet()
+        if (studentIds.size != students.size) reject("Two students share an id")
+        students.forEach {
+            if (it.id <= 0 || it.firstName.isBlank() || it.rate.amount.cents < 0) reject("Student ${it.id} is invalid")
+        }
+
+        val groupIds = groups.map { it.id }.toSet()
+        if (groupIds.size != groups.size) reject("Two groups share an id")
+        groups.forEach {
+            if (it.id <= 0 || it.name.isBlank() || it.rate.amount.cents < 0 || !studentIds.containsAll(it.memberIds)) {
+                reject("Group ${it.id} is invalid")
+            }
+        }
+
+        val invoicesById = invoices.associateBy { it.id }
+        if (invoicesById.size != invoices.size) reject("Two invoices share an id")
+        if (invoices.map { it.number }.toSet().size != invoices.size) reject("Two invoices share a number")
+        invoices.forEach {
+            if (it.id <= 0 || it.studentId !in studentIds) reject("Invoice ${it.number} is invalid")
+        }
+
+        if (lessons.map { it.id }.toSet().size != lessons.size) reject("Two lessons share an id")
+        lessons.forEach { lesson ->
+            val valid = lesson.id > 0 &&
+                lesson.studentId in studentIds &&
+                (lesson.groupId == null || lesson.groupId in groupIds) &&
+                isValidDuration(lesson.durationMinutes) &&
+                lesson.fee.cents >= 0
+            if (!valid) reject("Lesson ${lesson.id} is invalid")
+            val invoice = lesson.invoiceId?.let {
+                invoicesById[it] ?: reject("Lesson ${lesson.id} is on a missing invoice")
+            }
+            // Mirrors CreateInvoice and VoidInvoice: one student per invoice, no absences, void invoices hold nothing.
+            if (invoice != null && (invoice.isVoid || invoice.studentId != lesson.studentId || lesson.absent)) {
+                reject("Lesson ${lesson.id} cannot be on invoice ${invoice.number}")
+            }
+        }
     }
 
     private fun AppSettings.toJson() = mapOf(
@@ -177,6 +235,7 @@ object BackupCodec {
         "totalCents" to total.cents,
         "notes" to notes,
         "voidedOn" to voidedOn?.toString(),
+        "document" to document?.let(InvoiceDocumentCodec::toJson),
     )
 
     private fun Map<*, *>.toInvoice() = Invoice(
@@ -187,6 +246,7 @@ object BackupCodec {
         total = Money(long("totalCents")),
         notes = string("notes"),
         voidedOn = if (containsKey("voidedOn")) dateOrNull("voidedOn") else null,
+        document = if (containsKey("document")) documentOrNull("document") else null,
     )
 
     private fun Map<*, *>.field(key: String): Any? =
@@ -212,6 +272,9 @@ object BackupCodec {
     private fun Map<*, *>.list(key: String) = field(key) as? List<*> ?: invalid(key)
 
     private fun Map<*, *>.objects(key: String) = list(key).map { it as? Map<*, *> ?: invalid(key) }
+
+    private fun Map<*, *>.documentOrNull(key: String) =
+        field(key)?.let { InvoiceDocumentCodec.fromJson(it as? Map<*, *> ?: invalid(key)) }
 
     private fun Map<*, *>.date(key: String) = parse(key) { LocalDate.parse(it) }
 

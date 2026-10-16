@@ -26,4 +26,14 @@ class JsonTest {
             assertThrows("'$text'", BackupFormatException::class.java) { Json.parse(text) }
         }
     }
+
+    @Test
+    fun `limits nesting so a hostile file cannot overflow the stack`() {
+        val deep = "[".repeat(100_000) + "]".repeat(100_000)
+        val error = assertThrows(BackupFormatException::class.java) { Json.parse(deep) }
+        assertEquals(true, error.message!!.contains("levels deep"))
+
+        val allowed = "[".repeat(Json.MAX_DEPTH) + "]".repeat(Json.MAX_DEPTH)
+        Json.parse(allowed)
+    }
 }

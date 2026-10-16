@@ -3,7 +3,47 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
 
-## [2.0.0-alpha02] - Unreleased
+## [2.0.0-alpha03] - Unreleased
+
+Fixes from a full audit of the app.
+
+### Fixed
+- **An issued invoice never changes.** Its content is frozen when it is created (R12), so re-sharing it
+  after changing the currency, your details, the student, a group name or lesson notes produces the
+  same document. Older invoices are frozen the first time they are shared.
+- **Updating the app no longer risks your data:** CI signs every debug build with the owner's key
+  (secrets `SIGNING_KEYSTORE_B64` and `SIGNING_PASSWORD`, see README) and fails if its fingerprint
+  differs from `SIGNING_CERT_SHA256`, so a new build installs over the previous one.
+- Deleting a student who only has a void invoice now explains why it is refused, instead of showing a
+  database error. Groups with invoiced lessons can no longer be deleted (archive them instead).
+- Restoring a backup checks it against the app's rules first. A bad currency, an impossible lesson
+  length or a lesson on a void invoice is rejected and nothing changes.
+- Leaving the Settings screen while a backup is restoring, or right after saving, no longer loses the
+  backup's settings or your changes. Open screens always refresh after a change.
+- Marking a paid lesson absent clears its payment, so it no longer disappears from the money totals
+  with no way to fix it.
+- Changing the length of a saved lesson recalculates its fee again when the fee came from the rate.
+- A deeply nested file picked as a backup is rejected instead of crashing the app.
+- Snackbar messages no longer reappear when you come back to a screen.
+- Typing quickly in the student search no longer drops characters.
+- Double-tapping an invoice opens one share sheet, and a shared PDF is never half-written.
+- Long business or student details wrap in the PDF instead of running off the page.
+- TalkBack reads date, time and student pickers as labelled buttons.
+- Backup export no longer runs on the main thread.
+
+### Changed
+- Home, Students and Invoices read totals with SQL aggregates instead of loading every lesson.
+- Instrumented tests run against an in-memory database (`EduTestRunner`), never the real one.
+- Database schema version 3 (`invoices.document`) and backup format version 3, with automatic upgrades.
+- **Targets Android 17** (`targetSdk` 37). None of its new rules for targeting apps touch EduInvoice;
+  see `docs/PRODUCT_SPEC.md` §8.
+
+### Removed
+- **Play Store release items (D9, M1–M6):** the R8 `release` build type and its keep rules,
+  `assembleRelease` in CI, the `*.aab` ignore rule, the Play listing icon and the release-signing note.
+  CI now builds only the debug APK it signs and publishes.
+
+## [2.0.0-alpha02] - 2026-10-10
 
 ### Added
 - **Bulk actions in Lessons:** long-press lessons to select several, then *Mark paid* or *Reschedule*

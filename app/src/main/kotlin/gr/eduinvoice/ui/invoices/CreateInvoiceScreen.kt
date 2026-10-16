@@ -40,7 +40,14 @@ fun CreateInvoiceScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CreateInvoiceViewModel = appViewModel {
-        CreateInvoiceViewModel(studentId, it.studentRepository, it.groupRepository, it.lessonRepository, it.invoiceRepository)
+        CreateInvoiceViewModel(
+            initialStudentId = studentId,
+            students = it.studentRepository,
+            groups = it.groupRepository,
+            lessons = it.lessonRepository,
+            invoices = it.invoiceRepository,
+            renderer = it.invoiceRenderer,
+        )
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
