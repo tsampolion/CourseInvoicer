@@ -65,10 +65,9 @@ jobs:
           jq -r '.runs[].results[] | "\(.level) \(.ruleId): \(.message.text) @ \(.locations[0].physicalLocation.artifactLocation.uri // "?"):\(.locations[0].physicalLocation.region.startLine // "?")"' "$SARIF" | tee lint-findings.txt
           echo "Lint findings: $(wc -l < lint-findings.txt)"
 
-      # MARKED FOR DELETION (D9): assembleRelease (R8 + lintVitalRelease). Keep assembleDebug,
-      # which builds the APK the README installs. See docs/PRODUCT_SPEC.md §8.
-      - name: Assemble debug and release
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+      # Builds the APK the README installs. There is no release build (D9).
+      - name: Assemble debug
+        run: ./gradlew :app:assembleDebug --stacktrace
 
       # Fails the build if the APK was not signed with the key whose fingerprint is in the repository
       # variable SIGNING_CERT_SHA256 (any format: colons and case are ignored).

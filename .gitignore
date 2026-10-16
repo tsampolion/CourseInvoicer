@@ -12,14 +12,13 @@ captures/
 
 # Android artifacts
 *.apk
-# MARKED FOR DELETION (D9): App Bundles are only uploaded to Google Play.
-*.aab
 *.ap_
 *.dex
 
 # Signing (never commit). Kept after D9 as a safety net.
 *.jks
 *.keystore
+*.p12
 keystore.properties
 secrets.properties
 

@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "gr.eduinvoice"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         // Above the last v0.x build (53) so v2 installs over old development builds.
         versionCode = 202
         versionName = "2.0.0-alpha03"
@@ -30,16 +30,6 @@ android {
                 keyPassword = password // PKCS12 keys share the keystore password.
                 keyAlias = providers.environmentVariable("EDUINVOICE_KEY_ALIAS").orNull ?: "androiddebugkey"
             }
-        }
-    }
-
-    buildTypes {
-        // MARKED FOR DELETION (D9): no Play Store release. See docs/PRODUCT_SPEC.md §8 before deleting:
-        // this is also the only small (R8) build.
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 

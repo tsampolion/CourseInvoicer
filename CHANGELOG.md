@@ -35,7 +35,13 @@ Fixes from a full audit of the app.
 - Home, Students and Invoices read totals with SQL aggregates instead of loading every lesson.
 - Instrumented tests run against an in-memory database (`EduTestRunner`), never the real one.
 - Database schema version 3 (`invoices.document`) and backup format version 3, with automatic upgrades.
-- The Play listing icon is registered for deletion as M6 (D9).
+- **Targets Android 17** (`targetSdk` 37). None of its new rules for targeting apps touch EduInvoice;
+  see `docs/PRODUCT_SPEC.md` §8.
+
+### Removed
+- **Play Store release items (D9, M1–M6):** the R8 `release` build type and its keep rules,
+  `assembleRelease` in CI, the `*.aab` ignore rule, the Play listing icon and the release-signing note.
+  CI now builds only the debug APK it signs and publishes.
 
 ## [2.0.0-alpha02] - 2026-10-10
 

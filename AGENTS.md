@@ -66,10 +66,6 @@ common changes, and what to run before you push. For product behaviour, see
 - Screens that only need totals use repository aggregates (`observeBalances`,
   `observeInvoicePayments`). Don't load the whole lesson history to sum it.
 
-**Code marked for deletion:** anything tagged `MARKED FOR DELETION (D9)` stays until the owner
-confirms. Don't build on it. Delete an item together with its row in `docs/PRODUCT_SPEC.md` §8.
-`git grep -i "marked for deletion"` lists them all.
-
 **Propose a dependency:** don't add it. Explain what it replaces, its APK size impact and why the
 framework isn't enough, then wait for approval.
 
@@ -80,8 +76,7 @@ framework isn't enough, then wait for approval.
 ```
 
 - `:core:test` runs with no Android SDK. It is the minimum check in restricted sandboxes.
-- CI (`.github/workflows/ci.yml`) runs the line above plus `assembleRelease` with R8 (marked for
-  deletion, D9). A second job boots an API 35 emulator and runs `connectedDebugAndroidTest`. Lint
+- CI (`.github/workflows/ci.yml`) runs the line above. A second job boots an API 35 emulator and runs `connectedDebugAndroidTest`. Lint
   findings are printed into the CI log.
 - Every behaviour change comes with a test: `:core` for rules, `app/src/test` for ViewModels,
   `app/src/androidTest` for SQL and UI flows.
@@ -98,8 +93,8 @@ There, only `:core` builds locally, and CI is the source of truth for `:app`.
 - Every PR adds an entry to `CHANGELOG.md`.
 - A release bumps `versionCode` and `versionName` in `app/build.gradle.kts`. Keep the version shown
   in `README.md`, this file and `CHANGELOG.md` the same.
-- *Marked for deletion (D9):* release signing is not configured, and it isn't planned because the
-  app is not going to the Play Store. `assembleRelease` produces an unsigned APK.
+- There is no Play Store release and no release build (D9). The debug APK from CI is what gets
+  installed.
 - Never commit keystores or passwords. CI signs debug builds with the owner's key (secrets
   `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and fails if the certificate does not match the
   `SIGNING_CERT_SHA256` variable, so updates install over each other (README, *Install a test build*).

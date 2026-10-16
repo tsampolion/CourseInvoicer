@@ -78,7 +78,7 @@ Version history:
 | Greek (or other) translations | Backlog | UI strings are English and hard-coded. Moving them to `strings.xml` comes first. |
 | Fiscal invoices (AADE myDATA) | Out of scope | The PDFs are payment statements, not fiscal documents. |
 | Crash reporting / analytics | Dropped | No network permission by design. |
-| Google Play Store release | Dropped | Not planned. Builds are installed from CI (see README). Release-only items are marked for deletion (§8). |
+| Google Play Store release | Dropped | Not planned. Builds are installed from CI (see README). Release-only items were removed in alpha03 (§8). |
 
 ## 6. Decision log
 
@@ -92,7 +92,7 @@ Version history:
 | D6 | JSON backup codec written in `:core` | No serialization dependency, and the backup round trip is unit-tested. | alpha01 |
 | D7 | Invoices are voided, not deleted | A parent may already hold the PDF, so a number must never mean two documents. | alpha02 |
 | D8 | Instrumented tests on an emulator in CI | The SQLite layer and the whole UI flow can only be verified on Android. Test-only dependencies were approved. | alpha02 |
-| D9 | No Play Store release. Release-only items are marked for deletion, not removed | The app is installed from CI builds. Marking first keeps the change reversible until the owner confirms each removal. | alpha02 |
+| D9 | No Play Store release. Release-only items were marked for deletion (alpha02), then removed once the owner confirmed (alpha03) | The app is installed from CI builds, so a release build, R8 rules and Play assets were unused weight. | alpha02 |
 | D10 | Freeze each invoice's document when it is issued (R12) | D7's promise that a number means one document also covers its content, not just its number. | alpha03 |
 | D11 | CI signs debug builds with the owner's key (secrets `SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) and checks it against `SIGNING_CERT_SHA256` | CI debug builds are how the app is installed (D9). A throwaway key per build stops updates from installing over the previous build; the fingerprint check catches a wrong or replaced key. | alpha03 |
 
@@ -109,30 +109,33 @@ first. Record each approval here.
 | Instrumented tests (approved alpha02) | `androidx.test:runner`, `androidx.test.ext:junit`, `androidx.compose.ui:ui-test-junit4` |
 | Awaiting approval (not added) | Room, SQLCipher, Navigation 3, Robolectric |
 
-## 8. Marked for deletion
+## 8. Removed Play Store items
 
-Under D9 the app will not be released on the Google Play Store. The items below exist only to ship a
-release, so they are **marked for deletion but not removed**. The build and CI behave as before.
-Each text item is tagged *marked for deletion (D9)* where it lives. To list them, run
-`git grep -i "marked for deletion"`. M6 is a binary file and is listed only here. To delete one, remove it and its row here in the same pull
-request.
+Under D9 the app is not released on the Google Play Store. These release-only items were marked for
+deletion in alpha02 and removed in alpha03, when the owner confirmed. `git show` on the alpha03 commit
+brings any of them back.
 
-| # | Item | Where | Why it is release-only | Before deleting |
-|---|------|-------|------------------------|-----------------|
-| M1 | Ignore rule for `*.aab` | `.gitignore` | App Bundles are the upload format for Google Play. Phones install APKs. | Nothing. |
-| M2 | `release` build type: R8 minify and resource shrinking | `app/build.gradle.kts` | Its output is only useful once signed and shipped. Unsigned, it cannot be installed. | It is the only small build: 1.9 MB, against 12.5 MB for debug, which is also slower. It is how the "minimal APK" goal is measured. If the app is ever shared outside Play (sideloaded), keep it and add signing instead. |
-| M3 | R8 keep rules | `app/proguard-rules.pro` | Read only by the release build type. | Delete together with M2. |
-| M4 | `assembleRelease` in CI | `.github/workflows/ci.yml`, step *Assemble debug and release* | Builds the release APK and runs `lintVitalRelease` on every pull request, about 1.5 minutes per run. | Delete with M2. Keep `assembleDebug`: it builds the APK the README installs. *Report APK sizes* then lists only the debug APK. |
-| M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 | Describe a signed release that will not happen. | Delete with M2. Keep the rule "never commit keystores or passwords" and the debug-key note. |
-| M6 | Play listing icon `app/src/main/ic_launcher-playstore.png` | `app/src/main/` | The 512 px icon for a Play Store listing. Nothing in the build uses it. | Nothing. A PNG cannot carry a tag, so this row is its only marker. |
+| # | Item | Where it was |
+|---|------|--------------|
+| M1 | Ignore rule for `*.aab` (App Bundles are a Play upload format) | `.gitignore` |
+| M2 | `release` build type with R8 minify and resource shrinking | `app/build.gradle.kts` |
+| M3 | R8 keep rules | `app/proguard-rules.pro` |
+| M4 | `assembleRelease` (and `lintVitalRelease`) in CI | `.github/workflows/ci.yml` |
+| M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 |
+| M6 | 512 px Play listing icon | `app/src/main/ic_launcher-playstore.png` |
 
-**Related, but kept:**
-- The `.gitignore` signing patterns (`*.jks`, `*.keystore`, `keystore.properties`). They stop a key
-  from ever being committed and cost nothing.
+The cost of removing M2: the R8 build was 1.9 MB, against 12.5 MB for the debug APK that is installed.
+If the APK size ever matters, add R8 back as a signed, sideloadable build type rather than a Play one.
+
+**Kept:**
+- The `.gitignore` signing patterns (`*.jks`, `*.keystore`, `*.p12`, `keystore.properties`). They stop a
+  key from ever being committed and cost nothing.
 - `versionCode` and `versionName`. Android refuses to install an APK with a lower `versionCode` over a
   newer one, so sideloaded debug builds still need them. Settings shows `versionName`.
-- `targetSdk`. Android still requires it. Without Play there is no yearly deadline to raise it, so the
-  `OldTargetApi` lint warning is advisory: raise it after checking the new version's behaviour changes.
+- `targetSdk`, now 37 (Android 17). Android 17's changes for apps that target it cover local network
+  access, background audio, reflection on `static final` fields and `MessageQueue`, `RemoteViews`
+  memory, and the orientation and resizability opt-out on large screens. The app uses none of these:
+  it has no permissions, no audio, no notifications, no reflection, and an adaptive Compose layout.
 
 **Found on the legacy branches (`main`, `Rebuild`), not changed:** the v0.x app there has:
 - release signing configs read from `RELEASE_*` properties
@@ -141,7 +144,8 @@ request.
 - ABI splits for release builds (`Rebuild`)
 - the same 512 px Play listing icon as M6
 - a Privacy Policy screen, which a Play listing requires
-- `app/google-services.json` (Firebase)
+- `app/google-services.json` (Firebase project `eduinvoiceapp`). Its API key is in the git history, so it
+  must be deleted in Google Cloud. v2 uses no Firebase, so it needs no replacement.
 - a CI release build step (`Rebuild`)
 
 Those branches are frozen, so these items go when the branches are deleted. The repository has no
