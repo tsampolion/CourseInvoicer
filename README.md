@@ -14,12 +14,13 @@ version is in [`CHANGELOG.md`](CHANGELOG.md).
 
 1. Open the repository's *Releases* page and pick the newest release. Alpha and beta builds are
    marked *Pre-release*.
-2. Download `eduinvoice-<version>.apk` from its *Assets*.
+2. Download `eduinvoice-<version>.apk` from its *Assets*. It is the small, optimised build.
 3. Copy it to the phone, open it, and allow installs from that app when asked.
 
 Until the first v2 release is published, or for a build between releases, open the latest green
 **CI** run for `Rebuild_v2` in the *Actions* tab instead. Download its `app-debug` artifact, a zip
-holding `app-debug.apk`. Artifacts expire after 14 days.
+holding `app-debug.apk`: a larger, slower debug build of the same code. Artifacts expire after 14
+days. Release and debug builds install over each other.
 
 A new build installs over the previous one and keeps your data, **as long as both were signed with
 the owner's key**. If Android says *App not installed*, the builds have different keys: export a
@@ -80,12 +81,13 @@ throwaway database, but Gradle uninstalls the app when they finish, which delete
 ## CI and releases
 
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every branch push, on pull requests
-  from forks and on manual dispatch. One job runs the unit tests and lint, builds the debug APK,
-  signs it with the owner's key and checks the key, writes the APK size to the job summary and
-  uploads the APK as the `app-debug` artifact. A second job runs the emulator tests on API 35.
+  from forks and on manual dispatch. One job runs the unit tests and lint, builds the debug APK and
+  the minified release APK, signs both with the owner's key and checks the key, writes their sizes
+  to the job summary and uploads them as the `app-debug` and `app-release` artifacts. A second job
+  runs the emulator tests on API 35, then installs the minified APK and smoke-tests it.
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) runs after CI passes on
   `Rebuild_v2`. When the `CHANGELOG.md` section for the current `versionName` has a date, it tags
-  `vX.Y.Z` and publishes a GitHub release with that section as notes and the signed APK attached.
+  `vX.Y.Z` and publishes a GitHub release with that section as notes and the minified APK attached.
 
 ### Signing key
 
@@ -140,8 +142,8 @@ import.
 - `minSdk 26`, so `java.time` works without desugaring. The theme is a framework theme, not
   AppCompat, and icons are drawn in code.
 - PDFs are drawn with the framework's `PdfDocument`, so no PDF library ships.
-- There is no minified build (D9). The installed debug APK is about 12.5 MB. Ideas to shrink it are
-  in [`docs/ROADMAP.md`](docs/ROADMAP.md) item 11.
+- Releases ship a minified build (D16): about 2 MB, against 12.5 MB for the debug APK. More ideas to
+  shrink it are in [`docs/ROADMAP.md`](docs/ROADMAP.md) item 11.
 
 ## Contributing
 

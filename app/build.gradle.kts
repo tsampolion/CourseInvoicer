@@ -33,6 +33,18 @@ android {
         }
     }
 
+    buildTypes {
+        // The build GitHub releases ship (D16): minified, about 2 MB instead of 12.5 MB, and smoother
+        // than a debuggable build. Signed with the same key as debug, so either installs over the
+        // other and keeps the tutor's data. Not a Play Store build (D9).
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

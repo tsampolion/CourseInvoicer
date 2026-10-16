@@ -96,6 +96,8 @@ Version history:
 | D12 | Dated changelog versions are published as GitHub releases with the signed APK attached | CI artifacts expire after 14 days and are hard to find from a phone. A release is a permanent, named download whose notes are the changelog. Dating the section is the explicit release step, so merging alone never publishes. | alpha03 |
 | D13 | Target the latest Android (`targetSdk` 37, Android 17) | None of Android 17's changes for apps that target it touch the app. They cover local network access, background audio, reflection on `static final` fields and `MessageQueue`, `RemoteViews` memory, and the orientation and resizability opt-out on large screens. The app has no permissions, no audio, no notifications, no reflection, and an adaptive Compose layout. | alpha03 |
 | D14 | Proprietary licence, all rights reserved, with AI-use terms; replaces MIT | One licence for the owner's apps, shared with Coursebook Pacer: it keeps every right with the owner and lets AI systems work on the code only when the owner authorises them. It also adds MIT's full warranty disclaimer, leaves third-party libraries under their own licences, and confirms that copies already published under MIT keep their MIT rights. | alpha03 |
+| D15 | Undo, not a confirmation dialog, for deleting a lesson, recording a payment, marking lessons paid (one or in bulk) and rescheduling | Mistakes are cheap to reverse and the dialogs go. Voiding stays final, because un-voiding would break R6 and D7. A backup import stays final; the advice is to export first. | alpha03 (decided; built in roadmap item 2) |
+| D16 | Releases ship a minified (R8) build signed with the owner's key; D9 still rules out the Play Store | The installed app shrinks from 12.5 MB to about 2 MB and Compose runs faster than in a debuggable build. Same key and `applicationId` as debug, so either installs over the other. An emulator smoke test in CI launches and exercises the minified APK. | alpha03 |
 
 ## 7. Dependency register
 
@@ -115,13 +117,13 @@ first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
 
 ### Current state
 
-- **No Google Play Store release (D9).** There is no release build type. CI builds only the debug
-  APK.
-- **Signed debug APK.** CI signs every debug APK with the owner's key and checks its fingerprint
-  (D11). A new build installs over the previous one and keeps the data.
+- **No Google Play Store release (D9).**
+- **Two signed APKs.** CI builds the debug APK and a minified `release` APK (D16). It signs both
+  with the owner's key and checks the fingerprint (D11). Either installs over the other and keeps
+  the data.
 - **GitHub releases.** Dating a version in `CHANGELOG.md` publishes it as a GitHub release with the
-  signed APK attached (D12, `.github/workflows/release.yml`). Between releases, the APK is a CI
-  artifact. The README's *Install a test build* section covers both.
+  minified APK attached (D12, D16, `.github/workflows/release.yml`). Between releases, the debug APK
+  is a CI artifact. The README's *Install a test build* section covers both.
 - **Target SDK.** `targetSdk` and `compileSdk` are 37 (Android 17); `minSdk` is 26. D13 gives the
   reason.
 - **Version numbers.** `versionCode` and `versionName` stay. Android refuses to install an APK with
@@ -147,8 +149,8 @@ alpha03 removal commit) brings any of them back.
 | # | Item | Where it was |
 |---|------|--------------|
 | M1 | Ignore rule for `*.aab` (App Bundles are a Play upload format) | `.gitignore` |
-| M2 | `release` build type with R8 minify and resource shrinking | `app/build.gradle.kts` |
-| M3 | R8 keep rules | `app/proguard-rules.pro` |
+| M2 | `release` build type with R8 minify and resource shrinking (back since D16, signed with the owner's key) | `app/build.gradle.kts` |
+| M3 | R8 keep rules (back since D16) | `app/proguard-rules.pro` |
 | M4 | `assembleRelease` (and `lintVitalRelease`) in CI | `.github/workflows/ci.yml` |
 | M5 | Release-signing note and the `assembleRelease` mention | `AGENTS.md` §4 and §5 |
 | M6 | 512 px Play listing icon | `app/src/main/ic_launcher-playstore.png` |
@@ -175,5 +177,8 @@ than a Play one.
 
 The owner keeps those branches, frozen, as the history of v0.x; nothing on them is built or
 shipped. Before v2 the
-repository had no GitHub releases and one tag, `v0.28.0` (v0.x). v2 releases are tagged and
-published by `.github/workflows/release.yml` (D12).
+repository had no GitHub releases and one tag, `v0.28.0`. Every earlier version now has an annotated
+tag: each v0.x version at the commit that first set its `versionName` (two-part names gain `.0`; the
+stray 2025-06-08 `1.0` prototype bump has none), and each v2 alpha at the merge that completed it.
+Versions the old changelog lists without a version bump have no tag. From alpha03 on, releases are
+tagged and published by `.github/workflows/release.yml` (D12).

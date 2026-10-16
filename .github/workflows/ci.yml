@@ -73,6 +73,10 @@ jobs:
       - name: Assemble debug
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # The minified APK that GitHub releases ship (D16). Same key as debug.
+      - name: Assemble release (minified)
+        run: ./gradlew :app:assembleRelease --stacktrace
+
       # Fails the build if the APK was not signed with the key whose fingerprint is in the repository
       # variable SIGNING_CERT_SHA256 (any format: colons and case are ignored).
       - name: Check the signing certificate
@@ -80,18 +84,21 @@ jobs:
           EXPECTED_SHA256: ${{ vars.SIGNING_CERT_SHA256 }}
         run: |
           APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
-          CERTS="$("$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk)"
-          echo "$CERTS" | grep -E "certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
-          ACTUAL="$(echo "$CERTS" | grep -m1 "certificate SHA-256 digest" | sed 's/.*digest: //' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
           EXPECTED="$(echo "$EXPECTED_SHA256" | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
-          if [ -z "$EXPECTED" ]; then
-            echo "::warning::Repository variable SIGNING_CERT_SHA256 is not set, so the signing key was not checked."
-          elif [ "$ACTUAL" = "$EXPECTED" ]; then
-            echo "Signed with the owner's key (fingerprint matches SIGNING_CERT_SHA256)." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::error::app-debug.apk is signed with $ACTUAL, not the expected SIGNING_CERT_SHA256 $EXPECTED."
-            exit 1
-          fi
+          for APK in app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/release/app-release.apk; do
+            CERTS="$("$APKSIGNER" verify --print-certs "$APK")"
+            echo "$APK:" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "$CERTS" | grep -E "certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
+            ACTUAL="$(echo "$CERTS" | grep -m1 "certificate SHA-256 digest" | sed 's/.*digest: //' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+            if [ -z "$EXPECTED" ]; then
+              echo "::warning::Repository variable SIGNING_CERT_SHA256 is not set, so the signing key was not checked."
+            elif [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Signed with the owner's key (fingerprint matches SIGNING_CERT_SHA256)." | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::$APK is signed with $ACTUAL, not the expected SIGNING_CERT_SHA256 $EXPECTED."
+              exit 1
+            fi
+          done
 
       - name: Report APK sizes
         run: ls -l app/build/outputs/apk/*/*.apk | tee -a "$GITHUB_STEP_SUMMARY"
@@ -111,6 +118,14 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      # release.yml attaches this one to GitHub releases.
+      - name: Upload release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 14
 
   emulator:
@@ -148,7 +163,7 @@ jobs:
           ls "$ANDROID_AVD_HOME"
 
       - name: Build app and test APKs
-        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
 
       # Fails fast with the emulator log in the job output (artifacts are hard to read from some sandboxes).
       - name: Boot emulator and run instrumented tests
@@ -180,6 +195,23 @@ jobs:
           "$ADB" shell input keyevent 82
           ./gradlew :app:connectedDebugAndroidTest --stacktrace
 
+          # Smoke test for the minified APK (D16): R8 may strip something the debug tests can't see.
+          # Gradle uninstalled the debug app above, so this is a clean install.
+          "$ADB" install -r app/build/outputs/apk/release/app-release.apk
+          "$ADB" logcat -c
+          "$ADB" shell am start -W -n gr.eduinvoice/.MainActivity
+          sleep 10
+          if ! "$ADB" shell pidof gr.eduinvoice > /dev/null; then
+            echo "::error::The minified app is not running 10 s after launch"; "$ADB" logcat -d | tail -200; exit 1
+          fi
+          "$ADB" shell monkey -p gr.eduinvoice -s 42 --throttle 200 --pct-syskeys 0 --pct-appswitch 0 \
+            --ignore-timeouts 300 > monkey.log 2>&1 || true
+          if grep -q "CRASH: gr.eduinvoice" monkey.log || "$ADB" logcat -d -b crash | grep -q "Process: gr.eduinvoice"; then
+            echo "::error::The minified app crashed during the smoke test"
+            cat monkey.log; "$ADB" logcat -d -b crash; exit 1
+          fi
+          echo "Minified APK smoke test passed (launch plus 300 monkey events)." | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Print instrumented test failures
         if: failure()
         run: |
@@ -203,4 +235,5 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
             emulator.log
+            monkey.log
           retention-days: 14

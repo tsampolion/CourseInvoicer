@@ -15,6 +15,7 @@ recipes for common changes and the traps. What the app should do is in
 ./gradlew :app:testDebugUnitTest          # ViewModel and navigation tests (JVM)
 ./gradlew :app:lintDebug                  # Android lint
 ./gradlew :app:assembleDebug              # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleRelease            # minified build that releases ship (D16)
 ./gradlew :app:installDebug               # needs a device or emulator
 ./gradlew :app:connectedDebugAndroidTest  # emulator tests; never on the phone you use
 ```
@@ -173,6 +174,9 @@ isn't enough, then wait for approval.
   way to save it.
 - **An issued invoice never changes** (R12). Render from its frozen `InvoiceDocument`, never from
   live settings, students or lessons.
+- **R8 shrinks the release build.** Anything reached only by reflection or JNI needs a keep rule in
+  `app/proguard-rules.pro`. The emulator smoke test of the minified APK is the check; debug tests
+  don't cover it.
 - **The `## [X.Y.Z] - Unreleased` changelog heading matters:** `release.yml` publishes a version
   only once that heading carries a date.
 
@@ -187,9 +191,9 @@ isn't enough, then wait for approval.
 - **To release it:** replace `Unreleased` with the date (`## [X.Y.Z] - YYYY-MM-DD`) and merge. Don't
   tag by hand: `.github/workflows/release.yml` tags and publishes it once CI passes on `Rebuild_v2`.
   Its header comment says what it checks and how to release an older commit.
-- There is no Play Store release and no release build (D9). The signed debug APK is what gets
-  installed. Never commit keystores or passwords; signing is set up through repository secrets
-  (README, *Signing key*).
+- There is no Play Store release (D9). Releases ship the minified `release` build (D16); the debug
+  APK is the between-release build. Both are signed with the same key. Never commit keystores or
+  passwords; signing is set up through repository secrets (README, *Signing key*).
 
 **Pull requests**
 - Title: `[feat|fix|refactor|docs|build|test](scope): summary`.
