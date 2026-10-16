@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- EduSuite tokens for the window and the launcher icon (docs/EDUSUITE_STYLE_GUIDE.md).
+         Compose colours live in ui/theme/Color.kt. -->
+    <color name="paper">#F2F5F2</color>
+    <color name="accent">#5B3FA0</color>
+    <!-- The icon tile keeps the light accent in dark mode too: the paper-coloured book needs a deep background. -->
+    <color name="launcher_tile">#5B3FA0</color>
+</resources>

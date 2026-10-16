@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon foreground (EduSuite style guide, "Launcher icon"): an open book in the paper colour,
+    with a bold euro sign cut out of the right page so the accent background shows through it.
+    Because the euro sign is a hole rather than a second colour, this same vector also works as the
+    monochrome (themed icon) layer. All art stays inside the 66dp safe-zone circle centred at 54,54.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Left page. -->
+    <path
+        android:fillColor="#F2F5F2"
+        android:pathData="M53,41C47.5,37.5 38,36.5 28,38L28,70C38,68.5 47.5,69.5 53,73Z" />
+    <!-- Right page with the euro sign as an even-odd hole. -->
+    <path
+        android:fillColor="#F2F5F2"
+        android:fillType="evenOdd"
+        android:pathData="M55,41C60.5,37.5 70,36.5 80,38L80,70C70,68.5 60.5,69.5 55,73Z M77.218,48.282A9.5,9.5 0 0,0 62.273,50.25H57.5V53H61.213A9.5,9.5 0 0,0 61.213,57H57.5V59.75H62.273A9.5,9.5 0 0,0 77.218,61.718L74.566,59.066A5.75,5.75 0 0,1 67.26,59.75H71V57H65.109A5.75,5.75 0 0,1 65.109,53H71V50.25H67.26A5.75,5.75 0 0,1 74.566,50.934Z" />
+</vector>

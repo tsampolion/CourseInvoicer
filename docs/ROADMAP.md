@@ -262,7 +262,8 @@ a minified build (D16); the debug APK is about 12.5 MB.
 
 `MainActivity` re-applies `enableEdgeToEdge` with `SystemBarStyle.auto` whenever the app theme
 changes, so status-bar icons follow the app's theme even when it differs from the system's. Dynamic
-colour applies on Android 12 and later.
+colour applied on Android 12 and later until 2.0.0, which turned it off for the EduSuite accent
+(D19).
 
 ## 13. Short, rule-focused agent guide
 
