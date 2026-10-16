@@ -31,15 +31,16 @@ always export a backup first.
 
 | To… | Go to |
 |-----|-------|
-| Put your name, address and IBAN on invoices | Home → ⚙ Settings → *Your details* (saves as you type) |
+| Put your name and IBAN on statements | Home → ⚙ Settings → *Your details* (saves as you type). The address is printed only if you turn on *Show address on statements*. |
 | Add a student and their rate (per hour or per lesson) | Students → **+** |
 | Log a lesson | **Log lesson** on Home or on a student. The fee is calculated from the rate and can be changed. |
-| Log a lesson for a whole group, with attendance | Groups → **Log lesson** on the group |
+| Log a lesson for a whole group, with attendance | Groups → **Log lesson** on the group. Mark each member Present, Absent or Late cancel. |
+| Record an absence | Turn on **Absent** on the lesson: *Not charged*, or *Late cancellation* (under 24 hours, charged the full fee), with an optional reason. |
 | Mark lessons paid | Tick the box on a lesson. Or use a student's **Record payment** to settle everything they owe. |
 | Move several lessons to another day | Lessons → long-press the lessons → **Reschedule** |
-| Bill a student | Student → **Invoice**, or Invoices → **+**. Choose the lessons, then **Create**, then **Share PDF**. |
-| Send an invoice again | Invoices → tap the invoice. It is the same document as the first time. |
-| Cancel an invoice | Invoices → ✕ → **Void**. The number is never reused, and the lessons can be invoiced again. |
+| Send a student a statement of their lessons | Student → **Statement**, or Home → **Statements** → **+**. Choose the lessons (absences can go on it too; excused ones show 0.00), then **Create**, then **Share PDF**. A statement is not a fiscal document and says so on every page: issue the legal receipt for each payment separately. |
+| Send a statement again | Home → **Statements** → tap the statement. It is the same document as the first time. |
+| Cancel a statement | Home → **Statements** → ✕ → **Void**. The number is never reused, and the lessons can go on a new statement. |
 | See the month's earnings and who owes what | Home → **Dashboard** |
 
 **Back up regularly:** Settings → *Backup* → **Export** saves a JSON file. Keep it off the phone,

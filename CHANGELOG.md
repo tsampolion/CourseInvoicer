@@ -39,9 +39,17 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
   Settings. A section with nothing in it yet shows its button faded, and the button still opens it.
   *Log lesson* is one tap away once there is a student. The figures are counted in SQL, so Home
   never loads the lesson history.
-- **Empty lists explain themselves**: Students, Groups, Lessons and Invoices show an icon, a title
+- **Empty lists explain themselves**: Students, Groups, Lessons and Statements show an icon, a title
   and a line of help when they have nothing to show, with a button to add the first student or
   group.
+- **Late cancellations are charged** (R3). An absent lesson is either *Not charged* or a *Late
+  cancellation* (under 24 hours), charged the full fee, and either can carry a reason. In a group
+  lesson each member is marked Present, Absent or Late cancel.
+- **Statements carry a non-fiscal disclaimer** (R14, D20): the heading «ΕΝΗΜΕΡΩΤΙΚΗ ΚΑΤΑΣΤΑΣΗ
+  ΜΑΘΗΜΑΤΩΝ / Lesson statement», and a notice that the document is not an invoice or receipt under
+  Law 4308/2014 and is not sent to myDATA, boxed under the header and repeated in every page
+  footer. Absence lines say whether they are charged and why.
+- **Show address on statements** switch in *Settings → Your details*, off by default.
 
 ### Changed
 - **The bottom tab bar is gone**: every section opens from Home and has a Back arrow to it. The
@@ -54,6 +62,15 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 - **Plain SemVer** (D18): versions, tags and changelog sections are `MAJOR.MINOR.PATCH` with no
   pre-release suffix, so this release is 2.0.0. `release.yml` rejects any other `versionName` and no
   longer marks releases *Pre-release*.
+- **Invoices are now Statements** everywhere you read them: screens, buttons, messages, the PDF and
+  its file name (`statement-<number>.pdf`). Statements issued before this version keep the document
+  they were issued with (R12). The bottom bar tab still says *Invoices* until the new Home replaces it.
+- **Absences can go on statements** (R4): excused ones as 0.00 lines, late cancellations at their
+  fee. A statement of excused absences only totals 0.00 and counts as paid at once; marking
+  lessons paid pays only the charged ones.
+- **Database schema 4 and backup format 4** add the absence charge and reason (and the address
+  switch to backups). The database upgrades on first start, with every existing absence left not
+  charged; backups from older versions still import.
 - **Settings save as you type** (R13). There is no *Save* button: text fields save 0.4 s after you
   stop typing, the theme applies as soon as you pick it, and anything still waiting is saved when you
   leave the screen or the app. A currency code or lesson length that isn't valid is never stored: the

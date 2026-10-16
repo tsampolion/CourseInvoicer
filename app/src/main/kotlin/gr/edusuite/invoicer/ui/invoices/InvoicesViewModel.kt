@@ -45,7 +45,8 @@ class InvoicesViewModel(
                 InvoiceItem(
                     invoice = invoice,
                     studentName = names[invoice.studentId].orEmpty(),
-                    // A void invoice has released its lessons, so it is never paid.
+                    // A void statement has released its lessons, so it is never paid. One of excused absences
+                    // only is paid at once (InvoicePayment).
                     paid = payments[invoice.id]?.isPaid == true,
                 )
             },
@@ -55,7 +56,7 @@ class InvoicesViewModel(
 
     fun markVoid(invoice: Invoice) = launchCatching({ message.value = it }) {
         voidInvoice(invoice.id, today())
-        message.value = "Invoice ${invoice.number} voided. Its lessons can be invoiced again."
+        message.value = "Statement ${invoice.number} voided. Its lessons can go on a new statement."
     }
 
     fun showMessage(text: String) {

@@ -3,7 +3,8 @@ package gr.edusuite.invoicer.core.model
 import java.time.LocalDate
 
 /**
- * An issued invoice. Invoices are never deleted: voiding one releases its lessons but keeps the row,
+ * An issued invoice, shown to the user as a *statement*: an informational, non-fiscal document (D20).
+ * Invoices are never deleted: voiding one releases its lessons but keeps the row,
  * so its number is never issued twice (a parent may already hold the PDF).
  *
  * [document] is the content as issued. It is null only for invoices created before documents were
@@ -22,12 +23,19 @@ data class Invoice(
     val isVoid: Boolean get() = voidedOn != null
 }
 
-/** How far the lessons of one invoice are paid. The single definition of a paid invoice. */
+/**
+ * How far the lessons of one invoice are paid. The single definition of a paid invoice.
+ * [unpaidCount] counts only charged lessons ([Lesson.isOutstanding]): excused absences and free lessons
+ * never need paying.
+ */
 data class InvoicePayment(val lessonCount: Int, val unpaidCount: Int) {
-    /** An invoice is paid once it has lessons and every one of them is paid. */
+    /**
+     * An invoice is paid once it has lessons and every charged one is paid, so a statement that holds only
+     * excused absences (0.00) is paid at once.
+     */
     val isPaid: Boolean get() = lessonCount > 0 && unpaidCount == 0
 
     companion object {
-        fun of(lessons: Collection<Lesson>) = InvoicePayment(lessons.size, lessons.count { !it.isPaid })
+        fun of(lessons: Collection<Lesson>) = InvoicePayment(lessons.size, lessons.count { it.isOutstanding })
     }
 }

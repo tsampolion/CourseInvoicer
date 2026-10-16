@@ -2,6 +2,7 @@ package gr.edusuite.invoicer.ui.lessons
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
@@ -40,9 +41,12 @@ data class LessonEditUiState(
      */
     val feeEdited: Boolean = false,
     val absent: Boolean = false,
+    /** Whether the absence is charged (a late cancellation); kept while [absent] is off, but not saved. */
+    val absenceCharge: AbsenceCharge = AbsenceCharge.NONE,
+    val absenceNote: String = "",
     val paid: Boolean = false,
     val notes: String = "",
-    /** Invoiced lessons keep their billing fields; see SaveLesson. */
+    /** Lessons on a statement keep their billing fields; see SaveLesson. */
     val locked: Boolean = false,
     val studentError: Boolean = false,
     val durationError: Boolean = false,
@@ -52,6 +56,10 @@ data class LessonEditUiState(
     val done: Boolean = false,
 ) {
     val minutes: Int? get() = duration.toIntOrNull()?.takeIf { it in 1..MAX_LESSON_MINUTES }
+
+    /** Charged as entered (R3): held or a late cancellation, with a fee above zero. Only then can it be paid. */
+    val charged: Boolean
+        get() = (!absent || absenceCharge == AbsenceCharge.LATE_CANCELLATION) && Money.parse(fee)?.isPositive == true
 }
 
 class LessonEditViewModel(
@@ -98,7 +106,9 @@ class LessonEditViewModel(
                         fee = existing.fee.toPlainString(),
                         feeEdited = rate?.feeFor(existing.durationMinutes) != existing.fee,
                         absent = existing.absent,
-                        paid = existing.isPaid && !existing.absent,
+                        absenceCharge = existing.absenceCharge,
+                        absenceNote = existing.absenceNote,
+                        paid = existing.isPaid && existing.charge.isPositive,
                         notes = existing.notes,
                         locked = existing.isInvoiced,
                     )
@@ -122,8 +132,20 @@ class LessonEditViewModel(
 
     fun setFee(text: String) = edit { it.copy(fee = text, feeEdited = true, feeError = false) }
 
-    /** Absences are never charged, so marking one absent also clears its payment (see SaveLesson). */
-    fun setAbsent(absent: Boolean) = edit { it.copy(absent = absent, paid = it.paid && !absent) }
+    /**
+     * An excused absence is never charged, so marking a lesson absent clears its payment unless it is a late
+     * cancellation (see SaveLesson).
+     */
+    fun setAbsent(absent: Boolean) = edit {
+        it.copy(absent = absent, paid = it.paid && (!absent || it.absenceCharge == AbsenceCharge.LATE_CANCELLATION))
+    }
+
+    fun setAbsenceCharge(charge: AbsenceCharge) = edit {
+        it.copy(absenceCharge = charge, paid = it.paid && charge == AbsenceCharge.LATE_CANCELLATION)
+    }
+
+    /** The reason for an absence stays editable on a statement, like the notes (R7). */
+    fun setAbsenceNote(text: String) = mutableState.update { it.copy(absenceNote = text) }
 
     fun setPaid(paid: Boolean) = mutableState.update { it.copy(paid = paid) }
 
@@ -151,8 +173,10 @@ class LessonEditViewModel(
             fee = fee,
             absent = current.absent,
             notes = current.notes,
-            paidOn = if (current.paid) previous?.paidOn ?: now().toLocalDate() else null,
+            paidOn = if (current.paid && current.charged) previous?.paidOn ?: now().toLocalDate() else null,
             invoiceId = previous?.invoiceId,
+            absenceCharge = current.absenceCharge,
+            absenceNote = current.absenceNote,
         )
         mutableState.update { it.copy(saving = true) }
         launchCatching(::fail) {
@@ -170,7 +194,7 @@ class LessonEditViewModel(
 
     private fun fail(message: String) = mutableState.update { it.copy(saving = false, message = message) }
 
-    /** Billing fields are read-only while the lesson is on an invoice. */
+    /** Billing fields are read-only while the lesson is on a statement. */
     private fun edit(transform: (LessonEditUiState) -> LessonEditUiState) = mutableState.update {
         if (it.locked) it else transform(it)
     }

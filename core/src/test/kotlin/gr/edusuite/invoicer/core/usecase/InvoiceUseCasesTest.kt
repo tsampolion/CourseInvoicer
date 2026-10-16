@@ -2,6 +2,8 @@ package gr.edusuite.invoicer.core.usecase
 
 import gr.edusuite.invoicer.core.createInvoiceUseCase
 import gr.edusuite.invoicer.core.euros
+import gr.edusuite.invoicer.core.invoice.InvoiceDocumentBuilder
+import gr.edusuite.invoicer.core.lateCancel
 import gr.edusuite.invoicer.core.lesson
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.DomainException
@@ -70,16 +72,65 @@ class InvoiceUseCasesTest {
         val maria = repos.saveStudent(student())
         val nikos = repos.saveStudent(student(firstName = "Nikos"))
         val ok = repos.saveLesson(lesson(maria))
-        val absent = repos.saveLesson(lesson(maria, absent = true))
         val other = repos.saveLesson(lesson(nikos))
 
         assertRejected("Select at least one lesson") { createInvoice(maria, emptyList(), issueDate) }
-        assertRejected("Absences cannot be invoiced") { createInvoice(maria, listOf(ok, absent), issueDate) }
         assertRejected("same student") { createInvoice(maria, listOf(ok, other), issueDate) }
         assertRejected("no longer exist") { createInvoice(maria, listOf(ok, 999), issueDate) }
 
         createInvoice(maria, listOf(ok), issueDate)
-        assertRejected("already on an invoice") { createInvoice(maria, listOf(ok), issueDate) }
+        assertRejected("already on a statement") { createInvoice(maria, listOf(ok), issueDate) }
+        assertEquals(1, repos.invoices.size)
+    }
+
+    @Test
+    fun `statements take absences, excused ones at 0 and late cancellations at the fee`() = runTest {
+        val maria = repos.saveStudent(student())
+        val held = repos.saveLesson(lesson(maria, date = "2026-03-02", fee = "20"))
+        val excused = repos.saveLesson(lesson(maria, date = "2026-03-09", absent = true, absenceNote = "ill"))
+        val late = repos.saveLesson(lateCancel(maria, fee = "20").copy(date = LocalDate.parse("2026-03-16")))
+
+        val invoice = createInvoice(maria, listOf(held, excused, late), issueDate, markPaid = true)
+
+        assertEquals(euros("40"), invoice.total)
+        assertEquals(listOf("€20.00", "€0.00", "€20.00"), invoice.document!!.lines.map { it.amount })
+        assertEquals(
+            listOf(null, "Absent — not charged: ill", "Late cancellation (under 24 h) — charged"),
+            invoice.document!!.lines.map { it.note },
+        )
+        assertTrue(repos.lessons.all { it.invoiceId == invoice.id })
+        assertEquals("charged lessons are marked paid", issueDate, repos.getLesson(late)?.paidOn)
+        assertNull("an excused absence is never paid", repos.getLesson(excused)?.paidOn)
+        assertTrue(getDocument(invoice.id).paid)
+    }
+
+    @Test
+    fun `a statement of excused absences totals 0 and is paid at once`() = runTest {
+        val maria = repos.saveStudent(student())
+        val a = repos.saveLesson(lesson(maria, absent = true))
+        val b = repos.saveLesson(lesson(maria, absent = true, date = "2026-03-17"))
+
+        val invoice = createInvoice(maria, listOf(a, b), issueDate)
+
+        assertEquals(euros("0"), invoice.total)
+        assertEquals("€0.00", invoice.document!!.total)
+        assertEquals(InvoiceDocumentBuilder.DISCLAIMER, invoice.document!!.disclaimer)
+        assertTrue(getDocument(invoice.id).paid)
+        assertTrue(repos.lessons.none { it.isPaid })
+    }
+
+    @Test
+    fun `a statement with an unpaid late cancellation is not paid until it is`() = runTest {
+        val maria = repos.saveStudent(student())
+        val excused = repos.saveLesson(lesson(maria, absent = true))
+        val late = repos.saveLesson(lateCancel(maria))
+        val invoice = createInvoice(maria, listOf(excused, late), issueDate)
+
+        assertFalse(getDocument(invoice.id).paid)
+        repos.setPaid(listOf(excused, late), LocalDate.parse("2026-04-02"))
+
+        assertTrue(getDocument(invoice.id).paid)
+        assertNull("setPaid skips the excused absence", repos.getLesson(excused)?.paidOn)
     }
 
     @Test

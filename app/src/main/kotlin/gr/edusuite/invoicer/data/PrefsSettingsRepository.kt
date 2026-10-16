@@ -58,6 +58,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             defaultLessonMinutes = getInt(DEFAULT_MINUTES, defaults.defaultLessonMinutes),
             themeMode = ThemeMode.entries.firstOrNull { it.name == getString(THEME, null) } ?: defaults.themeMode,
             invoiceFooter = getString(FOOTER, null).orEmpty(),
+            showAddressOnStatements = getBoolean(SHOW_ADDRESS, defaults.showAddressOnStatements),
         )
     }
 
@@ -72,6 +73,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             putInt(DEFAULT_MINUTES, settings.defaultLessonMinutes)
             putString(THEME, settings.themeMode.name)
             putString(FOOTER, settings.invoiceFooter)
+            putBoolean(SHOW_ADDRESS, settings.showAddressOnStatements)
         }
     }
 
@@ -87,6 +89,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         private const val DEFAULT_MINUTES = "default_minutes"
         private const val THEME = "theme"
         private const val FOOTER = "invoice_footer"
+        private const val SHOW_ADDRESS = "show_address_on_statements"
 
         /** Written by versions before 2.0.0; removed on load. */
         private const val REMOVED_TAX_ID = "tax_id"

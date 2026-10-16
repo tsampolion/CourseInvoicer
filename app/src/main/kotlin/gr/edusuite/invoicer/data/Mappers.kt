@@ -3,6 +3,7 @@ package gr.edusuite.invoicer.data
 import android.content.ContentValues
 import android.database.Cursor
 import gr.edusuite.invoicer.core.invoice.InvoiceDocumentCodec
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
@@ -75,6 +76,10 @@ internal fun Cursor.toLesson() = Lesson(
     notes = string("notes"),
     paidOn = stringOrNull("paid_on")?.let(LocalDate::parse),
     invoiceId = longOrNull("invoice_id"),
+    // Only the app writes this column; an unknown value is read as the safe default, not charged.
+    absenceCharge = string("absence_charge").let { name -> AbsenceCharge.entries.firstOrNull { it.name == name } }
+        ?: AbsenceCharge.NONE,
+    absenceNote = string("absence_note"),
 )
 
 internal fun Lesson.toValues(includeId: Boolean = false) = ContentValues().apply {
@@ -89,6 +94,8 @@ internal fun Lesson.toValues(includeId: Boolean = false) = ContentValues().apply
     put("notes", notes)
     put("paid_on", paidOn?.toString())
     put("invoice_id", invoiceId)
+    put("absence_charge", absenceCharge.name)
+    put("absence_note", absenceNote)
 }
 
 internal fun Cursor.toInvoice() = Invoice(

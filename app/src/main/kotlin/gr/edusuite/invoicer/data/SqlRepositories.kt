@@ -88,6 +88,12 @@ internal fun SQLiteDatabase.allGroups(): List<StudentGroup> {
         .map { group -> group.copy(memberIds = members[group.id].orEmpty().toSet()) }
 }
 
+/**
+ * SQL for [Lesson.charge] being positive: held, or absent as a late cancellation, and not free. The one
+ * definition of a charged lesson in SQL; balances, payments and setPaid all use it (R3, R9, R12).
+ */
+internal const val CHARGED_LESSON = "((absent = 0 OR absence_charge = 'LATE_CANCELLATION') AND fee_cents > 0)"
+
 class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
     override fun observeLessonsBetween(from: LocalDate, to: LocalDate): Flow<List<Lesson>> =
         db.observe(Table.LESSONS) { it.lessons("date BETWEEN ? AND ?", from.toString(), to.toString()) }
@@ -95,18 +101,20 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
     override fun observeLessonsOfStudent(studentId: Long): Flow<List<Lesson>> =
         db.observe(Table.LESSONS) { it.lessons("student_id = ?", studentId) }
 
-    // Same rule as Lesson.isOutstanding: unpaid and charged (not absent, fee above zero).
+    // Same rule as Lesson.isOutstanding: unpaid and charged. A charged lesson's charge is its fee.
     override fun observeBalances(): Flow<List<StudentBalance>> = db.observe(Table.LESSONS) { d ->
         d.select(
             "SELECT student_id, SUM(fee_cents) AS owed, COUNT(*) AS open_count FROM lessons " +
-                "WHERE paid_on IS NULL AND absent = 0 AND fee_cents > 0 " +
+                "WHERE paid_on IS NULL AND $CHARGED_LESSON " +
                 "GROUP BY student_id ORDER BY owed DESC, student_id",
         ).readAll { StudentBalance(it.long("student_id"), Money(it.long("owed")), it.int("open_count")) }
     }
 
+    // Same rule as InvoicePayment.of: every linked lesson counts, only charged ones can be unpaid.
     override fun observeInvoicePayments(): Flow<Map<Long, InvoicePayment>> = db.observe(Table.LESSONS) { d ->
         d.select(
-            "SELECT invoice_id, COUNT(*) AS linked, SUM(CASE WHEN paid_on IS NULL THEN 1 ELSE 0 END) AS unpaid " +
+            "SELECT invoice_id, COUNT(*) AS linked, " +
+                "SUM(CASE WHEN paid_on IS NULL AND $CHARGED_LESSON THEN 1 ELSE 0 END) AS unpaid " +
                 "FROM lessons WHERE invoice_id IS NOT NULL GROUP BY invoice_id",
         ).readAll { it.long("invoice_id") to InvoicePayment(it.int("linked"), it.int("unpaid")) }.toMap()
     }
@@ -166,8 +174,9 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
     override suspend fun setPaid(ids: Collection<Long>, paidOn: LocalDate?) {
         db.write(Table.LESSONS) { d ->
             ids.distinct().chunked(InvoicerDatabase.MAX_ARGS).forEach { chunk ->
+                // Lessons that are not charged are never paid.
                 d.execSQL(
-                    "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)})",
+                    "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)}) AND $CHARGED_LESSON",
                     arrayOf<Any?>(paidOn?.toString(), *chunk.toTypedArray()),
                 )
             }
@@ -190,7 +199,7 @@ class SqlInvoiceRepository(private val db: InvoicerDatabase) : InvoiceRepository
     override fun observeUnpaidCount(): Flow<Int> = db.observe(Table.INVOICES, Table.LESSONS) { d ->
         d.count(
             "SELECT COUNT(*) FROM invoices i WHERE i.voided_on IS NULL AND EXISTS " +
-                "(SELECT 1 FROM lessons l WHERE l.invoice_id = i.id AND l.paid_on IS NULL)",
+                "(SELECT 1 FROM lessons l WHERE l.invoice_id = i.id AND l.paid_on IS NULL AND $CHARGED_LESSON)",
         )
     }
 
@@ -215,17 +224,18 @@ class SqlInvoiceRepository(private val db: InvoicerDatabase) : InvoiceRepository
             lessonIds.distinct().chunked(InvoicerDatabase.MAX_ARGS).forEach { chunk ->
                 val linked = d.compileStatement(
                     "UPDATE lessons SET invoice_id = ? " +
-                        "WHERE id IN (${placeholders(chunk.size)}) AND invoice_id IS NULL AND absent = 0",
+                        "WHERE id IN (${placeholders(chunk.size)}) AND invoice_id IS NULL",
                 ).use { statement ->
                     statement.bindLong(1, invoiceId)
                     chunk.forEachIndexed { index, id -> statement.bindLong(index + 2, id) }
                     statement.executeUpdateDelete()
                 }
                 // Throwing rolls the whole transaction back, so a lesson is never invoiced twice.
-                if (linked != chunk.size) throw DomainException("Some lessons are already on an invoice")
+                if (linked != chunk.size) throw DomainException("Some lessons are already on a statement")
                 if (paidOn != null) {
                     d.execSQL(
-                        "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)}) AND paid_on IS NULL",
+                        "UPDATE lessons SET paid_on = ? " +
+                            "WHERE id IN (${placeholders(chunk.size)}) AND paid_on IS NULL AND $CHARGED_LESSON",
                         arrayOf<Any?>(paidOn.toString(), *chunk.toTypedArray()),
                     )
                 }

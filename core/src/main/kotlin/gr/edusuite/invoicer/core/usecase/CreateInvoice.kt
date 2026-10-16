@@ -36,6 +36,10 @@ class InvoiceRenderer(
     }
 }
 
+/**
+ * Issues a statement (shown to the user as such; code and storage say invoice) for lessons of one student
+ * that are on no other statement. Absences may be included: excused ones as 0.00 lines (R4).
+ */
 class CreateInvoice(
     private val lessons: LessonRepository,
     private val invoices: InvoiceRepository,
@@ -53,13 +57,13 @@ class CreateInvoice(
         val selected = lessons.getLessons(ids)
         if (selected.size != ids.size) throw DomainException("Some lessons no longer exist")
         if (selected.any { it.studentId != studentId }) throw DomainException("All lessons must belong to the same student")
-        if (selected.any { it.isInvoiced }) throw DomainException("Some lessons are already on an invoice")
-        if (selected.any { it.absent }) throw DomainException("Absences cannot be invoiced")
+        if (selected.any { it.isInvoiced }) throw DomainException("Some lessons are already on a statement")
 
         val draft = Invoice(
             number = InvoiceNumbering.next(issueDate.year, invoices.invoiceNumbers()),
             studentId = studentId,
             issueDate = issueDate,
+            // Excused absences are 0.00 lines, so a statement of only those totals 0.00 and is paid at once (R4).
             total = selected.sumOfMoney { it.charge },
             notes = notes.trim(),
         )
@@ -77,8 +81,8 @@ class GetInvoiceDocument(
     private val renderer: InvoiceRenderer,
 ) {
     suspend operator fun invoke(invoiceId: Long): InvoiceDocument {
-        val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Invoice not found")
-        if (invoice.isVoid) throw DomainException("Invoice ${invoice.number} is void and cannot be shared")
+        val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Statement not found")
+        if (invoice.isVoid) throw DomainException("Statement ${invoice.number} is void and cannot be shared")
         val linked = lessons.getLessonsOfInvoice(invoiceId)
         // Invoices issued before documents were stored (schema 2) are frozen the first time they are shared.
         val document = invoice.document
@@ -89,8 +93,8 @@ class GetInvoiceDocument(
 
 class VoidInvoice(private val invoices: InvoiceRepository) {
     suspend operator fun invoke(invoiceId: Long, on: LocalDate) {
-        val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Invoice not found")
-        if (invoice.isVoid) throw DomainException("Invoice ${invoice.number} is already void")
+        val invoice = invoices.getInvoice(invoiceId) ?: throw DomainException("Statement not found")
+        if (invoice.isVoid) throw DomainException("Statement ${invoice.number} is already void")
         invoices.voidInvoice(invoiceId, on)
     }
 }

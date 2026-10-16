@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Returns a function that renders an invoice to PDF and opens the system share sheet. Taps while a PDF is
- * still being prepared are ignored, so a double tap opens one share sheet.
+ * Returns a function that renders a statement (an invoice in code) to PDF and opens the system share sheet.
+ * Taps while a PDF is still being prepared are ignored, so a double tap opens one share sheet.
  */
 @Composable
 fun rememberInvoiceSharer(onError: (String) -> Unit): (Long) -> Unit {
@@ -52,5 +52,5 @@ fun pdfShareIntent(uri: Uri): Intent {
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    return Intent.createChooser(send, "Share invoice")
+    return Intent.createChooser(send, "Share statement")
 }

@@ -4,6 +4,7 @@ import gr.edusuite.invoicer.core.createInvoiceUseCase
 import gr.edusuite.invoicer.core.euros
 import gr.edusuite.invoicer.core.hourly
 import gr.edusuite.invoicer.core.lesson
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.perLesson
 import gr.edusuite.invoicer.core.student
@@ -49,7 +50,7 @@ class StudentAndGroupUseCasesTest {
         VoidInvoice(repos)(invoice.id, LocalDate.parse("2026-04-01"))
         DeleteLesson(repos)(lessonId)
 
-        assertRejected("invoices") { DeleteStudent(repos, repos, repos)(maria) }
+        assertRejected("statements") { DeleteStudent(repos, repos, repos)(maria) }
         assertEquals("Maria", repos.getStudent(maria)?.firstName)
     }
 
@@ -76,8 +77,9 @@ class StudentAndGroupUseCasesTest {
         val maria = repos.saveStudent(student(rate = hourly("30")))
         val nikos = repos.saveStudent(student(firstName = "Nikos"))
         val eleni = repos.saveStudent(student(firstName = "Eleni"))
+        val kostas = repos.saveStudent(student(firstName = "Kostas"))
         val groupId = SaveGroup(repos)(
-            StudentGroup(name = " B1 English ", rate = hourly("12"), memberIds = setOf(maria, nikos, eleni)),
+            StudentGroup(name = " B1 English ", rate = hourly("12"), memberIds = setOf(maria, nikos, eleni, kostas)),
         )
 
         val ids = LogGroupLesson(repos, repos)(
@@ -85,18 +87,36 @@ class StudentAndGroupUseCasesTest {
             date = LocalDate.parse("2026-03-10"),
             startTime = LocalTime.of(18, 0),
             durationMinutes = 90,
-            studentIds = listOf(maria, nikos),
-            absentIds = setOf(nikos),
+            attendance = listOf(
+                // A present member's charge and reason are ignored.
+                Attendance(maria, charge = AbsenceCharge.LATE_CANCELLATION, note = "ignored"),
+                Attendance(nikos, absent = true, note = " ill "),
+                Attendance(eleni, absent = true, charge = AbsenceCharge.LATE_CANCELLATION, note = "cancelled at 17:00"),
+            ),
         )
 
         assertEquals("B1 English", repos.getGroup(groupId)?.name)
-        assertEquals(2, ids.size)
+        assertEquals(3, ids.size)
         val rows = repos.getLessons(ids).associateBy { it.studentId }
-        assertEquals(euros("18"), rows.getValue(maria).fee)
-        assertEquals(false, rows.getValue(maria).absent)
-        assertEquals(true, rows.getValue(nikos).absent)
-        assertEquals(euros("0"), rows.getValue(nikos).charge)
+        val present = rows.getValue(maria)
+        assertEquals(euros("18"), present.fee)
+        assertEquals(false, present.absent)
+        assertEquals(AbsenceCharge.NONE, present.absenceCharge)
+        assertEquals("", present.absenceNote)
+
+        val excused = rows.getValue(nikos)
+        assertEquals(true, excused.absent)
+        assertEquals(euros("0"), excused.charge)
+        assertEquals("ill", excused.absenceNote)
+
+        val late = rows.getValue(eleni)
+        assertEquals(true, late.absent)
+        assertEquals(AbsenceCharge.LATE_CANCELLATION, late.absenceCharge)
+        assertEquals(euros("18"), late.charge)
+        assertEquals("cancelled at 17:00", late.absenceNote)
+
         assertEquals(setOf(groupId), rows.values.map { it.groupId }.toSet())
+        assertEquals("members left out get no row", null, rows[kostas])
     }
 
     @Test
@@ -108,9 +128,12 @@ class StudentAndGroupUseCasesTest {
         val date = LocalDate.parse("2026-03-10")
         val time = LocalTime.NOON
 
-        assertRejected("at least one") { log(groupId, date, time, 60, emptyList(), emptySet()) }
-        assertRejected("not members") { log(groupId, date, time, 60, listOf(maria, outsider), emptySet()) }
-        assertRejected("must be in the session") { log(groupId, date, time, 60, listOf(maria), setOf(outsider)) }
-        assertRejected("not found") { log(999, date, time, 60, listOf(maria), emptySet()) }
+        assertRejected("at least one") { log(groupId, date, time, 60, emptyList()) }
+        assertRejected("not members") { log(groupId, date, time, 60, listOf(Attendance(maria), Attendance(outsider))) }
+        assertRejected("only once") {
+            log(groupId, date, time, 60, listOf(Attendance(maria), Attendance(maria, absent = true)))
+        }
+        assertRejected("not found") { log(999, date, time, 60, listOf(Attendance(maria))) }
+        assertEquals("nothing was logged", 0, repos.lessons.size)
     }
 }

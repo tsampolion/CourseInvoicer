@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoicePayment
@@ -139,11 +140,20 @@ class SqlRepositoriesTest {
         assertTrue(lessons.getLessons(ids).all { it.date == LocalDate.parse("2026-03-20") && it.startTime == LocalTime.of(9, 30) })
     }
 
+    private fun lateCancel(studentId: Long, fee: Long = 2000, note: String = "") =
+        lesson(studentId, fee = fee).copy(
+            absent = true,
+            absenceCharge = AbsenceCharge.LATE_CANCELLATION,
+            absenceNote = note,
+        )
+
     @Test
     fun backupRestoreReplacesEverything() = runTest {
         val maria = student()
         val lessonId = lessons.saveLesson(lesson(maria))
-        createInvoice(maria, listOf(lessonId), march31)
+        val excused = lessons.saveLesson(lesson(maria, "2026-03-11").copy(absent = true, absenceNote = "ill"))
+        lessons.saveLesson(lateCancel(maria, note = "cancelled at 16:00").copy(paidOn = march31))
+        createInvoice(maria, listOf(lessonId, excused), march31)
         val backups = SqlBackupRepository(db, InMemorySettingsRepository())
         val snapshot = backups.readAll()
 
@@ -263,14 +273,43 @@ class SqlRepositoriesTest {
         val nikos = student("Nikos")
         val a = lessons.saveLesson(lesson(maria, fee = 2000))
         val b = lessons.saveLesson(lesson(maria, fee = 1500).copy(paidOn = march31))
+        val excused = lessons.saveLesson(lesson(maria, fee = 2000).copy(absent = true))
+        val late = lessons.saveLesson(lateCancel(maria, fee = 2500))
         lessons.saveLesson(lesson(nikos, fee = 3000))
         lessons.saveLesson(lesson(nikos, fee = 900).copy(absent = true))
+        lessons.saveLesson(lateCancel(nikos, fee = 1200))
         lessons.saveLesson(lesson(nikos, fee = 0))
-        val invoice = createInvoice(maria, listOf(a, b), march31)
-        val all = lessons.getLessons(listOf(a, b)) + lessons.observeLessonsOfStudent(nikos).first()
+        val invoice = createInvoice(maria, listOf(a, b, excused, late), march31)
+        val onlyExcused = lessons.saveLesson(lesson(nikos, "2026-03-20", fee = 1500).copy(absent = true))
+        val zero = createInvoice(nikos, listOf(onlyExcused), march31)
+        val all = lessons.observeLessonsOfStudent(maria).first() + lessons.observeLessonsOfStudent(nikos).first()
 
         assertEquals(Reports.balances(all), lessons.observeBalances().first())
-        assertEquals(mapOf(invoice.id to InvoicePayment(2, 1)), lessons.observeInvoicePayments().first())
+        assertEquals(Money(4200), lessons.observeBalances().first().single { it.studentId == nikos }.outstanding)
+        val payments = lessons.observeInvoicePayments().first()
+        assertEquals(mapOf(invoice.id to InvoicePayment(4, 2), zero.id to InvoicePayment(1, 0)), payments)
+        assertEquals(Money.ZERO, zero.total)
+        assertTrue("a statement of excused absences is paid at once", payments.getValue(zero.id).isPaid)
+    }
+
+    @Test
+    fun absencesGoOnStatementsAndOnlyChargedLessonsArePaid() = runTest {
+        val maria = student()
+        val excused = lessons.saveLesson(lesson(maria).copy(absent = true, absenceNote = "ill"))
+        val late = lessons.saveLesson(lateCancel(maria))
+        val free = lessons.saveLesson(lesson(maria, fee = 0))
+
+        // The SQL guard no longer refuses absences; markPaid pays only what is charged.
+        val invoice = createInvoice(maria, listOf(excused, late), march31, markPaid = true)
+        assertEquals(Money(2000), invoice.total)
+        assertTrue(lessons.getLessons(listOf(excused, late)).all { it.invoiceId == invoice.id })
+        assertNull(lessons.getLesson(excused)?.paidOn)
+        assertEquals(march31, lessons.getLesson(late)?.paidOn)
+        assertEquals("ill", lessons.getLesson(excused)?.absenceNote)
+
+        lessons.setPaid(listOf(excused, free), march31)
+        assertNull("setPaid skips an excused absence", lessons.getLesson(excused)?.paidOn)
+        assertNull("setPaid skips a free lesson", lessons.getLesson(free)?.paidOn)
     }
 
     @Test
@@ -301,6 +340,14 @@ class SqlRepositoriesTest {
 
         lessons.setPaid(listOf(open), march31)
         assertEquals(0, invoices.observeUnpaidCount().first())
+
+        // Only charged lessons can leave a statement unpaid: excused absences never do, late cancellations do.
+        val excused = lessons.saveLesson(lesson(maria, fee = 2500).copy(absent = true))
+        createInvoice(maria, listOf(excused), march31)
+        assertEquals(0, invoices.observeUnpaidCount().first())
+        val late = lessons.saveLesson(lateCancel(maria, fee = 2500))
+        createInvoice(maria, listOf(late), march31)
+        assertEquals(1, invoices.observeUnpaidCount().first())
     }
 
     @Test
@@ -332,7 +379,59 @@ class SqlRepositoriesTest {
         assertEquals(issued, invoices.getInvoice(invoice.id)?.document)
     }
 
+    @Test
+    fun upgradesAVersion3DatabaseWithoutLosingData() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "migration-v3-test.db"
+        context.deleteDatabase(name)
+        context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { v3 ->
+            V1_SCHEMA.forEach(v3::execSQL)
+            V2_CHANGES.forEach(v3::execSQL)
+            V3_CHANGES.forEach(v3::execSQL)
+            v3.execSQL("INSERT INTO students (first_name, rate_cents, rate_type) VALUES ('Maria', 2000, 'HOURLY')")
+            v3.execSQL(
+                "INSERT INTO invoices (number, student_id, issue_date, total_cents, document) " +
+                    "VALUES ('2026-0001', 1, '2026-03-31', 2000, NULL)",
+            )
+            v3.execSQL(
+                "INSERT INTO lessons (student_id, date, start_time, duration_minutes, fee_cents, paid_on, " +
+                    "invoice_id) VALUES (1, '2026-03-10', '17:00', 60, 2000, '2026-03-12', 1)",
+            )
+            v3.execSQL(
+                "INSERT INTO lessons (student_id, date, start_time, duration_minutes, fee_cents, absent, notes) " +
+                    "VALUES (1, '2026-03-17', '17:00', 60, 2000, 1, 'sick')",
+            )
+            v3.version = 3
+        }
+
+        val upgraded = InvoicerDatabase(context, name = name)
+        try {
+            val upgradedLessons = SqlLessonRepository(upgraded)
+            val (absent, held) = upgradedLessons.observeLessonsOfStudent(1).first()
+            assertEquals(LocalDate.parse("2026-03-12"), held.paidOn)
+            assertEquals(1L, held.invoiceId)
+            assertEquals(AbsenceCharge.NONE, held.absenceCharge)
+            assertTrue("an old absence stays excused", absent.isExcused)
+            assertEquals("sick", absent.notes)
+            assertEquals("", absent.absenceNote)
+            assertEquals(Money.ZERO, absent.charge)
+            assertEquals("2026-0001", SqlInvoiceRepository(upgraded).getInvoice(1)?.number)
+
+            // The new columns work after the upgrade.
+            val id = upgradedLessons.saveLesson(lateCancel(1, note = "late"))
+            assertEquals(AbsenceCharge.LATE_CANCELLATION, upgradedLessons.getLesson(id)?.absenceCharge)
+            assertEquals("late", upgradedLessons.getLesson(id)?.absenceNote)
+            assertEquals(InvoicerDatabase.VERSION, upgraded.readableDatabase.version)
+        } finally {
+            upgraded.close()
+            context.deleteDatabase(name)
+        }
+    }
+
     private companion object {
+        /** Frozen copy of the version 3 changes (2.0.0-alpha03). Never edit. */
+        val V3_CHANGES = listOf("ALTER TABLE invoices ADD COLUMN document TEXT")
+
         /** Frozen copy of the version 2 changes (2.0.0-alpha02). Never edit. */
         val V2_CHANGES = listOf("ALTER TABLE invoices ADD COLUMN voided_on TEXT")
 

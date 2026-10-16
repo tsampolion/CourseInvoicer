@@ -2,6 +2,7 @@ package gr.edusuite.invoicer.ui.groups
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -9,6 +10,7 @@ import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
+import gr.edusuite.invoicer.core.usecase.Attendance
 import gr.edusuite.invoicer.core.usecase.LogGroupLesson
 import gr.edusuite.invoicer.core.usecase.MAX_LESSON_MINUTES
 import gr.edusuite.invoicer.ui.common.launchCatching
@@ -22,7 +24,23 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-data class Attendee(val student: Student, val present: Boolean = true)
+/** How a member took part in a group lesson (R3). */
+enum class Presence {
+    PRESENT,
+
+    /** Absent and excused: recorded, not charged. */
+    ABSENT,
+
+    /** Cancelled under 24 hours before: charged the full fee. */
+    LATE_CANCEL,
+}
+
+data class Attendee(val student: Student, val presence: Presence = Presence.PRESENT, val reason: String = "") {
+    val present: Boolean get() = presence == Presence.PRESENT
+
+    /** Present members and late cancellations are charged. */
+    val charged: Boolean get() = presence != Presence.ABSENT
+}
 
 data class GroupLessonUiState(
     val loading: Boolean = true,
@@ -40,6 +58,7 @@ data class GroupLessonUiState(
     val minutes: Int? get() = duration.toIntOrNull()?.takeIf { it in 1..MAX_LESSON_MINUTES }
     val feePerStudent: Money? get() = minutes?.let { group?.rate?.feeFor(it) }
     val presentCount: Int get() = attendees.count { it.present }
+    val chargedCount: Int get() = attendees.count { it.charged }
 }
 
 class GroupLessonViewModel(
@@ -78,8 +97,13 @@ class GroupLessonViewModel(
 
     fun setNotes(text: String) = mutableState.update { it.copy(notes = text) }
 
-    fun togglePresent(studentId: Long) = mutableState.update { state ->
-        state.copy(attendees = state.attendees.map { if (it.student.id == studentId) it.copy(present = !it.present) else it })
+    fun setPresence(studentId: Long, presence: Presence) = updateAttendee(studentId) { it.copy(presence = presence) }
+
+    /** The reason for an absence; kept if the member is marked present again, but not saved then. */
+    fun setReason(studentId: Long, text: String) = updateAttendee(studentId) { it.copy(reason = text) }
+
+    private fun updateAttendee(studentId: Long, transform: (Attendee) -> Attendee) = mutableState.update { state ->
+        state.copy(attendees = state.attendees.map { if (it.student.id == studentId) transform(it) else it })
     }
 
     fun save() {
@@ -96,8 +120,18 @@ class GroupLessonViewModel(
                 date = current.date,
                 startTime = current.time,
                 durationMinutes = minutes,
-                studentIds = current.attendees.map { it.student.id },
-                absentIds = current.attendees.filterNot { it.present }.map { it.student.id }.toSet(),
+                attendance = current.attendees.map { attendee ->
+                    Attendance(
+                        studentId = attendee.student.id,
+                        absent = !attendee.present,
+                        charge = if (attendee.presence == Presence.LATE_CANCEL) {
+                            AbsenceCharge.LATE_CANCELLATION
+                        } else {
+                            AbsenceCharge.NONE
+                        },
+                        note = attendee.reason,
+                    )
+                },
                 notes = current.notes,
             )
             mutableState.update { it.copy(saving = false, done = true) }
