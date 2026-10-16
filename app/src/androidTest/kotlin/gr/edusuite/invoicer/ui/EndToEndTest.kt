@@ -1,5 +1,6 @@
 package gr.edusuite.invoicer.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
@@ -8,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import gr.edusuite.invoicer.CourseInvoicerApplication
@@ -31,11 +34,21 @@ class EndToEndTest {
         compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMillis = 10_000)
     }
 
+    /**
+     * Opens a section from its Home button. On a small screen the lower buttons start below the fold and the
+     * "Log lesson" button can sit over them, so this scrolls to the button and clicks it through its semantics.
+     */
+    private fun openFromHome(title: String) {
+        compose.onNodeWithText(title).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+    }
+
     @Test
     fun studentLessonInvoiceAndVoid() {
         val name = "E2E${System.currentTimeMillis() % 1_000_000}"
 
-        compose.onNodeWithText("Students").performClick()
+        // Home is the launcher: each section opens from its button.
+        compose.onNodeWithText("Welcome to Course Invoicer").assertExists()
+        openFromHome("Students")
         compose.onNodeWithContentDescription("Add student").performClick()
         compose.onNodeWithText("First name *").performTextInput(name)
         compose.onNodeWithText("Hourly rate *").performTextInput("20")
@@ -57,9 +70,11 @@ class EndToEndTest {
         compose.onNodeWithText("Done").performClick()
         waitFor("Record payment")
 
-        // Back to the Students tab, then void the invoice from the Invoices tab; it stays listed as void.
+        // Back to Students, back to Home, then void the invoice from Statements; it stays listed as void.
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Invoices").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+        waitFor("unpaid", substring = true)
+        openFromHome("Statements")
         waitFor(name, substring = true)
         compose.onNodeWithContentDescription("Void invoice", substring = true).performClick()
         compose.onNodeWithText("Void").performClick()
@@ -71,7 +86,7 @@ class EndToEndTest {
         val name = "Tutor${System.currentTimeMillis() % 1_000_000}"
         val settings = (compose.activity.application as CourseInvoicerApplication).container.settingsRepository
 
-        compose.onNodeWithContentDescription("Settings").performClick()
+        openFromHome("Settings")
         compose.onNodeWithText("Name or business name").performTextInput(name)
         compose.onAllNodesWithText("Save").assertCountEquals(0)
 
@@ -79,7 +94,7 @@ class EndToEndTest {
         compose.onNodeWithContentDescription("Back").performClick()
         compose.waitUntil(timeoutMillis = 10_000) { settings.settings.value.business.name == name }
 
-        compose.onNodeWithContentDescription("Settings").performClick()
+        openFromHome("Settings")
         waitFor(name)
     }
 }

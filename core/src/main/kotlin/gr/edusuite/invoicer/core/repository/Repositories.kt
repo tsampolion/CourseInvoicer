@@ -52,6 +52,12 @@ interface LessonRepository {
     /** Payment progress of every invoice that has lessons, by invoice id. */
     fun observeInvoicePayments(): Flow<Map<Long, InvoicePayment>>
 
+    /** How many lessons there are in all. */
+    fun observeLessonCount(): Flow<Int>
+
+    /** How many lessons are on no invoice yet, absences included. */
+    fun observeUninvoicedCount(): Flow<Int>
+
     suspend fun getLesson(id: Long): Lesson?
 
     suspend fun getLessons(ids: Collection<Long>): List<Lesson>
@@ -78,6 +84,15 @@ interface LessonRepository {
 
 interface InvoiceRepository {
     fun observeInvoices(): Flow<List<Invoice>>
+
+    /** How many invoices there are in all, void ones included. */
+    fun observeInvoiceCount(): Flow<Int>
+
+    /**
+     * How many invoices are not void and not yet paid: the invoices whose [InvoicePayment.isPaid] (from
+     * [LessonRepository.observeInvoicePayments]) is false although they have lessons.
+     */
+    fun observeUnpaidCount(): Flow<Int>
 
     suspend fun getInvoice(id: Long): Invoice?
 

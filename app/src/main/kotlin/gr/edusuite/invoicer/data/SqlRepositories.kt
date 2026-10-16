@@ -111,6 +111,12 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
         ).readAll { it.long("invoice_id") to InvoicePayment(it.int("linked"), it.int("unpaid")) }.toMap()
     }
 
+    override fun observeLessonCount(): Flow<Int> =
+        db.observe(Table.LESSONS) { it.count("SELECT COUNT(*) FROM lessons") }
+
+    override fun observeUninvoicedCount(): Flow<Int> =
+        db.observe(Table.LESSONS) { it.count("SELECT COUNT(*) FROM lessons WHERE invoice_id IS NULL") }
+
     override suspend fun getLesson(id: Long): Lesson? = db.read { it.lessons("id = ?", id).firstOrNull() }
 
     override suspend fun getLessons(ids: Collection<Long>): List<Lesson> = db.read { d ->
@@ -169,12 +175,27 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
     }
 }
 
+/** Runs a `SELECT COUNT(*) …` and returns the count. */
+private fun SQLiteDatabase.count(sql: String): Int = select(sql).readAll { it.getInt(0) }.first()
+
 internal fun SQLiteDatabase.lessons(where: String, vararg args: Any): List<Lesson> =
     select("SELECT * FROM lessons WHERE $where ORDER BY date DESC, start_time DESC, id", *args)
         .readAll { it.toLesson() }
 
 class SqlInvoiceRepository(private val db: InvoicerDatabase) : InvoiceRepository {
     override fun observeInvoices(): Flow<List<Invoice>> = db.observe(Table.INVOICES) { it.allInvoices() }
+
+    // Same rule as InvoicePayment.isPaid over observeInvoicePayments: an invoice that is not void and has at
+    // least one linked lesson that is unpaid. A void invoice has released its lessons, so it never counts.
+    override fun observeUnpaidCount(): Flow<Int> = db.observe(Table.INVOICES, Table.LESSONS) { d ->
+        d.count(
+            "SELECT COUNT(*) FROM invoices i WHERE i.voided_on IS NULL AND EXISTS " +
+                "(SELECT 1 FROM lessons l WHERE l.invoice_id = i.id AND l.paid_on IS NULL)",
+        )
+    }
+
+    override fun observeInvoiceCount(): Flow<Int> =
+        db.observe(Table.INVOICES) { it.count("SELECT COUNT(*) FROM invoices") }
 
     override suspend fun getInvoice(id: Long): Invoice? = db.read { d ->
         d.select("SELECT * FROM invoices WHERE id = ?", id).readAll { it.toInvoice() }.firstOrNull()

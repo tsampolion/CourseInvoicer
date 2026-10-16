@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -73,7 +72,7 @@ inline fun <reified VM : ViewModel> appViewModel(crossinline create: (AppContain
     return viewModel { create(container) }
 }
 
-/** Scaffold with a top bar; pass [onBack] for detail screens and [bottomBar] for top-level ones. */
+/** Scaffold with a top bar; pass [onBack] for a Back arrow (every screen but Home has one). */
 @Composable
 fun ScreenScaffold(
     title: String,
@@ -262,18 +261,6 @@ fun MonthSwitcher(month: YearMonth, onPrevious: () -> Unit, onNext: () -> Unit, 
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onNext) { Icon(AppIcons.ChevronRight, contentDescription = "Next month") }
-    }
-}
-
-@Composable
-fun EmptyState(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
     }
 }
 

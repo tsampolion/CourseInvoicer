@@ -12,6 +12,7 @@ import gr.edusuite.invoicer.core.testing.InMemoryRepositories
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
 import gr.edusuite.invoicer.data.BackupFiles
+import gr.edusuite.invoicer.ui.dashboard.DashboardViewModel
 import gr.edusuite.invoicer.ui.groups.GroupEditViewModel
 import gr.edusuite.invoicer.ui.home.HomeViewModel
 import gr.edusuite.invoicer.ui.invoices.InvoicesViewModel
@@ -59,14 +60,14 @@ class ViewModelsTest {
     )
 
     @Test
-    fun `home summarises the month and lists who owes`() = runTest {
+    fun `dashboard summarises the month and lists who owes`() = runTest {
         val maria = addStudent("Maria")
         val nikos = addStudent("Nikos")
         repos.saveLesson(lesson(maria, "2026-03-10", 2000))
         repos.saveLesson(lesson(maria, "2026-03-12", 1500, paidOn = "2026-03-12"))
         repos.saveLesson(lesson(nikos, "2026-02-20", 3000))
 
-        val viewModel = HomeViewModel(repos, repos, today = LocalDate.parse("2026-03-15"))
+        val viewModel = DashboardViewModel(repos, repos, today = LocalDate.parse("2026-03-15"))
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
         val state = viewModel.state.value
@@ -78,6 +79,39 @@ class ViewModelsTest {
 
         viewModel.previousMonth()
         assertEquals(Money(3000), viewModel.state.value.summary.earned)
+    }
+
+    @Test
+    fun `home counts each section and dims the empty ones`() = runTest {
+        val viewModel = HomeViewModel(repos, repos, repos, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        val empty = viewModel.state.value
+        assertFalse(empty.loading)
+        assertTrue(empty.studentsEmpty && empty.groupsEmpty && empty.lessonsEmpty && empty.statementsEmpty)
+        assertFalse("no student to log a lesson for", empty.canLogLesson)
+
+        val maria = addStudent("Maria")
+        repos.saveStudent(Student(firstName = "Old", rate = Rate(Money(2000), RateType.HOURLY), archived = true))
+        repos.saveGroup(StudentGroup(name = "B1", rate = Rate(Money(1200), RateType.HOURLY)))
+        val a = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val b = repos.saveLesson(lesson(maria, "2026-03-11", 1500))
+        repos.saveLesson(lesson(maria, "2026-03-12", 1000))
+        createInvoice(maria, listOf(a, b), LocalDate.parse("2026-03-31"))
+
+        val state = viewModel.state.value
+        assertEquals("archived students are not counted", 1, state.activeStudents)
+        assertEquals(1, state.activeGroups)
+        assertEquals(3, state.lessons)
+        assertEquals(1, state.uninvoicedLessons)
+        assertEquals(1, state.statements)
+        assertEquals(1, state.unpaidStatements)
+        assertEquals(Money(4500), state.outstanding)
+        assertFalse(state.studentsEmpty || state.groupsEmpty || state.lessonsEmpty || state.statementsEmpty)
+        assertTrue(state.canLogLesson)
+
+        repos.setPaid(listOf(a, b), LocalDate.parse("2026-04-01"))
+        assertEquals(0, viewModel.state.value.unpaidStatements)
     }
 
     @Test

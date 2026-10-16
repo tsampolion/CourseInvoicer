@@ -69,7 +69,9 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 - **Navigation.** `ui/nav/Navigation.kt`: `Route` is a sealed interface with plain-id arguments, so
   routes save as strings. `Navigator` is an Activity-scoped ViewModel that keeps the back stack,
   mirrors it into `SavedStateHandle` (it survives process death), and gives each entry its own
-  `ViewModelStore`, cleared when the entry is popped (D3).
+  `ViewModelStore`, cleared when the entry is popped (D3). There are no tabs: `Home` is the launcher
+  and always the bottom of the stack, each section opens from a `HomeButton` on it, and every other
+  screen has a Back arrow.
 - **Invoices.** `CreateInvoice` freezes an `InvoiceDocument` when the invoice is issued (R12).
   `InvoiceExporter` renders it with `InvoicePdfWriter` (framework `PdfDocument`) and shares it
   through `FileProvider`.
@@ -109,10 +111,10 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 | `app/…/AppContainer.kt` | The object graph |
 | `app/…/MainActivity.kt` | Theme, edge-to-edge, `LocalAppContainer`, the root composable |
 | `app/…/data` | `InvoicerDatabase` (schema, migrations), SQL repositories, settings, backup files, PDF |
-| `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch and the bottom bar |
+| `app/…/ui/CourseInvoicerApp.kt` | Route → screen dispatch |
 | `app/…/ui/nav/Navigation.kt` | `Route`, `Navigator`, `NavHost` |
-| `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen |
-| `app/…/ui/common` | Shared components (`CommitField` for fields that save as you type), icons, `appViewModel {}`, `launchCatching`; `SuiteComponents.kt` holds the EduSuite pieces (`Section`, `Eyebrow`, `MoneyText`, `Logo`, `HomeButton`, `GuideCard`, `SuitePanel`) |
+| `app/…/ui/<feature>` | `XxxScreen.kt` and `XxxViewModel.kt` per screen; `ui/home` is the launcher, `ui/dashboard` the month's figures and who owes |
+| `app/…/ui/common` | Shared components (`CommitField` for fields that save as you type), icons, `appViewModel {}`, `launchCatching`; `SuiteComponents.kt` holds the EduSuite pieces (`Section`, `Eyebrow`, `MoneyText`, `Logo`, `HomeButton`, `GuideCard`, `SuitePanel`); `EmptyState.kt` the empty-list badge |
 | `app/…/ui/theme` | `InvoicerTheme` (`Theme.kt`, no dynamic colour), tokens and `Invoicer.colors` extras (`Color.kt`), `Typography` and `Mono` (`Type.kt`), `Shapes` (`Shape.kt`), all from the style guide |
 | `app/src/test` | JVM tests: `ViewModelsTest`, `NavigatorTest` |
 | `app/src/androidTest` | Emulator tests: `SqlRepositoriesTest` (SQL, migrations), `EndToEndTest` |
@@ -145,7 +147,9 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 2. Write `XxxViewModel(…repositories)` and
    `XxxScreen(…, viewModel = appViewModel { XxxViewModel(it.…) })`.
 3. Dispatch the route in `ui/CourseInvoicerApp.kt`.
-4. A new bottom-bar tab also goes in `Route.tabs` and gets its own branch in `AppBottomBar`.
+4. A new section gets a `HomeButton` on `ui/home/HomeScreen.kt` with a live subtitle from a
+   repository count or aggregate (never a full-history load) and `empty` when it has nothing yet.
+   Its screen takes `onBack`, like every screen but Home.
 
 **Write to the database**
 - Use `db.write(Table…)` and list every table you touch, so open screens refresh. A write always

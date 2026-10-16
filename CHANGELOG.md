@@ -33,8 +33,19 @@ EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
   off, so the app looks the same on every phone.
 - **New launcher icon**: an open book with a euro sign on a purple tile, drawn as a vector, with a
   matching themed icon on Android 13 and later.
+- **Launcher Home**: the app opens on the EduSuite home header (logo, *Welcome to Course Invoicer*,
+  *part of EduSuite apps*) and one button per section, each with a live figure: the outstanding
+  total on Dashboard, active students, groups, lessons not yet invoiced, unpaid statements, and
+  Settings. A section with nothing in it yet shows its button faded, and the button still opens it.
+  *Log lesson* is one tap away once there is a student. The figures are counted in SQL, so Home
+  never loads the lesson history.
+- **Empty lists explain themselves**: Students, Groups, Lessons and Invoices show an icon, a title
+  and a line of help when they have nothing to show, with a button to add the first student or
+  group.
 
 ### Changed
+- **The bottom tab bar is gone**: every section opens from Home and has a Back arrow to it. The
+  month's figures, the outstanding total and who owes move from Home to the new **Dashboard**.
 - **Renamed to Course Invoicer** (D17). The app has a new `applicationId`, `gr.edusuite.invoicer`,
   so it installs beside EduInvoice instead of over it. To move your data: in EduInvoice, *Settings →
   Export*; install Course Invoicer; *Settings → Import* that file; then uninstall EduInvoice.

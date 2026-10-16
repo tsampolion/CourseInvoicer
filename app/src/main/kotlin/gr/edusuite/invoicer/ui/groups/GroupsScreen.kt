@@ -31,10 +31,10 @@ import gr.edusuite.invoicer.ui.students.rateLabel
 
 @Composable
 fun GroupsScreen(
+    onBack: () -> Unit,
     onOpenGroup: (Long) -> Unit,
     onLogLesson: (Long) -> Unit,
     onAddGroup: () -> Unit,
-    bottomBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GroupsViewModel = appViewModel { GroupsViewModel(it.groupRepository, it.studentRepository) },
 ) {
@@ -43,10 +43,10 @@ fun GroupsScreen(
     ScreenScaffold(
         title = "Groups",
         modifier = modifier,
+        onBack = onBack,
         floatingActionButton = {
             FloatingActionButton(onClick = onAddGroup) { Icon(AppIcons.Add, contentDescription = "Add group") }
         },
-        bottomBar = bottomBar,
     ) { padding ->
         Column(Modifier.padding(padding)) {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,8 +63,18 @@ fun GroupsScreen(
             }
             when {
                 state.loading -> Unit
-                state.totalCount == 0 -> EmptyState("No groups yet. Create one to log lessons for several students at once.")
-                state.rows.isEmpty() -> EmptyState("No groups here.")
+                state.totalCount == 0 -> EmptyState(
+                    icon = AppIcons.Group,
+                    title = "No groups yet",
+                    message = "Create a group to log one lesson for several students at once.",
+                    actionLabel = "Create a group",
+                    onAction = onAddGroup,
+                )
+                state.rows.isEmpty() -> EmptyState(
+                    icon = AppIcons.Group,
+                    title = "No groups here",
+                    message = "Switch between Active and Archived to see the others.",
+                )
                 else -> LazyColumn {
                     items(state.rows, key = { it.group.id }) { row ->
                         ListItem(
