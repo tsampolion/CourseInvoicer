@@ -30,7 +30,7 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 2 | Undo for destructive actions | Not started | L |
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
-| 5 | Golden tests for the billing engine | Partial | S |
+| 5 | Golden tests for the billing engine | Done | S |
 | 6 | Automatic tag and GitHub release | In review | S |
 | 7 | CI on every branch | In review | S |
 | 8 | Saving and corrupt data | Partial | M |
@@ -145,31 +145,6 @@ the outstanding total and who owes. Nothing flags setup gaps. Blank business det
 
 **Done when** each problem appears on Home within one screen refresh of being caused, and disappears
 once fixed.
-
-## 5. Golden tests for the billing engine
-
-**Today.** `MoneyTest`, `ReportsTest`, `InvoiceNumberingTest`, `InvoiceDocumentTest` and the
-use-case tests cover the rules. Gaps:
-- half-up rounding (R1) isn't pinned: the only tie tested gives the same answer under half-even;
-- no tests at 1 or 720 minutes;
-- `Money` arithmetic is unchecked `Long` maths, and rates have no upper limit;
-- formatting is only tested in UK English with EUR. Nothing covers Greek, or currencies with no
-  minor unit (JPY) or three decimals (KWD). `Formats` always prints two decimals and falls back to
-  EUR silently;
-- the 9-digit limit on invoice numbers is untested.
-
-**Tasks**
-- [ ] Rounding: `Rate(Money(10), HOURLY).feeFor(15)` is 3 cents (2.5 rounds up); add more ties.
-- [ ] Bounds: 1 and 720 minutes. Set a maximum rate in `SaveStudent` / `SaveGroup` (for example
-      €100,000) so `feeFor` can never overflow, with a `DomainException` message.
-- [ ] Formatting: add `el-GR` cases. Decide the policy for currencies without two decimals: either
-      restrict the currency list to two-decimal currencies (R13), or format by
-      `Currency.defaultFractionDigits`. Record the choice in the spec.
-- [ ] Numbering: the year rollover and the 9-digit limit.
-- [ ] A golden table test: about 20 rows of (rate, type, minutes) → fee, written once by hand and
-      never regenerated.
-
-**Done when** each rule in R1, R5 and R13 has at least one test that would fail if it changed.
 
 ## 6. Automatic tag and GitHub release
 
@@ -307,4 +282,20 @@ These came up during the comparison but aren't among the 13 items.
 
 ## Done
 
-Nothing yet. Move items here with the version they shipped in.
+### Item 5 — 2.1.0: golden tests for the billing engine
+
+Billing now has 22 hand-written golden cases, duration bounds, rate-cap validation on save and
+restore, Greek formatting coverage and a guarded nine-digit statement sequence. The app uses euros
+only (D21), while retaining backup compatibility with 2.0.0.
+
+**Tasks**
+- [x] Rounding: `Rate(Money(10), HOURLY).feeFor(15)` is 3 cents (2.5 rounds up); add more ties.
+- [x] Bounds: 1 and 720 minutes. Set a maximum rate in `SaveStudent` / `SaveGroup` (for example
+      €100,000) so `feeFor` can never overflow, with a `DomainException` message.
+- [x] Formatting: add `el-GR` cases. The app is euro only (D21); legacy backup amounts are
+      imported unchanged and new backups keep the EUR field for 2.0.0 readers.
+- [x] Numbering: the year rollover and the 9-digit limit.
+- [x] A golden table test: about 20 rows of (rate, type, minutes) → fee, written once by hand and
+      never regenerated.
+
+**Done when** each rule in R1, R5 and R13 has at least one test that would fail if it changed.
