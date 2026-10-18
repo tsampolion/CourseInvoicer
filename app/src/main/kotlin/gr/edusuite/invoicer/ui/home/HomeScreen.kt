@@ -167,17 +167,6 @@ fun HomeScreen(
             modifier = tileModifier,
         )
     }
-    val settings: @Composable (Modifier) -> Unit = { tileModifier ->
-        Tile(
-            title = "Settings",
-            subtitle = "Your details, theme and backup",
-            icon = AppIcons.Settings,
-            onClick = onOpenSettings,
-            color = colors.surfaceContainer,
-            modifier = tileModifier,
-        )
-    }
-
     Scaffold(
         modifier = modifier,
         floatingActionButton = {
@@ -225,7 +214,6 @@ fun HomeScreen(
                             students(full)
                             dashboard(full)
                             groups(full)
-                            settings(full)
                         }
                     } else {
                         // A two-column bento: the most-used sections are tall, the rest short.
@@ -239,8 +227,7 @@ fun HomeScreen(
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s)) {
                                 statements(tall)
-                                dashboard(short)
-                                settings(short)
+                                dashboard(tall)
                             }
                         }
                     }

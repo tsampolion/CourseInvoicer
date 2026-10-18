@@ -112,7 +112,7 @@ class EndToEndTest {
         val name = "Tutor${System.currentTimeMillis() % 1_000_000}"
         val settings = (compose.activity.application as CourseInvoicerApplication).container.settingsRepository
 
-        openFromHome("Settings")
+        compose.onNodeWithContentDescription("Open settings").performClick()
         compose.onNodeWithText("Name or business name").performTextInput(name)
         compose.onAllNodesWithText("Save").assertCountEquals(0)
 
@@ -120,7 +120,7 @@ class EndToEndTest {
         compose.onNodeWithContentDescription("Back").performClick()
         compose.waitUntil(timeoutMillis = 10_000) { settings.settings.value.business.name == name }
 
-        openFromHome("Settings")
+        compose.onNodeWithContentDescription("Open settings").performClick()
         waitFor(name)
     }
 }
