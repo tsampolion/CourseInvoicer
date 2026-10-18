@@ -24,6 +24,33 @@ class InMemoryRepositoriesTest {
     private val repos = InMemoryRepositories()
     private val issueDate = LocalDate.parse("2026-03-31")
 
+    @Test fun `restoreLesson inserts an explicit id refuses duplicates and checks foreign keys`() = runTest {
+        val student = repos.saveStudent(student())
+        val row = lesson(student, id = 900)
+        repos.restoreLesson(row)
+        assertEquals(row, repos.getLesson(900))
+        assertEquals("This lesson already exists", runCatching { repos.restoreLesson(row) }.exceptionOrNull()?.message)
+        assertTrue(runCatching { repos.restoreLesson(row.copy(id = 901, studentId = -1)) }.isFailure)
+        assertNull(repos.getLesson(901))
+        assertTrue(repos.saveLesson(lesson(student)) > 900)
+    }
+
+    @Test fun `restorePaid restores mixed values atomically and refuses missing or uncharged rows`() = runTest {
+        val student = repos.saveStudent(student())
+        val a = repos.saveLesson(lesson(student))
+        val b = repos.saveLesson(lesson(student))
+        val excused = repos.saveLesson(lesson(student, absent = true))
+        repos.setPaid(listOf(a, b), issueDate)
+        repos.restorePaid(mapOf(a to issueDate.minusDays(2), b to null))
+        assertEquals(issueDate.minusDays(2), repos.getLesson(a)?.paidOn)
+        assertNull(repos.getLesson(b)?.paidOn)
+        val before = repos.lessons
+        assertTrue(runCatching { repos.restorePaid(mapOf(a to null, -1L to null)) }.exceptionOrNull() is DomainException)
+        assertEquals(before, repos.lessons)
+        assertTrue(runCatching { repos.restorePaid(mapOf(a to null, excused to issueDate)) }.exceptionOrNull() is DomainException)
+        assertEquals(before, repos.lessons)
+    }
+
     @Test
     fun `invoices block deleting their student like ON DELETE RESTRICT`() = runTest {
         val maria = repos.saveStudent(student())

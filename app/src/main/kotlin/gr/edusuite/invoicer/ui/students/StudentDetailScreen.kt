@@ -50,7 +50,7 @@ import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
 import gr.edusuite.invoicer.ui.lessons.LessonRow
 
-private enum class PendingAction { Payment, Archive, Delete }
+private enum class PendingAction { Delete }
 
 @Composable
 fun StudentDetailScreen(
@@ -68,7 +68,7 @@ fun StudentDetailScreen(
             groups = it.groupRepository,
             lessons = it.lessonRepository,
             invoices = it.invoiceRepository,
-            settings = it.settingsRepository,
+            settings = it.settingsRepository, messages = it.messages,
         )
     },
 ) {
@@ -104,7 +104,7 @@ fun StudentDetailScreen(
                         text = { Text(if (student.archived) "Restore" else "Archive") },
                         onClick = {
                             menuOpen = false
-                            if (student.archived) viewModel.setArchived(false) else pending = PendingAction.Archive
+                            viewModel.setArchived(!student.archived)
                         },
                     )
                     DropdownMenuItem(
@@ -155,7 +155,7 @@ fun StudentDetailScreen(
                         )
                         Text(plural(state.openLessons, "unpaid lesson"), style = MaterialTheme.typography.bodySmall)
                         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { pending = PendingAction.Payment }, enabled = state.openLessons > 0) {
+                            Button(onClick = { viewModel.recordPayment() }, enabled = state.openLessons > 0) {
                                 Text("Record payment")
                             }
                             OutlinedButton(onClick = onCreateInvoice, enabled = state.invoiceableLessons > 0) {
@@ -198,20 +198,6 @@ fun StudentDetailScreen(
     }
 
     when (pending) {
-        PendingAction.Payment -> ConfirmDialog(
-            title = "Record payment",
-            text = "Mark ${plural(state.openLessons, "unpaid lesson")} (${formats.money(state.outstanding)}) as paid today?",
-            confirmLabel = "Mark paid",
-            onConfirm = viewModel::recordPayment,
-            onDismiss = { pending = null },
-        )
-        PendingAction.Archive -> ConfirmDialog(
-            title = "Archive student",
-            text = "Archived students are hidden from lists and pickers. Their lessons and statements are kept.",
-            confirmLabel = "Archive",
-            onConfirm = { viewModel.setArchived(true) },
-            onDismiss = { pending = null },
-        )
         PendingAction.Delete -> ConfirmDialog(
             title = "Delete student",
             text = "This cannot be undone. Students with lessons cannot be deleted; archive them instead.",

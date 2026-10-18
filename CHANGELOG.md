@@ -23,6 +23,10 @@ How to use this file:
 ## [2.1.0] - Unreleased
 
 ### Added
+- **Undo** for deleting a lesson, recording a payment, marking lessons paid or unpaid, rescheduling,
+  and archiving or restoring a student or group: the action happens at once and the snackbar offers
+  *Undo* for 5 seconds. Voiding a statement, importing a backup and deleting a student or group
+  still ask first.
 - Golden tests pin the billing maths (rounding, limits, Greek formatting).
 
 ### Changed

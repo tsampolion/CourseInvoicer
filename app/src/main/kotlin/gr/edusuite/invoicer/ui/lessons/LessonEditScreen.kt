@@ -23,10 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -34,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.ui.common.AppIcons
-import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.DateField
 import gr.edusuite.invoicer.ui.common.DecimalField
 import gr.edusuite.invoicer.ui.common.FormSpacing
@@ -63,6 +59,7 @@ fun LessonEditScreen(
             lessons = container.lessonRepository,
             settings = container.settingsRepository,
             savedState = savedState,
+            messages = container.messages,
         )
     },
 ) {
@@ -73,7 +70,6 @@ fun LessonEditScreen(
     }
     val onDraftBack = draftBack(state.dirty, "lesson", onBack)
     val snackbar = remember { SnackbarHostState() }
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     MessageEffect(state.message, snackbar, viewModel::messageShown)
     LaunchedEffect(state.done) { if (state.done) onDone() }
     val editable = !state.locked
@@ -85,7 +81,7 @@ fun LessonEditScreen(
         snackbarHostState = snackbar,
         actions = {
             if (!state.isNew && editable) {
-                IconButton(onClick = { confirmDelete = true }) { Icon(AppIcons.Delete, contentDescription = "Delete") }
+                IconButton(onClick = { viewModel.delete() }) { Icon(AppIcons.Delete, contentDescription = "Delete") }
             }
             TextButton(onClick = viewModel::save, enabled = !state.loading && !state.saving) { Text("Save") }
         },
@@ -177,15 +173,7 @@ fun LessonEditScreen(
         }
     }
 
-    if (confirmDelete) {
-        ConfirmDialog(
-            title = "Delete lesson",
-            text = "This lesson will be removed permanently.",
-            confirmLabel = "Delete",
-            onConfirm = viewModel::delete,
-            onDismiss = { confirmDelete = false },
-        )
-    }
+
 }
 
 /** A labelled switch; the whole row toggles it, so the label is part of the touch target. */

@@ -52,9 +52,15 @@ class DeleteStudent(
 
 /** Archives or restores a student without changing its history (R10). */
 class ArchiveStudent(private val students: StudentRepository) {
-    suspend operator fun invoke(studentId: Long, archived: Boolean) {
+    suspend operator fun invoke(studentId: Long, archived: Boolean): Undoable<Unit> {
         val existing = students.getStudent(studentId)
             ?: throw DomainException("This student no longer exists")
+        if (existing.archived == archived) return Undoable(Unit, Undo {})
         students.saveStudent(existing.copy(archived = archived))
+        return Undoable(Unit, undoOnce {
+            val current = students.getStudent(studentId)
+                ?: throw DomainException("This student no longer exists")
+            students.saveStudent(current.copy(archived = existing.archived))
+        })
     }
 }

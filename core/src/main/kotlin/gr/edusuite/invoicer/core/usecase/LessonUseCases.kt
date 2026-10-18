@@ -7,6 +7,7 @@ import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.sumOfMoney
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -49,10 +50,21 @@ class SaveLesson(private val lessons: LessonRepository) {
 }
 
 class DeleteLesson(private val lessons: LessonRepository) {
-    suspend operator fun invoke(lessonId: Long) {
-        val lesson = lessons.getLesson(lessonId) ?: return
+    suspend operator fun invoke(lessonId: Long): Undoable<Unit> {
+        val lesson = lessons.getLesson(lessonId) ?: return Undoable(Unit, Undo {})
         if (lesson.isInvoiced) throw DomainException("This lesson is on a statement; void the statement first")
         lessons.deleteLesson(lessonId)
+        return Undoable(Unit, undoOnce {
+            try {
+                lessons.restoreLesson(lesson)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: DomainException) {
+                throw error
+            } catch (error: Exception) {
+                throw DomainException("This lesson could not be restored; its student or group may no longer exist")
+            }
+        })
     }
 }
 
@@ -60,11 +72,13 @@ data class PaymentResult(val lessonCount: Int, val amount: Money)
 
 /** Marks every outstanding lesson of a student as paid on [paidOn]. */
 class RecordPayment(private val lessons: LessonRepository) {
-    suspend operator fun invoke(studentId: Long, paidOn: LocalDate): PaymentResult {
+    suspend operator fun invoke(studentId: Long, paidOn: LocalDate): Undoable<PaymentResult> {
         val open = lessons.observeLessonsOfStudent(studentId).first().filter { it.isOutstanding }
-        if (open.isEmpty()) return PaymentResult(0, Money.ZERO)
+        if (open.isEmpty()) return Undoable(PaymentResult(0, Money.ZERO), Undo {})
         lessons.setPaid(open.map { it.id }, paidOn)
-        return PaymentResult(open.size, open.sumOfMoney { it.charge })
+        return Undoable(PaymentResult(open.size, open.sumOfMoney { it.charge }), undoOnce {
+            lessons.restorePaid(open.associate { it.id to it.paidOn })
+        })
     }
 }
 
@@ -73,7 +87,7 @@ class RecordPayment(private val lessons: LessonRepository) {
  * Only unpaid, uninvoiced lessons can move; duration and fee are kept.
  */
 class RescheduleLessons(private val lessons: LessonRepository) {
-    suspend operator fun invoke(lessonIds: Collection<Long>, date: LocalDate, startTime: LocalTime): Int {
+    suspend operator fun invoke(lessonIds: Collection<Long>, date: LocalDate, startTime: LocalTime): Undoable<Int> {
         val ids = lessonIds.toSet()
         if (ids.isEmpty()) throw DomainException("Select at least one lesson")
         val selected = lessons.getLessons(ids)
@@ -81,20 +95,34 @@ class RescheduleLessons(private val lessons: LessonRepository) {
         if (selected.any { it.isInvoiced }) throw DomainException("Lessons on a statement cannot be rescheduled")
         if (selected.any { it.isPaid }) throw DomainException("Paid lessons cannot be rescheduled")
         lessons.updateLessons(selected.map { it.copy(date = date, startTime = startTime) })
-        return selected.size
+        return Undoable(selected.size, undoOnce {
+            val current = lessons.getLessons(ids)
+            if (current.size != ids.size) throw DomainException("Some lessons no longer exist")
+            if (current.any { it.isInvoiced }) {
+                throw DomainException("A lesson is now on a statement; it can't be moved back")
+            }
+            if (current.any { it.isPaid }) throw DomainException("A lesson is now paid; it can't be moved back")
+            val previous = selected.associateBy { it.id }
+            lessons.updateLessons(current.map { row ->
+                val old = previous.getValue(row.id)
+                row.copy(date = old.date, startTime = old.startTime)
+            })
+        })
     }
 }
 
 /** Records or clears payment (R3, R9). Uncharged lessons can never be paid. */
 class MarkPaid(private val lessons: LessonRepository) {
     /** Returns the number of distinct lessons whose payment date changed. */
-    suspend operator fun invoke(lessonIds: Collection<Long>, paidOn: LocalDate?): Int {
+    suspend operator fun invoke(lessonIds: Collection<Long>, paidOn: LocalDate?): Undoable<Int> {
         val selected = lessons.getLessons(lessonIds.toSet())
         val eligible = if (paidOn == null) selected else selected.filter { it.charge.isPositive }
         if (paidOn != null && lessonIds.isNotEmpty() && eligible.isEmpty()) requireCharged(false)
         val changed = eligible.filter { it.paidOn != paidOn }
         if (changed.isNotEmpty()) lessons.setPaid(changed.map { it.id }, paidOn)
-        return changed.size
+        return Undoable(changed.size, undoOnce {
+            if (changed.isNotEmpty()) lessons.restorePaid(changed.associate { it.id to it.paidOn })
+        })
     }
 
     companion object {

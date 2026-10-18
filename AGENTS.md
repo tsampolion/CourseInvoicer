@@ -62,7 +62,9 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
 - **ViewModels.** Each screen has one, exposing a single `state`. List screens use `stateInCatching`, keeping the last good state and
   reporting flow errors. Form loads go through `launchCatching`; missing entities block editing.
   Form screens keep a `MutableStateFlow` and one guarded edit path. No ViewModel writes to a
-  business repository directly. Reminder-state writes are orchestration and use `launchCatching`.
+  business repository directly. Undoable actions return `Undoable` from their use case and post
+  to `Messages`; its app-level snackbar offers Undo for 5 seconds, surviving navigation.
+  Reminder-state writes are orchestration and use `launchCatching`.
   Writes go through `launchCatching`, which turns a `DomainException` into the state's
   `message`. The screen shows it once with `MessageEffect` and calls `messageShown()` to clear it.
 - **Wiring.** `AppContainer` builds the whole object graph by hand (no Hilt, D4). `MainActivity`

@@ -27,7 +27,7 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | # | Item | Status | Size |
 |---|------|--------|------|
 | 1 | One state and one change path per ViewModel | Done (2.1.0) | M |
-| 2 | Undo for destructive actions | Not started | L |
+| 2 | Undo for destructive actions | Done (2.1.0) | L |
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
 | 5 | Golden tests for the billing engine | Done (2.1.0) | S |
@@ -41,38 +41,6 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 12 | App theme drives the system bars | Done | — |
 | 13 | Short, rule-focused agent guide | Done (2.0.0-alpha03) | S |
 | 14 | Theme and components for style guide v3 | In progress | L |
-
-## 2. Undo for destructive actions
-
-**Today.** None. Deletes and voids ask for confirmation ("This cannot be undone"). `MessageEffect`
-(`ui/common/Components.kt`) shows a snackbar with no action. Each screen owns its snackbar host, and
-delete screens close straight away, so their message would be lost. Coursebook Pacer snapshots its
-whole state; that doesn't fit SQLite, so each action needs its own inverse.
-
-| Action | Where | What undo needs |
-|--------|-------|-----------------|
-| Delete lesson | `DeleteLesson` | The deleted row; re-insert it with the same id |
-| Record payment | `RecordPayment` → `PaymentResult` | The ids of the lessons it marked paid (not returned today) |
-| Mark several paid | `LessonsViewModel` bulk action | The ids marked |
-| Reschedule | `RescheduleLessons` | The old date and start time per lesson (returns a count today) |
-| Delete group | `DeleteGroup`; foreign keys `SET NULL` / `CASCADE` | The group row, its members and the lesson links |
-| Void invoice | `VoidInvoice` → `SqlInvoiceRepository.voidInvoice` | Out of scope: un-voiding conflicts with R6 and D7 |
-| Import backup | `SqlBackupRepository.replaceAll` | Out of scope: tell the tutor to export first instead |
-
-**Tasks**
-- [x] Decide the scope with the owner: delete lesson, record payment, mark paid (one or in bulk),
-      reschedule. Recorded as D15 in the spec.
-- [ ] Add an app-level message channel, for example a `Messages` object in `AppContainer` with a
-      `SnackbarHostState` in `CourseInvoicerApp.kt`. A message survives the screen that sent it and can
-      carry an action.
-- [ ] Make each in-scope use case return an `Undo` value: a suspend function that reverses exactly
-      what it changed, inside one `db.write`.
-- [ ] Show *Undo* on the snackbar for about 10 seconds. A newer action replaces the older undo.
-- [ ] Tests: in `:core`, do then undo and check the data equals the original, for each action. One
-      emulator test for delete lesson → Undo.
-
-**Done when** every in-scope action shows *Undo*, undo restores the exact previous rows, and the
-confirmation dialogs for those actions are removed.
 
 ## 3. Navigation rules as pure, tested code
 
@@ -246,6 +214,7 @@ The owner split the 2.1.0 work between two agents:
 | 5. Golden tests for the billing engine | 2.1.0 |
 | 1. One state and one change path per ViewModel | 2.1.0 |
 | 8. Saving and corrupt data | 2.1.0 |
+| 2. Undo for destructive actions | 2.1.0 |
 
 Move items here with the version they shipped in.
 
@@ -307,3 +276,24 @@ so the form handles restore after process death and Back asks before discarding 
       downgrade is refused. A JVM test that the draft restores from `SavedStateHandle`.
 
 **Done when** no failure mode deletes data silently, and a form survives process death.
+
+### Item 2 — 2.1.0: Undo for destructive actions
+
+**Built:** core `Undo` / `Undoable` values and an app-level `Messages` channel keep Undo available
+when the source screen closes. Each inverse restores only the fields its action changed, in one
+transaction. Repeated Undo is harmless. Reschedule Undo refuses lessons now on a statement (R7).
+
+**Tasks**
+- [x] Scope (D15, extended by style guide v3): delete lesson, record payment, mark paid or unpaid
+      (one or in bulk), reschedule, archive or restore a student or group.
+- [x] Add an app-level message channel and snackbar host with an action, surviving navigation.
+- [x] Return `Undoable` from every in-scope use case; restore exact ids and previous field values.
+- [x] Show *Undo* for 5 seconds, per style guide v3 (supersedes the older “about 10 seconds”).
+      A newer message replaces the older offer. The countdown bar respects reduced motion.
+- [x] Core snapshot and safety tests per action, fake/SQL parity, ViewModel tests, and an emulator
+      flow for delete lesson → Undo after the editor closes.
+- [x] Remove in-scope confirmations. Keep void, import, delete-student, delete-group and draft-discard
+      confirmations.
+
+**Done when** every in-scope action shows *Undo*, undo restores the exact previous rows, and the
+confirmation dialogs for those actions are removed.

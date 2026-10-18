@@ -172,6 +172,28 @@ class InMemoryRepositories :
         data.update { d -> d.copy(lessons = d.lessons + lessons.associateBy { it.id }) }
     }
 
+    override suspend fun restoreLesson(lesson: Lesson) {
+        val current = data.value
+        if (lesson.id in current.lessons) throw DomainException("This lesson already exists")
+        check(lesson.studentId in current.students && (lesson.groupId == null || lesson.groupId in current.groups)) {
+            "FOREIGN KEY constraint failed"
+        }
+        check(lesson.invoiceId == null || lesson.invoiceId in current.invoices) { "FOREIGN KEY constraint failed" }
+        data.update { it.copy(lessons = it.lessons + (lesson.id to lesson), nextId = maxOf(it.nextId, lesson.id + 1)) }
+    }
+
+    override suspend fun restorePaid(previous: Map<Long, LocalDate?>) {
+        data.update { d ->
+            if (previous.keys.any { it !in d.lessons }) throw DomainException("Some lessons no longer exist")
+            if (previous.any { (id, date) -> date != null && !d.lessons.getValue(id).charge.isPositive }) {
+                throw DomainException("An excused absence is not charged, so it can't be paid")
+            }
+            d.copy(lessons = d.lessons.mapValues { (id, row) ->
+                if (id in previous) row.copy(paidOn = previous[id]) else row
+            })
+        }
+    }
+
     override suspend fun deleteLesson(id: Long) {
         data.update { it.copy(lessons = it.lessons - id) }
     }

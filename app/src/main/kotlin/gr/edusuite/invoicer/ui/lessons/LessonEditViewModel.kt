@@ -1,31 +1,33 @@
 package gr.edusuite.invoicer.ui.lessons
 
 import androidx.lifecycle.SavedStateHandle
-import gr.edusuite.invoicer.ui.common.FormDraft
 import androidx.lifecycle.ViewModel
 import gr.edusuite.invoicer.core.model.AbsenceCharge
-import gr.edusuite.invoicer.core.model.chargeFor
-import gr.edusuite.invoicer.core.usecase.MarkPaid
+import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.Student
+import gr.edusuite.invoicer.core.model.chargeFor
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.DeleteLesson
 import gr.edusuite.invoicer.core.usecase.MAX_LESSON_MINUTES
+import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.SaveLesson
+import gr.edusuite.invoicer.ui.common.FormDraft
+import gr.edusuite.invoicer.ui.common.Messages
 import gr.edusuite.invoicer.ui.common.launchCatching
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
 
 data class LessonEditUiState(
     val loading: Boolean = true,
@@ -75,6 +77,7 @@ class LessonEditViewModel(
     settings: SettingsRepository,
     private val now: () -> LocalDateTime = LocalDateTime::now,
     savedState: SavedStateHandle = SavedStateHandle(),
+    private val messages: Messages = Messages(),
 ) : ViewModel() {
     private val draft = FormDraft(savedState)
     private val saveLesson = SaveLesson(lessons)
@@ -166,7 +169,7 @@ class LessonEditViewModel(
         if (state.value.loading || state.value.notFound || state.value.saving) return
         if (paid) {
             try { MarkPaid.requireCharged(state.value.charged) }
-            catch (error: gr.edusuite.invoicer.core.model.DomainException) {
+            catch (error: DomainException) {
                 fail(error.message.orEmpty())
                 return
             }
@@ -213,7 +216,8 @@ class LessonEditViewModel(
     }
 
     fun delete() = launchCatching(::fail) {
-        deleteLesson(lessonId)
+        val action = deleteLesson(lessonId)
+        messages.postUndo("Lesson deleted", action)
         draft.clear()
         mutableState.update { it.copy(done = true, dirty = false) }
     }

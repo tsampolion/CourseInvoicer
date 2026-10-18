@@ -178,6 +178,28 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
         }
     }
 
+    override suspend fun restoreLesson(lesson: Lesson) {
+        db.write(Table.LESSONS) { d ->
+            if (d.lessons("id = ?", lesson.id).isNotEmpty()) throw DomainException("This lesson already exists")
+            d.insertOrThrow("lessons", null, lesson.toValues().apply { put("id", lesson.id) })
+        }
+    }
+
+    override suspend fun restorePaid(previous: Map<Long, LocalDate?>) {
+        db.write(Table.LESSONS) { d ->
+            val current = previous.keys.chunked(InvoicerDatabase.MAX_ARGS).flatMap { chunk ->
+                d.lessons("id IN (${placeholders(chunk.size)})", *chunk.toTypedArray())
+            }
+            if (current.size != previous.size) throw DomainException("Some lessons no longer exist")
+            if (current.any { previous[it.id] != null && !it.charge.isPositive }) {
+                throw DomainException("An excused absence is not charged, so it can't be paid")
+            }
+            previous.forEach { (id, date) ->
+                d.execSQL("UPDATE lessons SET paid_on = ? WHERE id = ?", arrayOf<Any?>(date?.toString(), id))
+            }
+        }
+    }
+
     override suspend fun deleteLesson(id: Long) {
         db.write(Table.LESSONS) { d -> d.delete("lessons", "id = ?", arrayOf(id.toString())) }
     }

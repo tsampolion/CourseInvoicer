@@ -82,6 +82,33 @@ class SqlRepositoriesTest {
         fee = Money(fee),
     )
 
+    @Test fun restoreLessonKeepsExplicitIdAndRefusesDuplicatesAndMissingStudent() = runTest {
+        val student = student()
+        val row = lesson(student).copy(id = 900, notes = "Exact row", paidOn = march31)
+        lessons.restoreLesson(row)
+        assertEquals(row, lessons.getLesson(900))
+        assertEquals("This lesson already exists", runCatching { lessons.restoreLesson(row) }.exceptionOrNull()?.message)
+        assertTrue(runCatching { lessons.restoreLesson(row.copy(id = 901, studentId = -1)) }.isFailure)
+        assertNull(lessons.getLesson(901))
+        assertTrue(lessons.saveLesson(lesson(student)) > 900)
+    }
+
+    @Test fun restorePaidRestoresMixedDatesAndRollsBackIfAnyRowIsMissingOrUncharged() = runTest {
+        val student = student()
+        val a = lessons.saveLesson(lesson(student))
+        val b = lessons.saveLesson(lesson(student))
+        val excused = lessons.saveLesson(lesson(student).copy(absent = true))
+        lessons.setPaid(listOf(a, b), march31)
+        lessons.restorePaid(mapOf(a to march31.minusDays(2), b to null))
+        assertEquals(march31.minusDays(2), lessons.getLesson(a)?.paidOn)
+        assertNull(lessons.getLesson(b)?.paidOn)
+        val before = lessons.getLessons(listOf(a, b, excused))
+        assertTrue(runCatching { lessons.restorePaid(mapOf(a to null, -1L to null)) }.exceptionOrNull() is DomainException)
+        assertEquals(before, lessons.getLessons(listOf(a, b, excused)))
+        assertTrue(runCatching { lessons.restorePaid(mapOf(a to null, excused to march31)) }.exceptionOrNull() is DomainException)
+        assertEquals(before, lessons.getLessons(listOf(a, b, excused)))
+    }
+
     @Test
     fun savesAndObservesStudentsAndLessons() = runTest {
         val maria = student()
