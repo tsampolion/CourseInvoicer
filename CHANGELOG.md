@@ -26,6 +26,8 @@ How to use this file:
 - Golden tests pin the billing maths (rounding, limits, Greek formatting).
 
 ### Changed
+- **Faster CI:** the emulator boots while the test APKs build, and the minified-APK smoke test waits
+  less, which takes about a minute and a half off each run.
 - Rates are capped at 100,000.
 - **EduSuite style guide, version 3** (`docs/EDUSUITE_STYLE_GUIDE.md`): a brighter, livelier look
   with pastel tiles (a separate deep set in dark mode), pill controls, the bundled Outfit typeface
