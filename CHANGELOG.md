@@ -20,6 +20,17 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.2.0] - 2026-10-18
+
+### Added
+- **Home uses the whole screen.** The tile grid has as many 160dp columns as the width fits, at
+  least two and at most one per tile, so a phone in landscape or a tablet shows the sections side
+  by side instead of a narrow 560dp column. Each tile goes into the shortest column. At 200% font
+  size or under 360dp the tiles still stack in one column.
+- Tiles glide to their new places (`Motion.settle`) when the column count changes, and jump when
+  *Remove animations* is on. Rotating no longer recreates the screen (`configChanges`), so the
+  glide plays and nothing reloads.
+
 ## [2.1.2] - 2026-10-18
 
 ### Changed
