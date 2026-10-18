@@ -120,6 +120,7 @@ process death the form restores the draft and checks the lesson's current statem
 | D20 | Statements are informational, not fiscal documents (Law 4308/2014, ΕΛΠ; AADE myDATA). Everything user-visible says *statement*; code, routes and the database keep *invoice*. The non-fiscal disclaimer is printed on every page (R14). Absences can go on statements, and late cancellations are charged (R3, R4) | The tutor issues the legal receipt for each payment separately; a document that looks like an invoice but is not one must say so plainly. The owner should have an accountant confirm the disclaimer wording. | 2.0.0 |
 | D21 | Euro only | One market (Greece), no store release, and `Money` is euro cents. A second currency needs its own decision. Legacy backup currency codes are ignored without changing amounts; new backups retain `currencyCode: EUR` for 2.0.0 readers. Issued statement text stays frozen (R12). | 2.1.0 |
 | D22 | Keep a damaged database; refuse downgrades | Preserve the damaged file before any reset and warn on Home. If copying fails, keep the original and refuse to reset. Opening newer data with an older build stops with a message. User data must never be silently deleted. | 2.1.0 |
+| D23 | The owner's key signs only the release build, and only on `Rebuild_v2`: its secrets live in a `release` environment limited to that branch. Debug builds are a separate app, `gr.edusuite.invoicer.debug` (*Course Invoicer (debug)*), with the stock debug key. Replaces the debug half of D11 and D16's "either installs over the other". | Branch builds could read the key, and any branch's debug APK installed over the tutor's real app and its data. The key itself is unchanged, so releases keep installing as updates. `docs/SIGNING_BRIEF.md` has the details. | 2.1.1 |
 
 ## 7. Dependency register
 
@@ -141,9 +142,10 @@ first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
 ### Current state
 
 - **No Google Play Store release (D9).**
-- **Two signed APKs.** CI builds the debug APK and a minified `release` APK (D16). It signs both
-  with the owner's key and checks the fingerprint (D11). Either installs over the other and keeps
-  the data.
+- **Two APKs.** CI builds the debug APK and a minified `release` APK (D16). On `Rebuild_v2` it
+  signs the release APK with the owner's key and checks the fingerprint (D11, D23). The debug APK is
+  a separate app, `gr.edusuite.invoicer.debug`, with its own data, so it never replaces the real app
+  (D23).
 - **GitHub releases.** Dating a version in `CHANGELOG.md` publishes it as a GitHub release with the
   minified APK attached (D12, D16, `.github/workflows/release.yml`). Between releases, the debug APK
   is a CI artifact. The README's *Install a test build* section covers both.

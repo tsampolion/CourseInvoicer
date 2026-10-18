@@ -6,7 +6,7 @@ An offline Android app for private tutors. Keep a register of students and group
 who owes what, record payments and send PDF lesson statements. All data stays on the phone. Part of
 the EduSuite apps, with Course Pacer. Formerly EduInvoice.
 
-**Version:** 2.1.0 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.1.1 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 How the app should behave is in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). What changed in each
 version is in [`CHANGELOG.md`](CHANGELOG.md).
@@ -17,15 +17,16 @@ version is in [`CHANGELOG.md`](CHANGELOG.md).
 2. Download `course-invoicer-<version>.apk` from its *Assets*. It is the small, optimised build.
 3. Copy it to the phone, open it, and allow installs from that app when asked.
 
-Until the first v2 release is published, or for a build between releases, open the latest green
-**CI** run for `Rebuild_v2` in the *Actions* tab instead. Download its `app-debug` artifact, a zip
-holding `app-debug.apk`: a larger, slower debug build of the same code. Artifacts expire after 14
-days. Release and debug builds install over each other.
-
-A new build installs over the previous one and keeps your data, **as long as both were signed with
-the owner's key**. If Android says *App not installed*, the builds have different keys: export a
+A new release installs over the previous one and keeps your data, because every release is signed
+with the owner's key. If Android says *App not installed*, the builds have different keys: export a
 backup, uninstall, install the new build and import the backup. Uninstalling deletes all data, so
 always export a backup first.
+
+To try a build between releases, open a green **CI** run in the *Actions* tab and download its
+`app-debug` artifact, a zip holding `app-debug.apk`: a larger, slower debug build of the same code.
+Artifacts expire after 14 days. Since 2.1.1 the debug build is a **separate app**, *Course Invoicer
+(debug)* (`gr.edusuite.invoicer.debug`), with its own data: it installs beside the real app and never
+replaces it (D23). To try it with real data, export a backup from the app and import it there.
 
 ## Using the app
 
@@ -83,9 +84,10 @@ throwaway database, but Gradle uninstalls the app when they finish, which delete
 ## CI and releases
 
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs once on every branch push, and on
-  manual dispatch. One job runs the unit tests and lint, builds the debug APK and the minified
-  release APK, signs both with the owner's key and checks the key, writes their sizes to the job
-  summary and uploads them as the `app-debug` and `app-release` artifacts. A second job runs the
+  manual dispatch. One job runs the unit tests and lint, builds the debug APK (the separate debug
+  app, debug key) and the minified release APK, signs the release APK with the owner's key on
+  `Rebuild_v2` only and checks the key, writes their sizes to the job summary and uploads them as
+  the `app-debug` and `app-release` artifacts. A second job runs the
   emulator tests on API 35, then installs the minified APK and smoke-tests it.
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) runs after CI passes on
   `Rebuild_v2`. When the `CHANGELOG.md` section for the current `versionName` has a date, it tags
@@ -93,13 +95,18 @@ throwaway database, but Gradle uninstalls the app when they finish, which delete
 
 ### Signing key
 
-Set this up once, as the repository owner. CI signs every `app-debug.apk` with your key and checks
-its fingerprint. In *Settings → Secrets and variables → Actions* add:
+Set this up once, as the repository owner. CI signs `app-release.apk` with your key on `Rebuild_v2`
+only and checks its fingerprint; every other branch, and every debug build, uses the debug key
+([`docs/SIGNING_BRIEF.md`](docs/SIGNING_BRIEF.md), D23).
+
+1. In *Settings → Environments* create an environment named `release` whose deployment branches are
+   limited to `Rebuild_v2`, and add the two secrets there (not at repository level).
+2. In *Settings → Secrets and variables → Actions* add the variables.
 
 | Kind | Name | Value |
 |------|------|-------|
-| Secret | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
-| Secret | `SIGNING_PASSWORD` | The keystore password |
+| Secret (environment `release`) | `SIGNING_KEYSTORE_B64` | Your PKCS12 keystore (alias `release`), base64-encoded on one line |
+| Secret (environment `release`) | `SIGNING_PASSWORD` | The keystore password |
 | Variable | `SIGNING_CERT_SHA256` | The certificate's SHA-256 fingerprint from `keytool -list -v` |
 | Variable (optional) | `SIGNING_KEY_ALIAS` | Only if your alias is not `release` |
 
@@ -110,10 +117,9 @@ keytool -genkeypair -keystore invoicer-release.p12 -storetype PKCS12 -alias rele
   -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Course Invoicer"
 ```
 
-Keep tested backups of the file and the password, and never commit them. Until the secrets exist, CI
-warns and signs with a throwaway key, and the release workflow refuses to publish. The job summary
-shows which certificate signed each build. Moving to your key needs one last export, uninstall and
-import.
+Keep tested backups of the file and the password, and never commit them. The key is permanent:
+never replace it, or every phone has to uninstall. Without the secrets, `Rebuild_v2` CI fails and
+the release workflow refuses to publish. The job summary shows which certificate signed each build.
 
 ## Project structure
 

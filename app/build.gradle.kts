@@ -12,36 +12,45 @@ android {
         minSdk = 26
         targetSdk = 37
         // Above the last v0.x build (53) so v2 installs over old development builds.
-        versionCode = 204
-        versionName = "2.1.0"
+        versionCode = 205
+        versionName = "2.1.1"
         // Runs instrumented tests against a throwaway database (app/src/androidTest/.../InvoicerTestRunner.kt).
         testInstrumentationRunner = "gr.edusuite.invoicer.InvoicerTestRunner"
     }
 
+    // CI signs the release build with the owner's permanent key on Rebuild_v2 only (D23,
+    // docs/SIGNING_BRIEF.md): it decodes the keystore to the path in INVOICER_RELEASE_KEYSTORE and passes
+    // its password in INVOICER_KEYSTORE_PASSWORD. Never change the key or its alias.
+    val releaseKeystore = providers.environmentVariable("INVOICER_RELEASE_KEYSTORE").orNull?.takeIf { it.isNotBlank() }
     signingConfigs {
-        getByName("debug") {
-            // CI signs every debug build with the owner's key (secrets SIGNING_KEYSTORE_B64 and
-            // SIGNING_PASSWORD), so a new build installs over the previous one and keeps the tutor's data
-            // (README, "Install a test build"). Without these variables the default debug key is used.
-            providers.environmentVariable("INVOICER_DEBUG_KEYSTORE").orNull?.let { path ->
-                val password = providers.environmentVariable("INVOICER_KEYSTORE_PASSWORD").orNull ?: "android"
-                storeFile = file(path)
+        if (releaseKeystore != null) {
+            create("release") {
+                val password = providers.environmentVariable("INVOICER_KEYSTORE_PASSWORD").orNull
+                require(!password.isNullOrEmpty()) { "INVOICER_RELEASE_KEYSTORE is set but INVOICER_KEYSTORE_PASSWORD is empty" }
+                storeFile = file(releaseKeystore)
                 storePassword = password
                 keyPassword = password // PKCS12 keys share the keystore password.
-                keyAlias = providers.environmentVariable("INVOICER_KEY_ALIAS").orNull ?: "androiddebugkey"
+                keyAlias = providers.environmentVariable("INVOICER_KEY_ALIAS").orNull?.takeIf { it.isNotBlank() } ?: "release"
             }
         }
     }
 
     buildTypes {
+        // A separate app, "Course Invoicer (debug)", signed with the stock debug key, so a debug build
+        // never installs over the tutor's real app or touches its data (D23).
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         // The build GitHub releases ship (D16): minified, 1.9 MB instead of 12.5 MB, and smoother
-        // than a debuggable build. Signed with the same key as debug, so either installs over the
-        // other and keeps the tutor's data. Not a Play Store build (D9).
+        // than a debuggable build. Not a Play Store build (D9). Without INVOICER_RELEASE_KEYSTORE
+        // (Android Studio, local builds, other branches) the debug key signs it, so it still installs,
+        // but it cannot install over a release.
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

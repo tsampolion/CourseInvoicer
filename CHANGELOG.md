@@ -20,6 +20,18 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.1.1] - 2026-10-18
+
+### Changed
+- **Debug builds are a separate app**, *Course Invoicer (debug)* (`gr.edusuite.invoicer.debug`),
+  signed with the stock debug key. A CI `app-debug.apk` now installs beside the real app with its own
+  data and can never replace it. Releases are unchanged: same app, same key, they install as updates
+  (D23).
+- CI signs only the release APK with the owner's key, and only on `Rebuild_v2`. The secrets move to
+  a `release` environment limited to that branch; the password reaches only the release build step,
+  never `GITHUB_ENV`. `Rebuild_v2` fails without the secrets; other branches sign with the debug key.
+  The release workflow runs in the same environment. See `docs/SIGNING_BRIEF.md`.
+
 ## [2.1.0] - 2026-10-18
 
 ### Added

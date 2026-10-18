@@ -6,7 +6,7 @@ recipes for common changes and the traps. What the app should do is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md); how it should look is in
 [`docs/EDUSUITE_STYLE_GUIDE.md`](docs/EDUSUITE_STYLE_GUIDE.md).
 
-**Version:** 2.1.0 · **Default branch:** `Rebuild_v2`
+**Version:** 2.1.1 · **Default branch:** `Rebuild_v2`
 
 ## 1. Commands
 
@@ -193,6 +193,12 @@ isn't enough, then wait for approval.
   invoice payments and `setPaid` must use them, never `absent = 0` on its own.
 - **User-visible text says "statement", code says "invoice"** (D20). New strings follow that, the
   domain messages in `:core` included.
+- **The release signing key is permanent** (D23, `docs/SIGNING_BRIEF.md`). CI signs only
+  `app-release.apk`, only on `Rebuild_v2`, from the `SIGNING_KEYSTORE_B64` and `SIGNING_PASSWORD`
+  secrets in the `release` environment, and checks it against `SIGNING_CERT_SHA256`. Debug builds are
+  a separate app, `gr.edusuite.invoicer.debug`, with the stock debug key. Never regenerate or replace
+  the key, never change its alias, the secret names or the variable without the owner, and never put
+  the keystore or password in a chat, issue, PR or commit, or in `GITHUB_ENV`.
 - **R8 shrinks the release build.** Anything reached only by reflection or JNI needs a keep rule in
   `app/proguard-rules.pro`. The emulator smoke test of the minified APK is the check; debug tests
   don't cover it.

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds are a separate app (gr.edusuite.invoicer.debug, D23); the label tells them apart. -->
+    <string name="app_name">Course Invoicer (debug)</string>
+</resources>
