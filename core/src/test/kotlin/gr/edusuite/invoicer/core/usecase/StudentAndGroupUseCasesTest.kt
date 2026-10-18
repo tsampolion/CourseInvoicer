@@ -15,7 +15,10 @@ import gr.edusuite.invoicer.core.perLesson
 import gr.edusuite.invoicer.core.student
 import gr.edusuite.invoicer.core.testing.InMemoryRepositories
 import kotlinx.coroutines.test.runTest
+import gr.edusuite.invoicer.core.privacy.isErased
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
@@ -185,4 +188,50 @@ class StudentAndGroupUseCasesTest {
         }
     }
 
+
+    @Test
+    fun eraseAnonymisesStatements() = runTest {
+        val maria = repos.saveStudent(
+            student().copy(guardianName = "Eleni", phone = "6900000000", email = "e@example.com", notes = "asthma", className = "B1"),
+        )
+        val nikos = repos.saveStudent(student(firstName = "Nikos"))
+        val held = repos.saveLesson(lesson(maria, date = "2026-03-02").copy(notes = "Unit 4"))
+        val ill = repos.saveLesson(lesson(maria, date = "2026-03-09", absent = true, absenceNote = "ill"))
+        val other = repos.saveLesson(lesson(nikos).copy(notes = "keep"))
+        val issued = repos.createInvoiceUseCase()(maria, listOf(held, ill), LocalDate.parse("2026-03-31"), notes = "For Eleni")
+        val before = repos.getInvoice(issued.id)!!
+        assertTrue(before.document!!.billTo.contains("Maria Papadopoulou"))
+
+        val erase = EraseStudentData(repos, repos, repos)(maria)
+
+        val erased = repos.getStudent(maria)!!
+        assertEquals("Erased student", erased.fullName)
+        assertEquals(listOf("", "", "", "", ""), listOf(erased.className, erased.guardianName, erased.phone, erased.email, erased.notes))
+        assertTrue(erased.archived)
+        assertTrue(erased.isErased)
+        assertTrue(repos.lessons.filter { it.studentId == maria }.all { it.notes.isEmpty() && it.absenceNote.isEmpty() })
+        assertEquals("other students are untouched", "keep", repos.getLesson(other)!!.notes)
+        val after = repos.getInvoice(issued.id)!!
+        val document = after.document!!
+        assertEquals(listOf("Erased student"), document.billTo)
+        assertEquals(before.number, after.number)
+        assertEquals(before.total, after.total)
+        assertEquals(before.document!!.number, document.number)
+        assertEquals(before.document!!.total, document.total)
+        assertEquals(before.document!!.lines.map { it.date to it.amount }, document.lines.map { it.date to it.amount })
+        assertEquals(listOf("Lesson", "Lesson"), document.lines.map { it.description })
+        assertFalse("the reason for an absence goes", document.lines.any { it.note.orEmpty().contains("ill") })
+        assertTrue(document.notes.isEmpty())
+        assertEquals("", after.notes)
+
+        erase.undo()
+
+        val restored = repos.getStudent(maria)!!
+        assertEquals("Maria Papadopoulou", restored.fullName)
+        assertEquals("asthma", restored.notes)
+        assertFalse(restored.archived)
+        assertEquals("Unit 4", repos.getLesson(held)!!.notes)
+        assertEquals("ill", repos.getLesson(ill)!!.absenceNote)
+        assertEquals(before, repos.getInvoice(issued.id))
+    }
 }

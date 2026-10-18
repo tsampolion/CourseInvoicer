@@ -186,7 +186,7 @@ object BackupCodec {
         )
     }
 
-    private fun Student.toJson() = mapOf(
+    internal fun Student.toJson() = mapOf(
         "id" to id,
         "firstName" to firstName,
         "lastName" to lastName,
@@ -232,7 +232,7 @@ object BackupCodec {
         archived = boolean("archived"),
     )
 
-    private fun Lesson.toJson() = mapOf(
+    internal fun Lesson.toJson() = mapOf(
         "id" to id,
         "studentId" to studentId,
         "groupId" to groupId,
@@ -265,7 +265,7 @@ object BackupCodec {
         absenceNote = if (containsKey("absenceNote")) string("absenceNote") else "",
     )
 
-    private fun Invoice.toJson() = mapOf(
+    internal fun Invoice.toJson() = mapOf(
         "id" to id,
         "number" to number,
         "studentId" to studentId,

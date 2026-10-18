@@ -6,7 +6,7 @@ recipes for common changes and the traps. What the app should do is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md); how it should look is in
 [`docs/EDUSUITE_STYLE_GUIDE.md`](docs/EDUSUITE_STYLE_GUIDE.md).
 
-**Version:** 2.5.0 · **Default branch:** `Rebuild_v2`
+**Version:** 2.6.0 · **Default branch:** `Rebuild_v2`
 
 ## 1. Commands
 
@@ -56,7 +56,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   every open screen refreshes after a change. Settings are not a table: `PrefsSettingsRepository`
   keeps them in SharedPreferences and exposes a `StateFlow`.
 - **Rules.** Use cases in `core/usecase` (`SaveLesson`, `CreateInvoice`, `VoidInvoice`, …) enforce
-  the business rules R1–R16 and throw `DomainException` with a message the user can read. ViewModels
+  the business rules R1–R17 and throw `DomainException` with a message the user can read. ViewModels
   build the use cases they need from the repositories they receive (for example
   `LessonEditViewModel` creates `SaveLesson(lessons)`).
 - **ViewModels.** Each screen has one, exposing a single `state`. List screens use `stateInCatching`, keeping the last good state and
@@ -185,9 +185,10 @@ isn't enough, then wait for approval.
 - **Adding a stored file?** Check `res/xml/data_extraction_rules.xml`. It keeps every domain out of
   Google cloud backup on purpose, so student data stays on the phone; the in-app JSON backup is the
   way to save it.
-- **An issued invoice never changes** (R12). Render from its frozen `InvoiceDocument`, never from
-  live settings, students or lessons. Documents issued before 2.0.0 have no `title` or `disclaimer`;
-  keep rendering them as they were.
+- **An issued invoice never changes** (R12), except when a student's data is erased (R17,
+  `StudentRepository.rewriteStudentData`), which replaces its bill-to and notes. Render from its
+  frozen `InvoiceDocument`, never from live settings, students or lessons. Documents issued before
+  2.0.0 have no `title` or `disclaimer`; keep rendering them as they were.
 - **"Charged" has one definition.** In Kotlin it is `Lesson.charge.isPositive` (held or a late
   cancellation, fee above zero); in SQL it is `CHARGED_LESSON` in `SqlRepositories.kt`. Balances,
   invoice payments and `setPaid` must use them, never `absent = 0` on its own.

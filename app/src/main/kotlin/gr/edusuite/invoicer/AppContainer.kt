@@ -13,6 +13,7 @@ import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
 import gr.edusuite.invoicer.data.BackupFiles
 import gr.edusuite.invoicer.data.DatabaseHealth
 import gr.edusuite.invoicer.data.InvoiceExporter
+import gr.edusuite.invoicer.data.StudentDataFiles
 import gr.edusuite.invoicer.data.InvoicePdfWriter
 import gr.edusuite.invoicer.data.InvoicerDatabase
 import gr.edusuite.invoicer.data.PrefsReminderStateRepository
@@ -74,6 +75,7 @@ class AppContainer(
         getDocument = GetInvoiceDocument(lessonRepository, invoiceRepository, invoiceRenderer),
         pdfWriter = InvoicePdfWriter(appContext),
     )
+    val studentDataFiles = StudentDataFiles(appContext)
 }
 
 /** Navigation starts only after the database has opened safely. */

@@ -89,6 +89,45 @@ class ViewModelsTest {
         assertEquals(before, repos.getLesson(id))
     }
 
+    @Test fun `erasing a student's data offers Undo and export holds their data`() = runTest {
+        val student = addStudent("Maria")
+        repos.saveLesson(lesson(student, "2026-03-10", 2000).copy(notes = "Unit 4"))
+        val messages = gr.edusuite.invoicer.ui.common.Messages()
+        val posted = mutableListOf<gr.edusuite.invoicer.ui.common.UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { messages.flow.collect { posted += it } }
+        val vm = gr.edusuite.invoicer.ui.students.StudentDetailViewModel(
+            student, repos, repos, repos, repos, repos.settingsRepository, messages = messages,
+        )
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+
+        val (name, json) = vm.exportData()!!
+        assertEquals("Maria", name)
+        assertTrue(json.contains("\"course-invoicer-student-data\"") && json.contains("Unit 4"))
+
+        vm.eraseData()
+        assertEquals("Erased student", repos.getStudent(student)!!.fullName)
+        assertEquals("Undo", posted.single().actionLabel)
+        posted.single().action!!.invoke()
+        assertEquals("Maria", repos.getStudent(student)!!.fullName)
+        assertEquals("Unit 4", repos.lessons.single().notes)
+    }
+
+    @Test fun `archived students long past their last lesson and paid up are due for erasure`() = runTest {
+        val paidUp = addStudent("Old")
+        val owes = addStudent("Owes")
+        val recent = addStudent("Recent")
+        repos.saveLesson(lesson(paidUp, "2025-01-10", 2000, paidOn = "2025-01-10"))
+        repos.saveLesson(lesson(owes, "2025-01-10", 2000))
+        repos.saveLesson(lesson(recent, "2026-01-10", 2000, paidOn = "2026-01-10"))
+        listOf(paidUp, owes, recent).forEach { id -> repos.saveStudent(repos.getStudent(id)!!.copy(archived = true)) }
+        val viewModel = StudentsViewModel(repos, repos, repos) { LocalDate.parse("2026-03-15") }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        viewModel.onShowArchivedChange(true)
+
+        val due = viewModel.state.value.rows.associate { it.student.firstName to it.dueForErasure }
+        assertEquals(mapOf("Old" to true, "Owes" to false, "Recent" to false), due)
+    }
+
     @Test fun `record payment acts immediately and offers Undo`() = runTest {
         val student = addStudent("Maria")
         val id = repos.saveLesson(lesson(student, "2026-03-10", 2000))

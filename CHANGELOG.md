@@ -20,6 +20,20 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.6.0] - 2026-10-18
+
+### Added
+- **Erase student data (R17).** From a student's menu, after a confirmation: the student becomes
+  *Erased student*, with class, guardian, phone, email and notes cleared, and is archived; their
+  lessons lose their notes and absence notes; each of their issued statements bills *Erased student*
+  and keeps only number, dates, lines and amounts. One transaction, with *Undo* for 5 seconds. It is
+  the one change ever made to an issued statement.
+- **Due for erasure:** archived students who owe nothing and whose last lesson was more than 12
+  months ago show a chip on Students.
+- **Export this student's data:** a JSON file of the student, their lessons and their statements,
+  shared through the share sheet, for a parent's request for access or a copy (GDPR Art. 15, 20).
+  Exports older than a day are deleted from the cache.
+
 ## [2.5.0] - 2026-10-18
 
 ### Added

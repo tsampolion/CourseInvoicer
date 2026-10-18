@@ -130,6 +130,27 @@ class InMemoryRepositoriesTest {
     }
 
     @Test
+    fun `rewriteStudentData refuses rows of another student like the SQL guard`() = runTest {
+        val maria = repos.saveStudent(student())
+        val nikos = repos.saveStudent(student())
+        val theirs = repos.saveLesson(lesson(nikos))
+        try {
+            repos.rewriteStudentData(repos.getStudent(maria)!!, listOf(repos.getLesson(theirs)!!.copy(notes = "x")), emptyList())
+            org.junit.Assert.fail("another student's lesson must be refused")
+        } catch (expected: IllegalStateException) {
+        }
+        assertEquals("nothing was written", "", repos.getLesson(theirs)!!.notes)
+    }
+
+    @Test
+    fun observeLastLessonDatesTakesEachStudentsLatest() = runTest {
+        val maria = repos.saveStudent(student())
+        repos.saveLesson(lesson(maria, date = "2026-03-02"))
+        repos.saveLesson(lesson(maria, date = "2026-05-02", absent = true))
+        assertEquals(mapOf(maria to LocalDate.parse("2026-05-02")), repos.observeLastLessonDates().first())
+    }
+
+    @Test
     fun observeOverdueCountsStudents() = runTest {
         val maria = repos.saveStudent(student())
         val nikos = repos.saveStudent(student())
