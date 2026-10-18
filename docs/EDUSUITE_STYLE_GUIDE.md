@@ -136,6 +136,8 @@ be re-checked against the new paper and surface values.
 One bundled geometric sans, **Outfit** (SIL Open Font License), in Regular, Medium and SemiBold, as
 `res/font` files. **Outfit is the only font**: no system serif or monospace anywhere. Figures use
 Outfit with tabular figures (`tnum`), so columns of numbers line up.
+Outfit has no Greek letters; Android draws Greek in the system font, which is accepted. Exported
+PDFs (statements) keep Android's default typeface, so Greek and Latin match on paper.
 
 | Role | Style | Weight | Size |
 |------|-------|--------|------|
