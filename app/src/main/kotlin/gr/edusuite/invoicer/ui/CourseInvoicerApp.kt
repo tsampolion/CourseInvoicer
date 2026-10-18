@@ -1,6 +1,12 @@
 package gr.edusuite.invoicer.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import gr.edusuite.invoicer.ui.common.appViewModel
+import gr.edusuite.invoicer.ui.common.ScreenErrorNotice
+import gr.edusuite.invoicer.ui.home.HomeViewModel
+import gr.edusuite.invoicer.ui.dashboard.DashboardViewModel
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import gr.edusuite.invoicer.ui.dashboard.DashboardScreen
@@ -28,20 +34,37 @@ fun CourseInvoicerApp() {
 
     NavHost(navigator) { route ->
         when (route) {
-            Route.Home -> HomeScreen(
-                onOpenDashboard = { navigator.navigate(Route.Dashboard) },
-                onOpenStudents = { navigator.navigate(Route.Students) },
-                onOpenGroups = { navigator.navigate(Route.Groups) },
-                onOpenLessons = { navigator.navigate(Route.Lessons) },
-                onOpenStatements = { navigator.navigate(Route.Invoices) },
-                onOpenSettings = { navigator.navigate(Route.Settings) },
-                onLogLesson = { navigator.navigate(Route.LessonEdit()) },
-            )
-            Route.Dashboard -> DashboardScreen(
-                onBack = back,
-                onOpenStudent = { navigator.navigate(Route.StudentDetail(it)) },
-                onAddLesson = { navigator.navigate(Route.LessonEdit()) },
-            )
+            Route.Home -> {
+                val vm = appViewModel {
+                    HomeViewModel(
+                        it.studentRepository, it.groupRepository, it.lessonRepository,
+                        it.invoiceRepository, it.settingsRepository, it.reminderStateRepository,
+                    )
+                }
+                val state by vm.state.collectAsStateWithLifecycle()
+                HomeScreen(
+                    viewModel = vm,
+                    onOpenDashboard = { navigator.navigate(Route.Dashboard) },
+                    onOpenStudents = { navigator.navigate(Route.Students) },
+                    onOpenGroups = { navigator.navigate(Route.Groups) },
+                    onOpenLessons = { navigator.navigate(Route.Lessons) },
+                    onOpenStatements = { navigator.navigate(Route.Invoices) },
+                    onOpenSettings = { navigator.navigate(Route.Settings) },
+                    onLogLesson = { navigator.navigate(Route.LessonEdit()) },
+                )
+                ScreenErrorNotice(state.message, vm::messageShown)
+            }
+            Route.Dashboard -> {
+                val vm = appViewModel { DashboardViewModel(it.studentRepository, it.lessonRepository) }
+                val state by vm.state.collectAsStateWithLifecycle()
+                DashboardScreen(
+                    viewModel = vm,
+                    onBack = back,
+                    onOpenStudent = { navigator.navigate(Route.StudentDetail(it)) },
+                    onAddLesson = { navigator.navigate(Route.LessonEdit()) },
+                )
+                ScreenErrorNotice(state.message, vm::messageShown)
+            }
             Route.Students -> StudentsScreen(
                 onBack = back,
                 onOpenStudent = { navigator.navigate(Route.StudentDetail(it)) },

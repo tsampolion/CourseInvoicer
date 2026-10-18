@@ -14,15 +14,14 @@ import gr.edusuite.invoicer.core.repository.StudentRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import gr.edusuite.invoicer.ui.common.stateInCatching
+import gr.edusuite.invoicer.ui.common.launchCatching
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -44,6 +43,7 @@ data class HomeUiState(
     val outstanding: Money = Money.ZERO,
     /** The month-end reminder to show, or null. */
     val reminder: ReminderPrompt? = null,
+    val message: String? = null,
 ) {
     // A section counts as empty only once its figures have loaded, so the buttons do not flash dimmed.
     val studentsEmpty: Boolean get() = !loading && activeStudents == 0
@@ -65,6 +65,11 @@ class HomeViewModel(
     private val reminderState: ReminderStateRepository,
     private val today: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
+    private val message = MutableStateFlow<String?>(null)
+
+    private fun showMessage(text: String) { message.value = text }
+    fun messageShown() { message.value = null }
+
     private data class Counts(val lessons: Int, val uninvoiced: Int, val statements: Int, val unpaid: Int)
 
     private val counts = combine(
@@ -97,7 +102,7 @@ class HomeViewModel(
         }
     }
 
-    val state: StateFlow<HomeUiState> = combine(
+    private val observedState: StateFlow<HomeUiState> = combine(
         students.observeStudents(),
         groups.observeGroups(),
         lessons.observeBalances(),
@@ -115,21 +120,27 @@ class HomeViewModel(
             outstanding = balances.sumOfMoney { it.outstanding },
             reminder = prompt,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+    }.stateInCatching(viewModelScope, HomeUiState(), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<HomeUiState> = combine(observedState, message) { snapshot, event ->
+        snapshot.copy(message = event)
+    }.stateInCatching(viewModelScope, HomeUiState(), ::showMessage)
+
 
     /** "Remind me tomorrow": nothing until the next day. */
     fun remindTomorrow() {
         if (state.value.reminder == null) return
         reminderDismissed.value = true
         val tomorrow = today().plusDays(1)
-        viewModelScope.launch { reminderState.update { it.copy(snoozedUntil = tomorrow) } }
+        launchCatching(::showMessage) { reminderState.update { it.copy(snoozedUntil = tomorrow) } }
     }
 
     /** "Done for this month": the reminded month is not reminded again. */
     fun doneForMonth() {
         val month = state.value.reminder?.month ?: return
         reminderDismissed.value = true
-        viewModelScope.launch { reminderState.update { it.copy(doneFor = month) } }
+        launchCatching(::showMessage) { reminderState.update { it.copy(doneFor = month) } }
     }
 
     /** Hides the reminder without answering it (Back, or "Create statements"); the next app start asks again. */

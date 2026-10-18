@@ -161,4 +161,11 @@ class InMemoryRepositoriesTest {
             repos.observeUninvoicedSummary(LocalDate.parse("2026-05-01"), LocalDate.parse("2026-05-31")).first(),
         )
     }
+    @Test fun `clearing payment repairs an uncharged legacy row`() = runTest {
+        val maria = repos.saveStudent(student())
+        val excused = repos.saveLesson(lesson(maria, absent = true, paidOn = "2026-03-31"))
+        repos.setPaid(listOf(excused), null)
+        assertNull(repos.getLesson(excused)?.paidOn)
+    }
+
 }

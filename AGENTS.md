@@ -40,7 +40,7 @@ Two modules. `:core` is pure Kotlin with no Android imports. `:app` holds everyt
 
 ```
 Compose screen ──collectAsStateWithLifecycle──▶ XxxViewModel.state: StateFlow<XxxUiState>
-      │ events                                         ▲ combine(…).stateIn(WhileSubscribed(5_000))
+      │ events                                         ▲ combine(…).stateInCatching(…)
       ▼                                                │
 XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ──▶ repository interface (:core)
                                                                          │ implemented by
@@ -59,9 +59,11 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   the business rules R1–R15 and throw `DomainException` with a message the user can read. ViewModels
   build the use cases they need from the repositories they receive (for example
   `LessonEditViewModel` creates `SaveLesson(lessons)`).
-- **ViewModels.** Each screen has one, exposing a single `state`. List screens `combine` repository
-  flows and `stateIn(WhileSubscribed(5_000))`. Form screens keep a `MutableStateFlow` and `update`
-  it. Writes go through `launchCatching`, which turns a `DomainException` into the state's
+- **ViewModels.** Each screen has one, exposing a single `state`. List screens use `stateInCatching`, keeping the last good state and
+  reporting flow errors. Form loads go through `launchCatching`; missing entities block editing.
+  Form screens keep a `MutableStateFlow` and one guarded edit path. No ViewModel writes to a
+  business repository directly. Reminder-state writes are orchestration and use `launchCatching`.
+  Writes go through `launchCatching`, which turns a `DomainException` into the state's
   `message`. The screen shows it once with `MessageEffect` and calls `messageShown()` to clear it.
 - **Wiring.** `AppContainer` builds the whole object graph by hand (no Hilt, D4). `MainActivity`
   provides it as `LocalAppContainer`, and screens get their ViewModel with

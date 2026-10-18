@@ -181,7 +181,7 @@ class InMemoryRepositories :
         data.update { d ->
             d.copy(
                 lessons = d.lessons.mapValues { (id, l) ->
-                    if (id in ids && l.charge.isPositive) l.copy(paidOn = paidOn) else l
+                    if (id in ids && (paidOn == null || l.charge.isPositive)) l.copy(paidOn = paidOn) else l
                 },
             )
         }

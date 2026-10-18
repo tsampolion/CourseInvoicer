@@ -52,6 +52,10 @@ How to use this file:
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
   with every amount read as euros, and new backups still open in 2.0.0.
 
+### Fixed
+- A database error on a list screen shows a message instead of closing the app. Opening a lesson,
+  student or group that was deleted meanwhile says so instead of showing an empty form.
+
 ## [2.0.0] - 2026-10-16
 
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.

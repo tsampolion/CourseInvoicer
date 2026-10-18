@@ -43,6 +43,7 @@ import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.StudentPickerField
 import gr.edusuite.invoicer.ui.common.TimeField
+import gr.edusuite.invoicer.ui.common.MissingEntityScreen
 import gr.edusuite.invoicer.ui.common.appViewModel
 
 @Composable
@@ -64,6 +65,10 @@ fun LessonEditScreen(
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.notFound) {
+        MissingEntityScreen(state.message ?: "This lesson no longer exists", onBack)
+        return
+    }
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     MessageEffect(state.message, snackbar, viewModel::messageShown)

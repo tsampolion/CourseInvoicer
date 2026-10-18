@@ -7,10 +7,9 @@ import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import gr.edusuite.invoicer.ui.common.stateInCatching
 
 data class StudentRow(val student: Student, val outstanding: Money)
 
@@ -19,14 +18,20 @@ data class StudentsUiState(
     val showArchived: Boolean = false,
     val rows: List<StudentRow> = emptyList(),
     val totalCount: Int = 0,
+    val message: String? = null,
 )
 
 /** The search text itself lives in the screen's text field state; this view model only filters by it. */
 class StudentsViewModel(students: StudentRepository, lessons: LessonRepository) : ViewModel() {
+    private val message = MutableStateFlow<String?>(null)
+
+    private fun showMessage(text: String) { message.value = text }
+    fun messageShown() { message.value = null }
+
     private val query = MutableStateFlow("")
     private val showArchived = MutableStateFlow(false)
 
-    val state: StateFlow<StudentsUiState> = combine(
+    private val observedState: StateFlow<StudentsUiState> = combine(
         students.observeStudents(),
         lessons.observeBalances(),
         query,
@@ -44,7 +49,13 @@ class StudentsViewModel(students: StudentRepository, lessons: LessonRepository) 
             }
             .map { StudentRow(it, balances[it.id] ?: Money.ZERO) }
         StudentsUiState(false, archived, rows, studentList.size)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StudentsUiState())
+    }.stateInCatching(viewModelScope, StudentsUiState(), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<StudentsUiState> = combine(observedState, message) { snapshot, event ->
+        snapshot.copy(message = event)
+    }.stateInCatching(viewModelScope, StudentsUiState(), ::showMessage)
+
 
     fun onQueryChange(value: String) {
         query.value = value

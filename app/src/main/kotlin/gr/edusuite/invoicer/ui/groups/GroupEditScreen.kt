@@ -34,6 +34,7 @@ import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
+import gr.edusuite.invoicer.ui.common.MissingEntityScreen
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.students.RateInput
 import gr.edusuite.invoicer.ui.students.TextInput
@@ -49,6 +50,10 @@ fun GroupEditScreen(
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.notFound) {
+        MissingEntityScreen(state.message ?: "This group no longer exists", onBack)
+        return
+    }
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val form = state.form

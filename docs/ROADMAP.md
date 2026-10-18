@@ -26,7 +26,7 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 
 | # | Item | Status | Size |
 |---|------|--------|------|
-| 1 | One state and one change path per ViewModel | Partial | M |
+| 1 | One state and one change path per ViewModel | Done | M |
 | 2 | Undo for destructive actions | Not started | L |
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
@@ -40,34 +40,6 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 12 | App theme drives the system bars | Done | — |
 | 13 | Short, rule-focused agent guide | Done (2.0.0-alpha03) | S |
 | 14 | Theme and components for style guide v3 | In progress | L |
-
-## 1. One state and one change path per ViewModel
-
-**Today.** All 12 screen ViewModels expose one `StateFlow<XxxUiState>`. Writes go through
-`launchCatching` (`ui/common/ViewModelSupport.kt`). But:
-- the `combine(…).stateIn(…)` flows have no `.catch`, so a database error crashes the app;
-- initial loads in the form ViewModels use a bare `viewModelScope.launch` (LessonEdit,
-  CreateInvoice, StudentEdit, GroupEdit, GroupLesson);
-- `LessonEditViewModel.setPaid` and `setNotes` bypass its `edit()` guard;
-- some writes skip the use cases: `lessons.setPaid` is called from `LessonsViewModel` and
-  `StudentDetailViewModel`, and archiving is a read-modify-write in `StudentDetailViewModel`;
-- R3 (excused absences are never paid) is enforced by `SaveLesson` and by `setPaid`, which skips
-  lessons that are not charged (2.0.0), but not yet by a use case.
-
-**Tasks**
-- [ ] Add a `stateInCatching` helper next to `launchCatching`. It catches upstream errors, keeps the
-      last good state and sets the screen's `message`. Use it in every list ViewModel.
-- [ ] Run every initial form load through `launchCatching`. A missing entity sets a message and a
-      `notFound` flag; it does not show a blank form.
-- [ ] Give each form ViewModel one private `edit(transform)` that every setter calls, with the lock
-      check (R7) inside it.
-- [ ] Add `MarkPaid` and `ArchiveStudent` / `ArchiveGroup` use cases in `core/usecase`. `MarkPaid`
-      refuses lessons that are not charged (R3). Call them from the ViewModels instead of the repositories.
-- [ ] Tests: `core` tests for the new use cases. A `ViewModelsTest` case where the repository flow
-      throws and the screen shows a message instead of crashing.
-
-**Done when** no ViewModel calls a repository write directly, no flow error can crash a screen, and
-R3 is enforced in `:core`.
 
 ## 2. Undo for destructive actions
 
@@ -275,7 +247,7 @@ These came up during the comparison but aren't among the 13 items.
 - [x] **Security.** A Firebase API key from v0.x is in the git history of `main` and `Rebuild`
       (`app/google-services.json`). The owner deleted the Firebase project, and its key with it, in
       October 2026. The legacy branches stay as history.
-- [ ] A test for R3 in `:core` once `MarkPaid` exists (item 1).
+- [x] A test for R3 in `:core` once `MarkPaid` exists (item 1).
 - [ ] **Third-party notices.** The APK bundles Apache-2.0 libraries (Kotlin, AndroidX, Compose).
       Giving the APK to anyone else requires passing on their licence and notices. Add an
       *Open-source licences* entry in Settings, or ship the notices with each release.
@@ -318,3 +290,24 @@ only (D21), while retaining backup compatibility with 2.0.0.
       never regenerated.
 
 **Done when** each rule in R1, R5 and R13 has at least one test that would fail if it changed.
+
+### Item 1 — 2.1.0: one state and one change path per ViewModel
+
+List flows keep their last good data on error and still deliver messages. Form loads are guarded,
+missing entities cannot be edited, and setters share one edit path. Payment and archiving go
+through tested core use cases. Reminder-state writes remain orchestration inside `launchCatching`.
+
+**Tasks**
+- [x] Add a `stateInCatching` helper next to `launchCatching`. It catches upstream errors, keeps the
+      last good state and sets the screen's `message`. Use it in every list ViewModel.
+- [x] Run every initial form load through `launchCatching`. A missing entity sets a message and a
+      `notFound` flag; it does not show a blank form.
+- [x] Give each form ViewModel one private `edit(transform)` that every setter calls, with the lock
+      check (R7) inside it.
+- [x] Add `MarkPaid` and `ArchiveStudent` / `ArchiveGroup` use cases in `core/usecase`. `MarkPaid`
+      refuses lessons that are not charged (R3). Call them from the ViewModels instead of the repositories.
+- [x] Tests: `core` tests for the new use cases. A `ViewModelsTest` case where the repository flow
+      throws and the screen shows a message instead of crashing.
+
+**Done when** no ViewModel calls a repository write directly, no flow error can crash a screen, and
+R3 is enforced in `:core`.

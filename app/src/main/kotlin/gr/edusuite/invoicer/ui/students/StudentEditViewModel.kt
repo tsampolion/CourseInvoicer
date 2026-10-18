@@ -1,7 +1,6 @@
 package gr.edusuite.invoicer.ui.students
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 data class StudentForm(
     val firstName: String = "",
@@ -30,6 +28,7 @@ data class StudentForm(
 
 data class StudentEditUiState(
     val loading: Boolean = true,
+    val notFound: Boolean = false,
     val isNew: Boolean = true,
     val form: StudentForm = StudentForm(),
     val classSuggestions: List<String> = emptyList(),
@@ -50,9 +49,13 @@ class StudentEditViewModel(
     val state: StateFlow<StudentEditUiState> = mutableState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        launchCatching(::fail) {
             val all = students.observeStudents().first()
             original = all.firstOrNull { it.id == studentId }
+            if (studentId != 0L && original == null) {
+                mutableState.update { it.copy(loading = false, notFound = true, message = "This student no longer exists") }
+                return@launchCatching
+            }
             mutableState.update { current ->
                 current.copy(
                     loading = false,
@@ -63,11 +66,15 @@ class StudentEditViewModel(
         }
     }
 
-    fun update(transform: (StudentForm) -> StudentForm) = mutableState.update {
-        it.copy(form = transform(it.form), firstNameError = false, rateError = false)
+    fun update(transform: (StudentForm) -> StudentForm) = edit(transform = transform)
+
+    private fun edit(allowedWhenLocked: Boolean = false, transform: (StudentForm) -> StudentForm) = mutableState.update {
+        if (it.loading || it.notFound || it.saving) it
+        else it.copy(form = transform(it.form), firstNameError = false, rateError = false)
     }
 
     fun save() {
+        if (state.value.loading || state.value.notFound || state.value.saving) return
         val form = state.value.form
         val rate = Money.parse(form.rate)
         if (form.firstName.isBlank() || rate == null) {
@@ -106,4 +113,6 @@ class StudentEditViewModel(
         rateType = rate.type,
         notes = notes,
     )
+    private fun fail(message: String) = mutableState.update { it.copy(loading = false, notFound = it.notFound || it.loading, saving = false, message = message) }
+
 }

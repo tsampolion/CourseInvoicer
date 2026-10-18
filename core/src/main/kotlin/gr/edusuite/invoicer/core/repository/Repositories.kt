@@ -88,7 +88,7 @@ interface LessonRepository {
 
     /**
      * Sets (or clears, when [paidOn] is null) the payment date of the given lessons. Lessons that are not
-     * charged (excused absences, free lessons) are left unchanged: they are never paid.
+     * charged (excused absences, free lessons) are left unchanged when paying. Clearing is allowed for any lesson.
      */
     suspend fun setPaid(ids: Collection<Long>, paidOn: LocalDate?)
 }

@@ -28,6 +28,7 @@ import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.StudentPickerField
+import gr.edusuite.invoicer.ui.common.MissingEntityScreen
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
@@ -51,6 +52,10 @@ fun CreateInvoiceScreen(
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.notFound) {
+        MissingEntityScreen(state.message ?: "This student no longer exists", onBack)
+        return
+    }
     val formats = LocalFormats.current
     val snackbar = remember { SnackbarHostState() }
     val shareInvoice = rememberInvoiceSharer(viewModel::showMessage)

@@ -1,7 +1,6 @@
 package gr.edusuite.invoicer.ui.groups
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
@@ -18,7 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 data class GroupForm(
     val name: String = "",
@@ -31,6 +29,7 @@ data class GroupForm(
 
 data class GroupEditUiState(
     val loading: Boolean = true,
+    val notFound: Boolean = false,
     val isNew: Boolean = true,
     val form: GroupForm = GroupForm(),
     /** Active students plus any archived student who is still a member. */
@@ -54,8 +53,12 @@ class GroupEditViewModel(
     val state: StateFlow<GroupEditUiState> = mutableState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        launchCatching(::fail) {
             val group = if (groupId == 0L) null else groups.getGroup(groupId)
+            if (groupId != 0L && group == null) {
+                mutableState.update { it.copy(loading = false, notFound = true, message = "This group no longer exists") }
+                return@launchCatching
+            }
             val members = group?.memberIds.orEmpty()
             val candidates = students.observeStudents().first().filter { !it.archived || it.id in members }
             mutableState.update { current ->
@@ -70,8 +73,11 @@ class GroupEditViewModel(
         }
     }
 
-    fun update(transform: (GroupForm) -> GroupForm) = mutableState.update {
-        it.copy(form = transform(it.form), nameError = false, rateError = false)
+    fun update(transform: (GroupForm) -> GroupForm) = edit(transform = transform)
+
+    private fun edit(allowedWhenLocked: Boolean = false, transform: (GroupForm) -> GroupForm) = mutableState.update {
+        if (it.loading || it.notFound || it.saving) it
+        else it.copy(form = transform(it.form), nameError = false, rateError = false)
     }
 
     fun toggleMember(studentId: Long) = update {
@@ -79,6 +85,7 @@ class GroupEditViewModel(
     }
 
     fun save() {
+        if (state.value.loading || state.value.notFound || state.value.saving) return
         val form = state.value.form
         val rate = Money.parse(form.rate)
         if (form.name.isBlank() || rate == null) {
@@ -108,5 +115,5 @@ class GroupEditViewModel(
 
     fun messageShown() = mutableState.update { it.copy(message = null) }
 
-    private fun fail(message: String) = mutableState.update { it.copy(saving = false, message = message) }
+    private fun fail(message: String) = mutableState.update { it.copy(loading = false, notFound = it.notFound || it.loading, saving = false, message = message) }
 }

@@ -1,7 +1,6 @@
 package gr.edusuite.invoicer.ui.invoices
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
@@ -19,11 +18,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class CreateInvoiceUiState(
     val loading: Boolean = true,
+    val notFound: Boolean = false,
     val students: List<Student> = emptyList(),
     val studentId: Long? = null,
     val lessons: List<Lesson> = emptyList(),
@@ -53,8 +52,13 @@ class CreateInvoiceViewModel(
     val state: StateFlow<CreateInvoiceUiState> = mutableState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        launchCatching(::fail) {
             val pickable = students.observeStudents().first().filter { !it.archived || it.id == initialStudentId }
+
+            if (initialStudentId != 0L && pickable.none { it.id == initialStudentId }) {
+                mutableState.update { it.copy(loading = false, notFound = true, message = "This student no longer exists") }
+                return@launchCatching
+            }
             val groupNames = groups.observeGroups().first().associate { it.id to it.name }
             mutableState.update { it.copy(loading = false, students = pickable, groupNames = groupNames) }
             if (pickable.any { it.id == initialStudentId }) selectStudent(initialStudentId)
@@ -62,8 +66,9 @@ class CreateInvoiceViewModel(
     }
 
     fun selectStudent(id: Long) {
-        mutableState.update { it.copy(studentId = id, lessons = emptyList(), selected = emptySet()) }
-        viewModelScope.launch {
+        if (state.value.loading || state.value.notFound || state.value.saving) return
+        edit { it.copy(studentId = id, lessons = emptyList(), selected = emptySet()) }
+        launchCatching(::fail) {
             // Every lesson on no statement yet, absences included: excused ones are 0.00 lines (R4).
             val open = lessons.observeLessonsOfStudent(id).first()
                 .filter { it.isInvoiceable }
@@ -74,21 +79,22 @@ class CreateInvoiceViewModel(
         }
     }
 
-    fun toggle(lessonId: Long) = mutableState.update {
+    fun toggle(lessonId: Long) = edit {
         it.copy(selected = if (lessonId in it.selected) it.selected - lessonId else it.selected + lessonId)
     }
 
-    fun selectAll(all: Boolean) = mutableState.update {
+    fun selectAll(all: Boolean) = edit {
         it.copy(selected = if (all) it.lessons.map { lesson -> lesson.id }.toSet() else emptySet())
     }
 
-    fun setIssueDate(date: LocalDate) = mutableState.update { it.copy(issueDate = date) }
+    fun setIssueDate(date: LocalDate) = edit { it.copy(issueDate = date) }
 
-    fun setNotes(text: String) = mutableState.update { it.copy(notes = text) }
+    fun setNotes(text: String) = edit { it.copy(notes = text) }
 
-    fun setMarkPaid(value: Boolean) = mutableState.update { it.copy(markPaid = value) }
+    fun setMarkPaid(value: Boolean) = edit { it.copy(markPaid = value) }
 
     fun create() {
+        if (state.value.loading || state.value.notFound || state.value.saving) return
         val current = state.value
         val studentId = current.studentId ?: return
         mutableState.update { it.copy(saving = true) }
@@ -101,4 +107,10 @@ class CreateInvoiceViewModel(
     fun showMessage(text: String) = mutableState.update { it.copy(message = text) }
 
     fun messageShown() = mutableState.update { it.copy(message = null) }
+    private fun edit(allowedWhenLocked: Boolean = false, transform: (CreateInvoiceUiState) -> CreateInvoiceUiState) = mutableState.update {
+        if (it.loading || it.notFound || it.saving) it else transform(it)
+    }
+
+    private fun fail(message: String) = mutableState.update { it.copy(loading = false, notFound = it.notFound || it.loading, saving = false, message = message) }
+
 }

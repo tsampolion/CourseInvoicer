@@ -6,10 +6,9 @@ import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import gr.edusuite.invoicer.ui.common.stateInCatching
 
 data class GroupRow(val group: StudentGroup, val activeMembers: Int)
 
@@ -18,12 +17,18 @@ data class GroupsUiState(
     val showArchived: Boolean = false,
     val rows: List<GroupRow> = emptyList(),
     val totalCount: Int = 0,
+    val message: String? = null,
 )
 
 class GroupsViewModel(groups: GroupRepository, students: StudentRepository) : ViewModel() {
+    private val message = MutableStateFlow<String?>(null)
+
+    private fun showMessage(text: String) { message.value = text }
+    fun messageShown() { message.value = null }
+
     private val showArchived = MutableStateFlow(false)
 
-    val state: StateFlow<GroupsUiState> =
+    private val observedState: StateFlow<GroupsUiState> =
         combine(groups.observeGroups(), students.observeStudents(), showArchived) { groupList, studentList, archived ->
             val activeIds = studentList.filterNot { it.archived }.map { it.id }.toSet()
             GroupsUiState(
@@ -33,7 +38,13 @@ class GroupsViewModel(groups: GroupRepository, students: StudentRepository) : Vi
                     .map { GroupRow(it, it.memberIds.count { id -> id in activeIds }) },
                 totalCount = groupList.size,
             )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupsUiState())
+        }.stateInCatching(viewModelScope, GroupsUiState(), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<GroupsUiState> = combine(observedState, message) { snapshot, event ->
+        snapshot.copy(message = event)
+    }.stateInCatching(viewModelScope, GroupsUiState(), ::showMessage)
+
 
     fun onShowArchivedChange(value: Boolean) {
         showArchived.value = value

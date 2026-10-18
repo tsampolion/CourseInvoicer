@@ -67,6 +67,62 @@ class ViewModelsTest {
         paidOn = paidOn?.let(LocalDate::parse),
     )
 
+    @Test fun `a failed list flow reports an error and can clear it without losing the last data`() = runTest {
+        val maria = addStudent("Maria")
+        val failure = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val broken = object : gr.edusuite.invoicer.core.repository.StudentRepository by repos {
+            override fun observeStudents() = kotlinx.coroutines.flow.flow {
+                emit(listOf(repos.getStudent(maria)!!))
+                failure.await()
+                throw IllegalStateException("disk")
+            }
+        }
+        val vm = StudentsViewModel(broken, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertEquals(1, vm.state.value.rows.size)
+        failure.complete(Unit)
+        assertEquals("Something went wrong: disk", vm.state.value.message)
+        assertEquals("Maria", vm.state.value.rows.single().student.firstName)
+        vm.messageShown()
+        assertNull(vm.state.value.message)
+        assertEquals(1, vm.state.value.rows.size)
+    }
+
+    @Test fun `missing lesson is not an editable blank form`() = runTest {
+        val vm = LessonEditViewModel(999, 0, repos, repos, repos, repos.settingsRepository)
+        assertTrue(vm.state.value.notFound)
+        assertEquals("This lesson no longer exists", vm.state.value.message)
+        vm.setNotes("ignored")
+        vm.save()
+        assertEquals("", vm.state.value.notes)
+        assertTrue(repos.lessons.isEmpty())
+    }
+
+    @Test fun `an excused lesson form refuses payment and reports the core rule`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000).copy(absent = true))
+        val vm = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
+        vm.setPaid(true)
+        assertFalse(vm.state.value.paid)
+        assertEquals("An excused absence is not charged, so it can't be paid", vm.state.value.message)
+        assertNull(repos.getLesson(id)?.paidOn)
+    }
+
+    @Test fun `bulk payment skips selected excused absences`() = runTest {
+        val maria = addStudent("Maria")
+        val held = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val excused = repos.saveLesson(lesson(maria, "2026-03-11", 2000).copy(absent = true))
+        val day = LocalDate.of(2026, 3, 31)
+        val vm = LessonsViewModel(repos, repos, repos) { day }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.toggleSelection(held)
+        vm.toggleSelection(excused)
+        vm.markSelectedPaid()
+        assertEquals(day, repos.getLesson(held)?.paidOn)
+        assertNull(repos.getLesson(excused)?.paidOn)
+        assertEquals("Marked 1 lesson as paid", vm.state.value.message)
+    }
+
     @Test
     fun `dashboard summarises the month and lists who owes`() = runTest {
         val maria = addStudent("Maria")
