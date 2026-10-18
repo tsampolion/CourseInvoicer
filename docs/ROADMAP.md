@@ -35,7 +35,6 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 7 | CI on every branch | Done (2.0.0-alpha03) | S |
 | 8 | Saving and corrupt data | Done (2.1.0) | M |
 | 9 | Print statements | Partial | S |
-
 | 10 | Backup and device-transfer rules | Done | — |
 | 11 | Smaller footprint | Partial | S |
 | 12 | App theme drives the system bars | Done | — |
@@ -199,8 +198,9 @@ These came up during the comparison but aren't among the 13 items.
 The owner split the 2.1.0 work between two agents:
 - **ChatGPT:** items 5, 1 and 8, as three stacked pull requests. The brief is
   [`handoff/CHATGPT_BRIEF.md`](handoff/CHATGPT_BRIEF.md).
-- **Claude Code:** item 14 (style guide v3 in code), then item 2 (Undo), which builds on item 1's
-  `MarkPaid`.
+- **Claude Code:** item 14 (style guide v3 in code).
+- **ChatGPT, after item 1:** item 2 (Undo), from
+  [`handoff/CHATGPT_UNDO_BRIEF.md`](handoff/CHATGPT_UNDO_BRIEF.md).
 
 ## Done
 

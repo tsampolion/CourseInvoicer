@@ -20,7 +20,7 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
-## [2.1.0] - Unreleased
+## [2.1.0] - 2026-10-18
 
 ### Added
 - **Undo** for deleting a lesson, recording a payment, marking lessons paid or unpaid, rescheduling,
@@ -51,6 +51,7 @@ How to use this file:
   button) over a bento grid of pastel section tiles, Lessons and Statements tall, each with its
   live subtitle; it stacks in one column at large font sizes. The Dashboard's figures are stat
   tiles.
+- **Outfit is the only font.** Figures use Outfit's tabular figures instead of a monospace font.
 
 ### Removed
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
@@ -70,7 +71,6 @@ How to use this file:
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 
 ### Added
-- **Outfit is the only font.** Figures use Outfit's tabular figures instead of a monospace font.
 - **EduSuite style guide** (`docs/EDUSUITE_STYLE_GUIDE.md`, D19): the shared look of Course
   Invoicer and Course Pacer, with colour tokens and their contrast ratios, type, shapes, spacing,
   components, the home header, launcher icon rules, accessibility and copy tone.
