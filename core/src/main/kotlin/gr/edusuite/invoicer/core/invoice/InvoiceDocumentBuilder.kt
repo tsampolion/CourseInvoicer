@@ -7,6 +7,7 @@ import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Student
+import gr.edusuite.invoicer.core.model.dueDate
 
 /**
  * Formats a statement's content from the current data; see [InvoiceDocument] for when it is frozen.
@@ -19,6 +20,9 @@ object InvoiceDocumentBuilder {
     const val DISCLAIMER = "ΤΟ ΠΑΡΟΝ ΔΕΝ ΑΠΟΤΕΛΕΙ ΦΟΡΟΛΟΓΙΚΟ ΣΤΟΙΧΕΙΟ. Δεν είναι τιμολόγιο ούτε απόδειξη " +
         "παροχής υπηρεσιών κατά τον ν. 4308/2014 (ΕΛΠ) και δεν διαβιβάζεται στην ΑΑΔΕ (myDATA). " +
         "Για κάθε πληρωμή εκδίδεται χωριστά νόμιμη απόδειξη."
+
+    /** Followed by the due date, the last day of the issue month (R16). */
+    const val DUE_NOTE = "Payment due by"
 
     const val EXCUSED_NOTE = "Absent — not charged"
     const val LATE_CANCELLATION_NOTE = "Late cancellation (under 24 h) — charged"
@@ -57,8 +61,11 @@ object InvoiceDocumentBuilder {
             )
         }
 
+        val paid = InvoicePayment.of(lessons).isPaid
         val notes = buildList {
             invoice.notes.takeIf { it.isNotBlank() }?.let(::add)
+            // When to pay (R16), frozen with the document like everything else. Not on one already paid.
+            if (!paid) add("$DUE_NOTE ${formats.date(dueDate(invoice.issueDate))}")
             business.iban.takeIf { it.isNotBlank() }?.let { add("Payment by bank transfer to IBAN $it") }
             settings.invoiceFooter.takeIf { it.isNotBlank() }?.let(::add)
         }
@@ -70,7 +77,7 @@ object InvoiceDocumentBuilder {
             billTo = billTo,
             lines = lines,
             total = formats.money(invoice.total),
-            paid = InvoicePayment.of(lessons).isPaid,
+            paid = paid,
             notes = notes,
             title = TITLE,
             disclaimer = DISCLAIMER,

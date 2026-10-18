@@ -40,6 +40,8 @@ data class HomeUiState(
     val uninvoicedLessons: Int = 0,
     val statements: Int = 0,
     val unpaidStatements: Int = 0,
+    /** Unpaid statements past the last day of their issue month (R16). */
+    val overdueStatements: Int = 0,
     val outstanding: Money = Money.ZERO,
     /** The month-end reminder to show, or null. */
     val reminder: ReminderPrompt? = null,
@@ -73,14 +75,23 @@ class HomeViewModel(
     private fun showMessage(text: String) { message.value = text }
     fun messageShown() { message.value = null }
 
-    private data class Counts(val lessons: Int, val uninvoiced: Int, val statements: Int, val unpaid: Int)
+    private data class Counts(
+        val lessons: Int,
+        val uninvoiced: Int,
+        val statements: Int,
+        val unpaid: Int,
+        val overdue: Int,
+    )
 
     private val counts = combine(
         lessons.observeLessonCount(),
         lessons.observeUninvoicedCount(),
         invoices.observeInvoiceCount(),
         invoices.observeUnpaidCount(),
-    ) { lessonCount, uninvoiced, statementCount, unpaid -> Counts(lessonCount, uninvoiced, statementCount, unpaid) }
+        invoices.observeOverdue(today()),
+    ) { lessonCount, uninvoiced, statementCount, unpaid, overdue ->
+        Counts(lessonCount, uninvoiced, statementCount, unpaid, overdue.statements)
+    }
 
     /**
      * Set once the reminder has been answered or dismissed. Home stays at the bottom of the back stack, so the
@@ -120,6 +131,7 @@ class HomeViewModel(
             uninvoicedLessons = current.uninvoiced,
             statements = current.statements,
             unpaidStatements = current.unpaid,
+            overdueStatements = current.overdue,
             outstanding = balances.sumOfMoney { it.outstanding },
             reminder = prompt,
         )

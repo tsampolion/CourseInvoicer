@@ -5,6 +5,8 @@ import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.OverdueSummary
+import gr.edusuite.invoicer.core.model.isOverdue
 import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -110,6 +112,12 @@ interface InvoiceRepository {
      * [LessonRepository.observeInvoicePayments]) is false although they have lessons.
      */
     fun observeUnpaidCount(): Flow<Int>
+
+    /**
+     * The overdue invoices on [today] (R16, [isOverdue]): not void, unpaid like [observeUnpaidCount], and
+     * issued before the first of [today]'s month. How many, and whose.
+     */
+    fun observeOverdue(today: LocalDate): Flow<OverdueSummary>
 
     suspend fun getInvoice(id: Long): Invoice?
 

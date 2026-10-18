@@ -8,6 +8,8 @@ import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.OverdueSummary
+import gr.edusuite.invoicer.core.model.isOverdue
 import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -222,6 +224,14 @@ class InMemoryRepositories :
         d.invoices.values.count { invoice ->
             !invoice.isVoid && linked[invoice.id]?.let { !InvoicePayment.of(it).isPaid } == true
         }
+    }
+
+    override fun observeOverdue(today: LocalDate): Flow<OverdueSummary> = data.map { d ->
+        val linked = d.lessons.values.filter { it.invoiceId != null }.groupBy { it.invoiceId!! }
+        val overdue = d.invoices.values.filter { invoice ->
+            isOverdue(invoice, linked[invoice.id]?.let(InvoicePayment::of), today)
+        }
+        OverdueSummary(overdue.size, overdue.map { it.studentId }.toSet())
     }
 
     override suspend fun getInvoice(id: Long): Invoice? = data.value.invoices[id]

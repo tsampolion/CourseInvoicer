@@ -8,6 +8,7 @@ import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoicePayment
+import gr.edusuite.invoicer.core.model.OverdueSummary
 import gr.edusuite.invoicer.core.report.Reports
 import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.student
@@ -126,6 +127,19 @@ class InMemoryRepositoriesTest {
             repos.observeInvoicePayments().first(),
         )
         assertTrue("a statement of excused absences is paid", repos.observeInvoicePayments().first()[zero.id]!!.isPaid)
+    }
+
+    @Test
+    fun observeOverdueCountsStudents() = runTest {
+        val maria = repos.saveStudent(student())
+        val nikos = repos.saveStudent(student())
+        val create = repos.createInvoiceUseCase()
+        create(maria, listOf(repos.saveLesson(lesson(maria, fee = "20"))), issueDate)
+        create(maria, listOf(repos.saveLesson(lesson(maria, fee = "30"))), issueDate)
+        create(nikos, listOf(repos.saveLesson(lesson(nikos, fee = "20", paidOn = "2026-03-11"))), issueDate)
+
+        assertEquals("not before the month ends", OverdueSummary(0, emptySet()), repos.observeOverdue(issueDate).first())
+        assertEquals(OverdueSummary(2, setOf(maria)), repos.observeOverdue(issueDate.plusDays(1)).first())
     }
 
     @Test

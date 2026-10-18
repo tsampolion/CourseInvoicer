@@ -6,7 +6,7 @@ recipes for common changes and the traps. What the app should do is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md); how it should look is in
 [`docs/EDUSUITE_STYLE_GUIDE.md`](docs/EDUSUITE_STYLE_GUIDE.md).
 
-**Version:** 2.3.0 · **Default branch:** `Rebuild_v2`
+**Version:** 2.4.0 · **Default branch:** `Rebuild_v2`
 
 ## 1. Commands
 
@@ -56,7 +56,7 @@ XxxViewModel ──launchCatching { useCase(…) }──▶ :core use case ─�
   every open screen refreshes after a change. Settings are not a table: `PrefsSettingsRepository`
   keeps them in SharedPreferences and exposes a `StateFlow`.
 - **Rules.** Use cases in `core/usecase` (`SaveLesson`, `CreateInvoice`, `VoidInvoice`, …) enforce
-  the business rules R1–R15 and throw `DomainException` with a message the user can read. ViewModels
+  the business rules R1–R16 and throw `DomainException` with a message the user can read. ViewModels
   build the use cases they need from the repositories they receive (for example
   `LessonEditViewModel` creates `SaveLesson(lessons)`).
 - **ViewModels.** Each screen has one, exposing a single `state`. List screens use `stateInCatching`, keeping the last good state and

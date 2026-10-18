@@ -20,6 +20,17 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.4.0] - 2026-10-18
+
+### Added
+- **Overdue statements (R16).** A statement is due by the last day of its issue month and overdue
+  from the next day while it is unpaid and not void. New statements print *Payment due by <date>*
+  in their notes (frozen with the document; statements already issued print as they were).
+- Overdue figures are in the suite red. Home: the Statements tile says *N overdue* with an
+  *Overdue* chip, and a warning banner above the tiles says *N statements overdue* with *View*.
+  Students: rows with an overdue statement get an *Overdue* chip, and a banner says how many
+  students have one.
+
 ## [2.3.0] - 2026-10-18
 
 ### Added
