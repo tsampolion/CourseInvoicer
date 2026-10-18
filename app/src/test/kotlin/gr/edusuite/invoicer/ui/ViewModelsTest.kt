@@ -13,6 +13,7 @@ import gr.edusuite.invoicer.core.model.ReminderState
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.model.ThemeMode
+import gr.edusuite.invoicer.core.privacy.NoticeLanguage
 import gr.edusuite.invoicer.core.testing.InMemoryReminderStateRepository
 import gr.edusuite.invoicer.core.testing.InMemoryRepositories
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
@@ -853,6 +854,21 @@ class ViewModelsTest {
         pauseTyping()
         viewModel.flush()
         assertEquals("nothing left to save", "Changed elsewhere", stored.invoiceFooter)
+    }
+
+    @Test
+    fun `the privacy notice waits for the name and uses the details as typed`() = runTest {
+        val settings = settingsViewModel()
+        val details = statementDetailsViewModel()
+        assertNull(settings.privacyNotice(NoticeLanguage.EN))
+        assertNull(details.privacyNotice(NoticeLanguage.EL))
+
+        details.onName("Tutor")
+        assertTrue("typed, not yet saved", details.privacyNotice(NoticeLanguage.EN)!!.contains("Tutor is the controller"))
+        assertNull(settings.privacyNotice(NoticeLanguage.EN))
+
+        pauseTyping()
+        assertTrue(settings.privacyNotice(NoticeLanguage.EL)!!.contains("Tutor είναι ο υπεύθυνος επεξεργασίας"))
     }
 
     @Test

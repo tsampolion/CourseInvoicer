@@ -6,7 +6,7 @@ An offline Android app for private tutors. Keep a register of students and group
 who owes what, record payments and send PDF lesson statements. All data stays on the phone. Part of
 the EduSuite apps, with Course Pacer. Formerly EduInvoice.
 
-**Version:** 2.4.1 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.5.0 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 How the app should behave is in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). What changed in each
 version is in [`CHANGELOG.md`](CHANGELOG.md).
