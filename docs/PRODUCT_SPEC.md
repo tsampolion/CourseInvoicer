@@ -120,7 +120,7 @@ first. Record each approval here. Versions live in `gradle/libs.versions.toml`.
 | Scope | Dependencies |
 |-------|--------------|
 | Runtime (approved) | Kotlin stdlib, kotlinx-coroutines, `androidx.core:core-ktx`, `androidx.activity:activity-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose` / `-runtime-compose`, Compose BOM (`ui`, `foundation`, `material3`, `ui-tooling-preview`) |
-| Bundled assets (approved) | Outfit typeface (SIL Open Font License), Regular, Medium and SemiBold, in `res/font` (style guide §3) |
+| Bundled assets (approved) | Outfit typeface (SIL Open Font License), Regular, Medium and SemiBold, in `res/font` (style guide §3). Shipped as Google Fonts' variable file `res/font/outfit_variable.ttf` (from `google/fonts`, `ofl/outfit`), used at those three weights; licence text in `assets/licenses/outfit_ofl.txt` |
 | Debug only | `androidx.compose.ui:ui-tooling` |
 | Unit tests (approved) | JUnit 4, `kotlinx-coroutines-test` |
 | Instrumented tests (approved alpha02) | `androidx.test:runner`, `androidx.test.ext:junit`, `androidx.compose.ui:ui-test-junit4` |

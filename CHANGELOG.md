@@ -35,6 +35,11 @@ How to use this file:
   toggles, sliders, rolling figures, haptics), loading, empty and error states, strings and icons,
   and a fluid flow (undo instead of confirm, smart defaults, swipe actions, two taps to the daily
   work), plus an overview diagram. Guide only: the app's theme follows in later changes.
+- **Style guide v3 theme tokens** (roadmap item 14): the lavender-grey paper and ink neutrals, the
+  pastel tile set with its separate deep dark set, the bundled Outfit typeface (variable font, SIL
+  Open Font License, licence in `assets/licenses/outfit_ofl.txt`) with monospace figures, larger
+  corners and pill chips, and shared `Space` and `Motion` tokens. The window background and the
+  launcher icon's paper follow the new paper colour.
 
 ### Removed
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
