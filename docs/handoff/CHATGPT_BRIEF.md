@@ -208,7 +208,7 @@ including tests and androidTest, before pushing.
 ## 5. PR 1 — Golden tests for the billing engine (roadmap item 5)
 
 **Branch:** `chatgpt/billing-golden-tests` from `origin/Rebuild_v2`. **Base:** `Rebuild_v2`.
-**Title:** `[test](billing): golden tests, rate cap and currency policy`
+**Title:** `[test](billing): golden tests, rate cap and euro only`
 
 ### 5.1 Context (current code)
 - `core/…/model/Rate.kt`: `data class Rate(val amount: Money, val type: RateType)`, with
@@ -230,8 +230,8 @@ including tests and androidTest, before pushing.
   - `money()` always prints exactly 2 decimals: it sets `minimumFractionDigits = 2` and
     `maximumFractionDigits = 2`, and builds the value with `BigDecimal.valueOf(cents, 2)`.
 - `core/…/usecase/SettingsUseCases.kt`: `SettingsRules.isValidCurrency` accepts **any** code
-  `java.util.Currency.getInstance` knows, JPY and KWD included. That is a real bug. Today a JPY user
-  would see ¥1,234.56 for 123456 "cents".
+  `java.util.Currency.getInstance` knows, JPY and KWD included. That is why the owner made the app euro
+  only (§5.2): a JPY user would see ¥1,234.56 for 123456 "cents".
 - `core/…/invoice/InvoiceNumbering.kt`:
   - `next(year, existingNumbers)` takes the max `NNNN` of `^(\d{4})-(\d{4,9})$` for that year and
     adds 1, formatted `%04d-%04d`.
@@ -242,14 +242,43 @@ including tests and androidTest, before pushing.
   `InMemoryRepositories.createInvoiceUseCase()` and `renderer()`.
 
 ### 5.2 Decisions already made for you (record them in the spec)
-- **Currency policy: allow only currencies with 2 minor digits.** Change
-  `SettingsRules.isValidCurrency` to also require `Currency.getInstance(code).defaultFractionDigits == 2`.
-  - This keeps `Money` = cents true and needs no data migration.
-  - Restores already validate through `SettingsRules` (R11/R13), so a backup with JPY is rejected
-    with the same message.
-  - Change the inline error text in Settings to: "Use a 3-letter currency code with cents, such as
-    EUR, GBP or USD". Find the existing message in `SettingsViewModel.kt` and in the core rules.
-  - Update R13 in the spec: "…the currency is an ISO 4217 code **with two decimal places**…".
+- **Euro only (owner decision, 2026-10-18).** The app supports **only the euro**. There is no
+  Play Store release planned, and the tutor works in Greece. Remove the currency choice everywhere:
+  - `core/…/model/AppSettings.kt`: delete `currencyCode`. Anything that needs the currency uses a
+    single constant, for example `const val CURRENCY_CODE = "EUR"` in `AppSettings.kt`'s companion
+    or a top-level `object Currencies { const val EUR = "EUR" }`. Choose one and use it everywhere.
+  - `core/…/usecase/SettingsUseCases.kt`: delete `isValidCurrency`, `normalisedCurrency` (or
+    whatever the per-field currency validator is called) and the currency check in `validate`, and
+    stop trimming or uppercasing it in `SaveSettings`.
+  - `core/…/format/Formats.kt`: change the constructor to `Formats(locale: Locale = Locale.getDefault())`,
+    with the currency fixed to `Currency.getInstance("EUR")`. Remove the fallback, which can no
+    longer happen. Update every caller: `grep -rn "Formats(" app/src core/src`. `MainActivity.kt`
+    builds one from `settings.currencyCode` today, and the test fixture `renderer()` and
+    `InvoiceRenderer` may pass it too.
+  - `app/…/data/PrefsSettingsRepository.kt`: stop reading and writing the `currency` key, and remove
+    it on load. Make that idempotent, the same pattern used for the removed `tax_id` key.
+  - `app/…/ui/settings/SettingsViewModel.kt` and `SettingsScreen.kt`: remove the currency field, its
+    error state (`currencyError`) and its handler.
+  - **Backups** (`core/…/backup/Backup.kt`). Keep the format compatible both ways, and **don't** bump
+    `BackupCodec.VERSION`:
+    - **encode** keeps writing `"currencyCode": "EUR"`, because Course Invoicer 2.0.0 requires the
+      field when it imports, so a backup made by 2.1.0 must still open in 2.0.0.
+    - **decode** ignores the field whatever its value, and treats every amount as euro cents. A
+      2.0.0 backup made with, say, GBP still imports, as euros, with no data lost. Add a comment
+      saying so.
+    - Remove the currency check from restore validation.
+  - Statements already issued keep their frozen text (R12), whatever symbol they show.
+  - Tests:
+    - update every test that builds `AppSettings(currencyCode = …)`, calls `isValidCurrency`, or
+      expects a currency error. Delete the tests that only exist for the currency setting; keep the
+      lesson-length ones.
+    - `BackupCodecTest`: a file with `"currencyCode": "GBP"` decodes, and its amounts are unchanged.
+    - a new encode still contains `"currencyCode": "EUR"`.
+    - `SqlRepositoriesTest` / `EndToEndTest`: drop any currency field interaction.
+  - Docs: R13 becomes "the default lesson length is 1–720 minutes…", with the currency part removed.
+    The §3 AppSettings row loses "currency". The §4 Settings row loses "the currency". Add decision
+    **D21 "Euro only"** with the reason: one market, no store release, and `Money` is cents. A
+    second currency would need its own decision.
 - **Rate cap:** `MAX_RATE = Money(100_000_00)` (€100,000 per hour or per lesson), as a `const`-like
   `val` next to `MAX_LESSON_MINUTES` in `LessonUseCases.kt`, or in `Rate.kt`'s companion.
   - `SaveStudent` and `SaveGroup` throw `DomainException("Rate cannot be more than 100,000")` above
@@ -258,8 +287,6 @@ including tests and androidTest, before pushing.
     message naming the student or group, following the existing pattern in `core/…/backup/Backup.kt`
     `validate…` code. Look for "Rate"/"rate" checks and follow them. Add a `BackupCodecTest` case.
   - Why: `720 min × 100,000.00` = 7.2e9 × … cents stays far inside `Long`, so `feeFor` can't overflow.
-- **`Formats` fallback:** keep the EUR fallback for safety, but `SettingsRules` now guarantees a
-  valid two-decimal code. Add a KDoc line saying so. No behaviour change.
 - **Numbering above 9 digits:** keep the format. Make `next` robust: parse `NNNN` with `toLongOrNull`,
   and if the next number would exceed 999,999,999, throw
   `DomainException("This year has run out of statement numbers")`. Test it with an existing
@@ -300,8 +327,8 @@ including tests and androidTest, before pushing.
    - A negative rate is still rejected.
 4. Implement the cap in `SaveStudent` and `SaveGroup`, and in backup validation, with a test.
 5. `core/src/test/…/format/FormatsTest.kt` (new):
-   - `Formats(Locale.UK, "EUR").money(Money(123456))` → `"€1,234.56"`
-   - `Formats(Locale.forLanguageTag("el-GR"), "EUR").money(Money(123456))`. The expected value
+   - `Formats(Locale.UK).money(Money(123456))` → `"€1,234.56"`
+   - `Formats(Locale.forLanguageTag("el-GR")).money(Money(123456))`. The expected value
      depends on the JDK's CLDR data, for example `"1.234,56 €"` with a no-break space U+00A0 or a
      narrow no-break space U+202F. **Don't hard-code a guess.** Assert the digits and separators
      (`"1.234,56"`) and that the string contains `"€"`, after normalising ` ` and ` ` to a
@@ -309,12 +336,10 @@ including tests and androidTest, before pushing.
    - `el-GR` dates: `date(LocalDate.of(2026, 3, 9))` contains `"2026"` and the Greek month
      abbreviation, either `"Μαρ"` or `"Μάρ"`. Assert with an either-or, case-insensitively.
    - `duration()`: 1 → "1 min", 60 → "1 h", 90 → "1 h 30 min", 720 → "12 h".
-   - an unknown code falls back to EUR.
-6. `SettingsUseCasesTest`:
-   - `isValidCurrency("JPY") == false`, `"KWD" == false`, `"EUR"/"GBP"/"USD" == true`, `"eur"` is
-     handled the way the existing code handles case (check `normalisedCurrency`/`SaveSettings`)
-   - `SaveSettings` with JPY throws `DomainException`
-   - `BackupCodecTest`: a backup whose `currencyCode` is `"JPY"` is rejected
+   - `Formats(Locale.UK)` and `Formats(el-GR)` always print the euro sign, with no currency
+     argument any more.
+6. Euro-only clean-up and its tests, as described in §5.2. Do this as its own commit in PR 1:
+   `[refactor](settings): euro only`.
 7. `InvoiceNumberingTest`:
    - year rollover: numbers from 2025 don't affect 2026 → `2026-0001`
    - `2026-9999` → `2026-10000`
@@ -327,14 +352,14 @@ including tests and androidTest, before pushing.
    Fixtures: `lesson(absent = true)` and `lateCancel(...)`.
 
 ### 5.4 Docs for PR 1
-- Spec: R1 gets "(golden table: `RateGoldenTest`)". R13 gets the two-decimal currency rule and the
-  rate cap; or put the cap in R1 if that reads better. Add a decision **D21** "Only two-decimal
-  currencies" with the reason: Money is cents, and other currencies would mis-scale every amount.
+- Spec: R1 gets "(golden table: `RateGoldenTest`)". R13 loses the currency part (euro only), and
+  the rate cap goes in R1 or R13, whichever reads better. Add decision **D21 "Euro only"** (§5.2).
 - Roadmap item 5: tick every box, set its status to Done, and move it to *Done* as
   "item 5 — 2.1.0".
 - CHANGELOG `## [2.1.0] - Unreleased`:
-  - `### Changed`: "Currency codes without cents (for example JPY or KWD) are no longer accepted;
-    they would have shown every amount 100× off. Rates are capped at 100,000."
+  - `### Changed`: "Rates are capped at 100,000."
+  - `### Removed`: "The currency setting. Course Invoicer works in euros only. Backups from 2.0.0
+    still import, with every amount read as euros, and new backups still open in 2.0.0."
   - `### Added`: "Golden tests pin the billing maths (rounding, limits, Greek formatting)."
 
 **Done when** every rule in R1, R5 and R13 has at least one test that would fail if the rule changed,
@@ -665,7 +690,7 @@ Write in plain British English, short sentences, no marketing tone, like the exi
 
 All three PRs are open, green, and their "Done when" criteria hold:
 - **Item 5:** every rule in R1, R5 and R13 has a test that fails if the rule changes. Rates are
-  capped. Only two-decimal currencies are allowed.
+  capped. The app is euro only, and old backups still import.
 - **Item 1:** no ViewModel writes to a repository directly. No flow error crashes a screen.
   `MarkPaid`, `ArchiveStudent` and `ArchiveGroup` exist and are tested. R3 is enforced in `:core`.
 - **Item 8:** no failure mode deletes data silently. Downgrades are refused with a message. Form
@@ -693,7 +718,7 @@ When you finish, post one comment on PR 3 (or report to the owner) listing:
 | Use cases | `core/…/usecase/*.kt` | `SaveLesson`, `DeleteLesson`, `RescheduleLessons`, `LogGroupLesson`, `CreateInvoice`, `VoidInvoice`, `GetInvoiceDocument`, `SaveStudent`, `DeleteStudent`, `SaveGroup`, `DeleteGroup`, `SaveSettings`, `SettingsRules` |
 | Repository interfaces | `core/…/repository/Repositories.kt` | Students, groups, lessons, invoices, settings, reminder state |
 | Reports | `core/…/report/Reports.kt`, `InvoiceReminder.kt` | summaries; R15 reminder |
-| Formatting | `core/…/format/Formats.kt` | locale + currency |
+| Formatting | `core/…/format/Formats.kt` | locale; currency fixed to EUR after PR 1 |
 | Numbering | `core/…/invoice/InvoiceNumbering.kt` | `YYYY-NNNN` |
 | Backup | `core/…/backup/Backup.kt` | `BackupCodec` FORMAT `course-invoicer-backup`, VERSION 4; validation (R11) |
 | Fakes | `core/src/testFixtures/…/testing/InMemoryRepositories.kt` | must mirror SQL |

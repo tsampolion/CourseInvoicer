@@ -15,7 +15,7 @@ Before you write any code, read these files from Rebuild_v2 in this order:
 3. docs/PRODUCT_SPEC.md and docs/ROADMAP.md (items 1, 5 and 8).
 
 Your job is three stacked pull requests, in this order:
-- PR 1, roadmap item 5: golden tests for the billing engine, a rate cap, and a two-decimal-currency rule.
+- PR 1, roadmap item 5: golden tests for the billing engine, a rate cap, and removal of the currency setting (euro only).
 - PR 2, roadmap item 1: stateInCatching, guarded form edits, and MarkPaid / ArchiveStudent / ArchiveGroup use cases.
 - PR 3, roadmap item 8: keep a damaged database as .bad, refuse downgrades, and save form drafts in SavedStateHandle.
 
