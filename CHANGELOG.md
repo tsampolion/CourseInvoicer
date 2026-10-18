@@ -29,6 +29,9 @@ How to use this file:
   still ask first.
 - Golden tests pin the billing maths (rounding, limits, Greek formatting).
 
+- `docs/audit/AUDIT_2026-10-18.md`: a full-code audit of `Rebuild_v2` with a stacked-PR plan to
+  fix its findings. Docs only.
+
 ### Changed
 - Rates are capped at 100,000.
 - **EduSuite style guide, version 3** (`docs/EDUSUITE_STYLE_GUIDE.md`): a brighter, livelier look
