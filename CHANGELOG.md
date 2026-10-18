@@ -43,6 +43,10 @@ How to use this file:
   light haptic tick, switches show ✕ or ✓ on the thumb and tick on each change, and figures roll
   when they change. Status chips are pills; eyebrows are sentence case; panels, the home buttons,
   the dashboard figures and empty states take the new look.
+- **New Home** (roadmap item 14): the suite header (logo, greeting and today's date, a Settings
+  button) over a bento grid of pastel section tiles, Lessons and Statements tall, each with its
+  live subtitle; it stacks in one column at large font sizes. The Dashboard's figures are stat
+  tiles.
 
 ### Removed
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,

@@ -264,7 +264,7 @@ look. Bring the code in line, in small PRs:
   `Shape.kt`, a `Space` and a `Motion` object.
 - [x] Components in `SuiteComponents.kt`: Tile, hero tile, stat tile row, day strip, status chip, list
   row, pill buttons, and the press, toggle, slider and rolling-figure motion.
-- [ ] Home: the greeting header and the bento tile grid.
+- [x] Home: the greeting header and the bento tile grid.
 - [ ] Flow: swipe actions and bottom-sheet edits (Undo itself is item 2).
 - [ ] Mirror the guide in Course Pacer.
 

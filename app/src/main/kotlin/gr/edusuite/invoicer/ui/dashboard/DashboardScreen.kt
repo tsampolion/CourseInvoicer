@@ -2,7 +2,7 @@ package gr.edusuite.invoicer.ui.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,16 +17,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.ui.common.AppIcons
 import gr.edusuite.invoicer.ui.common.LocalFormats
-import gr.edusuite.invoicer.ui.common.MetricCard
 import gr.edusuite.invoicer.ui.common.MonthSwitcher
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.SectionHeader
+import gr.edusuite.invoicer.ui.common.Stat
+import gr.edusuite.invoicer.ui.common.StatTileRow
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
+import gr.edusuite.invoicer.ui.theme.Invoicer
+import gr.edusuite.invoicer.ui.theme.Space
 
 @Composable
 fun DashboardScreen(
@@ -58,37 +62,41 @@ fun DashboardScreen(
             item {
                 val summary = state.summary
                 val hours = formats.duration(summary.minutes)
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                val colors = Invoicer.colors
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.xs),
+                    verticalArrangement = Arrangement.spacedBy(Space.s),
                 ) {
-                    MetricCard("Earned", formats.money(summary.earned), Modifier.weight(1f))
-                    MetricCard("Lessons", "${summary.lessonCount} · $hours", Modifier.weight(1f))
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp, 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    MetricCard(
-                        "Paid",
-                        formats.money(summary.paid),
-                        Modifier.weight(1f),
-                        valueColor = MaterialTheme.colorScheme.tertiary,
+                    StatTileRow(
+                        listOf(
+                            Stat("Earned", formats.money(summary.earned), value = summary.earned.cents, color = colors.tileLilac),
+                            Stat(
+                                "Lessons",
+                                summary.lessonCount.toString(),
+                                unit = "· $hours",
+                                value = summary.lessonCount.toLong(),
+                                color = colors.tileLilac,
+                            ),
+                        ),
                     )
-                    MetricCard("Unpaid", formats.money(summary.unpaid), Modifier.weight(1f))
+                    StatTileRow(
+                        listOf(
+                            Stat("Paid", formats.money(summary.paid), value = summary.paid.cents, color = colors.tileMint),
+                            Stat("Unpaid", formats.money(summary.unpaid), value = summary.unpaid.cents, color = colors.tileApricot),
+                        ),
+                    )
+                    StatTileRow(
+                        listOf(
+                            Stat(
+                                "Total outstanding (all time)",
+                                formats.money(state.outstanding),
+                                value = state.outstanding.cents,
+                                color = colors.surfaceContainer,
+                                figureColor = if (state.outstanding.isPositive) colors.warn else Color.Unspecified,
+                            ),
+                        ),
+                    )
                 }
-            }
-            item {
-                MetricCard(
-                    "Total outstanding (all time)",
-                    formats.money(state.outstanding),
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    valueColor = if (state.outstanding.isPositive) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
             }
             item { SectionHeader("Who owes") }
             if (!state.loading && state.debtors.isEmpty()) {
