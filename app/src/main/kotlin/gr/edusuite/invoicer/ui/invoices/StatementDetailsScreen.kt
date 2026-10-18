@@ -70,6 +70,12 @@ fun StatementDetailsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                "You are responsible for the personal data you keep here (GDPR). " +
+                    "Share a privacy notice with your students.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             CommitField(
                 value = form.name,
                 onValueChange = viewModel::onName,
