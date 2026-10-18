@@ -134,17 +134,6 @@ fun SettingsScreen(
 
             Section("Statements & lessons")
             CommitField(
-                value = form.currencyCode,
-                onValueChange = viewModel::onCurrency,
-                label = "Currency code (e.g. EUR)",
-                isError = state.currencyError,
-                supportingText = if (state.currencyError) "Use a 3-letter ISO code such as EUR, GBP or USD" else null,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                inputFilter = { it.take(3) },
-                // "eur" is stored as "EUR": that is the same value, so the typed text stays.
-                sameValue = { local, incoming -> local.trim().equals(incoming.trim(), ignoreCase = true) },
-            )
-            CommitField(
                 value = form.defaultMinutes,
                 onValueChange = viewModel::onMinutes,
                 label = "Default lesson length (minutes)",

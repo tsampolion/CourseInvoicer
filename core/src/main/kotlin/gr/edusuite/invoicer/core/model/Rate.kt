@@ -3,6 +3,9 @@ package gr.edusuite.invoicer.core.model
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+/** Largest supported hourly or per-lesson rate: €100,000 (R1). */
+val MAX_RATE = Money(100_000_00)
+
 enum class RateType { HOURLY, PER_LESSON }
 
 /** How a student or group is charged. */

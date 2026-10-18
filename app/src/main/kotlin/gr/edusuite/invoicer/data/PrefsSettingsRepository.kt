@@ -22,8 +22,13 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
     private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)
 
     init {
-        // The Tax ID was removed in 2.0.0: delete what older versions stored (a no-op once it is gone).
-        if (prefs.contains(REMOVED_TAX_ID)) prefs.edit { remove(REMOVED_TAX_ID) }
+        // Drop removed settings from older builds; repeated loads are a no-op.
+        if (prefs.contains(REMOVED_TAX_ID) || prefs.contains(REMOVED_CURRENCY)) {
+            prefs.edit(commit = true) {
+                remove(REMOVED_TAX_ID)
+                remove(REMOVED_CURRENCY)
+            }
+        }
     }
 
     private val state = MutableStateFlow(prefs.readSettings())
@@ -55,7 +60,6 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
                 email = getString(EMAIL, null).orEmpty(),
                 iban = getString(IBAN, null).orEmpty(),
             ),
-            currencyCode = getString(CURRENCY, null) ?: defaults.currencyCode,
             defaultLessonMinutes = getInt(DEFAULT_MINUTES, defaults.defaultLessonMinutes),
             themeMode = ThemeMode.entries.firstOrNull { it.name == getString(THEME, null) } ?: defaults.themeMode,
             invoiceFooter = getString(FOOTER, null).orEmpty(),
@@ -76,7 +80,6 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
             putString(PHONE, settings.business.phone)
             putString(EMAIL, settings.business.email)
             putString(IBAN, settings.business.iban)
-            putString(CURRENCY, settings.currencyCode)
             putInt(DEFAULT_MINUTES, settings.defaultLessonMinutes)
             putString(THEME, settings.themeMode.name)
             putString(FOOTER, settings.invoiceFooter)
@@ -96,7 +99,7 @@ class PrefsSettingsRepository(context: Context, fileName: String = FILE_NAME) : 
         private const val PHONE = "phone"
         private const val EMAIL = "email"
         private const val IBAN = "iban"
-        private const val CURRENCY = "currency"
+        private const val REMOVED_CURRENCY = "currency"
         private const val DEFAULT_MINUTES = "default_minutes"
         private const val THEME = "theme"
         private const val FOOTER = "invoice_footer"

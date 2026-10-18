@@ -31,7 +31,6 @@ data class SettingsForm(
     val phone: String = "",
     val email: String = "",
     val iban: String = "",
-    val currencyCode: String = "EUR",
     val defaultMinutes: String = "60",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val footer: String = "",
@@ -41,7 +40,6 @@ data class SettingsForm(
 
 data class SettingsUiState(
     val form: SettingsForm = SettingsForm(),
-    val currencyError: Boolean = false,
     val minutesError: Boolean = false,
     val busy: Boolean = false,
     val message: String? = null,
@@ -49,7 +47,7 @@ data class SettingsUiState(
 
 /**
  * Settings save as the user types (R13): text fields [SAVE_DEBOUNCE_MS] after the last keystroke,
- * switches and the theme at once. A currency or lesson length that breaks the rules is never stored: the field
+ * switches and the theme at once. A lesson length that breaks the rules is never stored: the field
  * shows an error and the stored value stays, while the other fields still save.
  */
 class SettingsViewModel(
@@ -74,12 +72,6 @@ class SettingsViewModel(
     fun onIban(text: String) = edit { it.copy(iban = text) }
 
     fun onFooter(text: String) = edit { it.copy(footer = text) }
-
-    fun onCurrency(text: String) {
-        // The error appears when the value would be saved, and clears as soon as the text is valid.
-        if (SettingsRules.normalisedCurrency(text) != null) mutableState.update { it.copy(currencyError = false) }
-        edit { it.copy(currencyCode = text) }
-    }
 
     fun onMinutes(text: String) {
         if (SettingsRules.lessonMinutes(text) != null) mutableState.update { it.copy(minutesError = false) }
@@ -127,7 +119,7 @@ class SettingsViewModel(
         try {
             val snapshot = backupFiles.import(uri)
             mutableState.update {
-                it.copy(form = settings.settings.value.toForm(), currencyError = false, minutesError = false)
+                it.copy(form = settings.settings.value.toForm(), minutesError = false)
             }
             showMessage(
                 "Restored ${plural(snapshot.students.size, "student")}, ${plural(snapshot.lessons.size, "lesson")} " +
@@ -171,9 +163,8 @@ class SettingsViewModel(
      */
     private suspend fun commit() = withContext(NonCancellable) {
         val form = state.value.form
-        val currency = SettingsRules.normalisedCurrency(form.currencyCode)
         val minutes = SettingsRules.lessonMinutes(form.defaultMinutes)
-        mutableState.update { it.copy(currencyError = currency == null, minutesError = minutes == null) }
+        mutableState.update { it.copy(minutesError = minutes == null) }
         val stored = settings.settings.value
         saveSettings(
             stored.copy(
@@ -184,7 +175,6 @@ class SettingsViewModel(
                     email = form.email,
                     iban = form.iban,
                 ),
-                currencyCode = currency ?: stored.currencyCode,
                 defaultLessonMinutes = minutes ?: stored.defaultLessonMinutes,
                 themeMode = form.themeMode,
                 invoiceFooter = form.footer,
@@ -213,7 +203,6 @@ class SettingsViewModel(
         phone = business.phone,
         email = business.email,
         iban = business.iban,
-        currencyCode = currencyCode,
         defaultMinutes = defaultLessonMinutes.toString(),
         themeMode = themeMode,
         footer = invoiceFooter,

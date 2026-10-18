@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                 )
                 onDispose {}
             }
-            val formats = remember(settings.currencyCode) { Formats(Locale.getDefault(), settings.currencyCode) }
+            val formats = remember { Formats(Locale.getDefault()) }
             CompositionLocalProvider(LocalAppContainer provides container, LocalFormats provides formats) {
                 InvoicerTheme(darkTheme = darkTheme) {
                     CourseInvoicerApp()

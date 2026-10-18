@@ -162,7 +162,7 @@ class InvoiceUseCasesTest {
 
         // Everything a re-render would read changes (R12, D10)...
         repos.settingsRepository.update {
-            it.copy(currencyCode = "GBP", business = BusinessProfile(name = "Tutor B"), invoiceFooter = "New")
+            it.copy(business = BusinessProfile(name = "Tutor B"), invoiceFooter = "New")
         }
         repos.saveStudent(repos.getStudent(maria)!!.copy(firstName = "Renamed"))
         repos.saveGroup(repos.getGroup(groupId)!!.copy(name = "Renamed group"))

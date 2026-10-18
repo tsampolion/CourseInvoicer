@@ -525,28 +525,19 @@ class ViewModelsTest {
     fun `invalid settings keep the stored value while the other fields save`() = runTest {
         val viewModel = settingsViewModel()
 
-        viewModel.onCurrency("XY")
         viewModel.onMinutes("0")
         viewModel.onName("Tutor")
-        assertFalse("no error while typing", viewModel.state.value.currencyError)
         pauseTyping()
 
-        assertEquals("EUR", stored.currencyCode)
         assertEquals(60, stored.defaultLessonMinutes)
         assertEquals("Tutor", stored.business.name)
-        assertTrue(viewModel.state.value.currencyError)
         assertTrue(viewModel.state.value.minutesError)
-        assertEquals("XY", viewModel.state.value.form.currencyCode)
 
-        viewModel.onCurrency("gbp")
         viewModel.onMinutes("45")
-        assertFalse("valid text clears the error", viewModel.state.value.currencyError)
         assertFalse(viewModel.state.value.minutesError)
         pauseTyping()
 
-        assertEquals("GBP", stored.currencyCode)
         assertEquals(45, stored.defaultLessonMinutes)
-        assertFalse(viewModel.state.value.currencyError)
         assertNull(viewModel.state.value.message)
     }
 

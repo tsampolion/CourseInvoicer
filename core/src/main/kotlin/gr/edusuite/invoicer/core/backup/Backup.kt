@@ -2,10 +2,12 @@ package gr.edusuite.invoicer.core.backup
 
 import gr.edusuite.invoicer.core.invoice.InvoiceDocumentCodec
 import gr.edusuite.invoicer.core.model.AbsenceCharge
+import gr.edusuite.invoicer.core.model.CURRENCY_CODE
 import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.MAX_RATE
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
@@ -87,9 +89,6 @@ object BackupCodec {
     private fun BackupSnapshot.validate() {
         fun reject(message: String): Nothing = throw BackupFormatException(message)
 
-        if (!SettingsRules.isValidCurrency(settings.currencyCode)) {
-            reject("Unknown currency '${settings.currencyCode}'")
-        }
         if (!SettingsRules.isValidLessonMinutes(settings.defaultLessonMinutes)) {
             reject("Default lesson length must be between 1 and $MAX_LESSON_MINUTES minutes")
         }
@@ -97,12 +96,14 @@ object BackupCodec {
         val studentIds = students.map { it.id }.toSet()
         if (studentIds.size != students.size) reject("Two students share an id")
         students.forEach {
+            if (it.rate.amount > MAX_RATE) reject("Student ${it.id} has a rate above 100,000")
             if (it.id <= 0 || it.firstName.isBlank() || it.rate.amount.cents < 0) reject("Student ${it.id} is invalid")
         }
 
         val groupIds = groups.map { it.id }.toSet()
         if (groupIds.size != groups.size) reject("Two groups share an id")
         groups.forEach {
+            if (it.rate.amount > MAX_RATE) reject("Group ${it.id} has a rate above 100,000")
             if (it.id <= 0 || it.name.isBlank() || it.rate.amount.cents < 0 || !studentIds.containsAll(it.memberIds)) {
                 reject("Group ${it.id} is invalid")
             }
@@ -143,7 +144,7 @@ object BackupCodec {
         "phone" to business.phone,
         "email" to business.email,
         "iban" to business.iban,
-        "currencyCode" to currencyCode,
+        "currencyCode" to CURRENCY_CODE, // Retained so 2.0.0 can import new backups.
         "defaultLessonMinutes" to defaultLessonMinutes.toLong(),
         "themeMode" to themeMode.name,
         "invoiceFooter" to invoiceFooter,
@@ -155,6 +156,7 @@ object BackupCodec {
     )
 
     // Backups made before 2.0.0 also hold "taxId"; the field was removed and is ignored on purpose.
+    // Ignore any legacy currencyCode: all numeric amounts import unchanged as euro cents (D21).
     private fun Map<*, *>.toSettings() = AppSettings(
         business = BusinessProfile(
             name = string("businessName"),
@@ -163,7 +165,6 @@ object BackupCodec {
             email = string("email"),
             iban = string("iban"),
         ),
-        currencyCode = string("currencyCode"),
         defaultLessonMinutes = int("defaultLessonMinutes"),
         themeMode = enum<ThemeMode>("themeMode"),
         invoiceFooter = string("invoiceFooter"),
