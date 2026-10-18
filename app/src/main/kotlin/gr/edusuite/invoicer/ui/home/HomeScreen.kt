@@ -193,6 +193,7 @@ fun HomeScreen(
                 .padding(horizontal = Space.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (state.databaseDamaged) DamagedDatabaseBanner(onOpenSettings, viewModel::acknowledgeDamagedDatabase)
             Column(
                 Modifier
                     .widthIn(max = 560.dp)

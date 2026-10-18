@@ -44,6 +44,7 @@ data class HomeUiState(
     /** The month-end reminder to show, or null. */
     val reminder: ReminderPrompt? = null,
     val message: String? = null,
+    val databaseDamaged: Boolean = false,
 ) {
     // A section counts as empty only once its figures have loaded, so the buttons do not flash dimmed.
     val studentsEmpty: Boolean get() = !loading && activeStudents == 0
@@ -64,6 +65,8 @@ class HomeViewModel(
     settings: SettingsRepository,
     private val reminderState: ReminderStateRepository,
     private val today: () -> LocalDate = { LocalDate.now() },
+    databaseDamaged: Flow<Boolean> = flowOf(false),
+    private val acknowledgeDamage: () -> Unit = {},
 ) : ViewModel() {
     private val message = MutableStateFlow<String?>(null)
 
@@ -123,10 +126,16 @@ class HomeViewModel(
     }.stateInCatching(viewModelScope, HomeUiState(), ::showMessage)
 
     // Keep error delivery alive even after the repository flow has completed with an error.
-    val state: StateFlow<HomeUiState> = combine(observedState, message) { snapshot, event ->
-        snapshot.copy(message = event)
+    private val damage = databaseDamaged.stateInCatching(viewModelScope, false, ::showMessage)
+
+    val state: StateFlow<HomeUiState> = combine(observedState, message, damage) { snapshot, event, damaged ->
+        snapshot.copy(message = event, databaseDamaged = damaged)
     }.stateInCatching(viewModelScope, HomeUiState(), ::showMessage)
 
+
+    fun acknowledgeDamagedDatabase() = launchCatching(::showMessage) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { acknowledgeDamage() }
+    }
 
     /** "Remind me tomorrow": nothing until the next day. */
     fun remindTomorrow() {

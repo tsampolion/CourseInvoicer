@@ -53,6 +53,11 @@ How to use this file:
   with every amount read as euros, and new backups still open in 2.0.0.
 
 ### Fixed
+- A damaged database is no longer deleted: it is kept as `course_invoicer.db.bad`, and Home asks
+  you to import your last backup. If it cannot be copied, the original is kept and the app stops.
+- Installing an older build over newer data shows a message instead of crashing.
+- Forms keep what you typed if Android closes the app in the background, and ask before Back
+  discards unsaved changes.
 - A database error on a list screen shows a message instead of closing the app. Opening a lesson,
   student or group that was deleted meanwhile says so instead of showing an empty form.
 

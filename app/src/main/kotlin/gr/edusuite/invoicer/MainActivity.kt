@@ -16,6 +16,7 @@ import gr.edusuite.invoicer.core.format.Formats
 import gr.edusuite.invoicer.core.model.ThemeMode
 import gr.edusuite.invoicer.ui.CourseInvoicerApp
 import gr.edusuite.invoicer.ui.common.LocalAppContainer
+import gr.edusuite.invoicer.ui.common.StartupErrorScreen
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.theme.InvoicerTheme
 import java.util.Locale
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as CourseInvoicerApplication).container
         setContent {
+            val startup by container.startup.collectAsStateWithLifecycle()
             val settings by container.settingsRepository.settings.collectAsStateWithLifecycle()
             val darkTheme = when (settings.themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -43,7 +45,11 @@ class MainActivity : ComponentActivity() {
             val formats = remember { Formats(Locale.getDefault()) }
             CompositionLocalProvider(LocalAppContainer provides container, LocalFormats provides formats) {
                 InvoicerTheme(darkTheme = darkTheme) {
-                    CourseInvoicerApp()
+                    when {
+                        startup.error != null -> StartupErrorScreen(startup.error!!)
+                        startup.ready -> CourseInvoicerApp()
+                        else -> StartupErrorScreen("Opening your data…")
+                    }
                 }
             }
         }

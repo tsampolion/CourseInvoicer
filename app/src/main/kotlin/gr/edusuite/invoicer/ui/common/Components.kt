@@ -46,6 +46,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import gr.edusuite.invoicer.AppContainer
@@ -67,6 +69,15 @@ val LocalFormats = staticCompositionLocalOf { Formats() }
 inline fun <reified VM : ViewModel> appViewModel(crossinline create: (AppContainer) -> VM): VM {
     val container = LocalAppContainer.current
     return viewModel { create(container) }
+}
+
+/** A form ViewModel with a handle owned and restored by its navigation entry. */
+@Composable
+inline fun <reified VM : ViewModel> appViewModel(
+    crossinline create: (AppContainer, SavedStateHandle) -> VM,
+): VM {
+    val container = LocalAppContainer.current
+    return viewModel { create(container, createSavedStateHandle()) }
 }
 
 /** Scaffold with a top bar; pass [onBack] for a Back arrow (every screen but Home has one). */
@@ -268,6 +279,7 @@ fun ConfirmDialog(
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    dismissLabel: String = "Cancel",
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -279,7 +291,7 @@ fun ConfirmDialog(
                 onConfirm()
             }) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(dismissLabel) } },
     )
 }
 

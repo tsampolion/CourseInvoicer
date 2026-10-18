@@ -46,7 +46,7 @@ class EndToEndTest {
     /** Adds a student at 20 an hour from Home; saving opens their detail screen. */
     private fun addStudent(name: String) {
         // Home is the launcher: each section opens from its button.
-        compose.onNodeWithText("Welcome to Course Invoicer").assertExists()
+        waitFor("Welcome to Course Invoicer")
         openFromHome("Students")
         compose.onNodeWithContentDescription("Add student").performClick()
         compose.onNodeWithText("First name *").performTextInput(name)
@@ -54,6 +54,23 @@ class EndToEndTest {
         compose.onNodeWithText("Save").performClick()
         waitFor("Record payment")
         compose.onNodeWithText(name).assertExists()
+    }
+
+    @Test
+    fun backAsksBeforeDiscardingAFormDraft() {
+        waitFor("Welcome to Course Invoicer")
+        openFromHome("Students")
+        compose.onNodeWithContentDescription("Add student").performClick()
+        compose.onNodeWithText("First name *").performTextInput("Unsaved draft")
+        compose.onNodeWithContentDescription("Back").performClick()
+        waitFor("Discard changes?")
+        compose.onNodeWithText("Keep editing").performClick()
+        compose.onNodeWithText("First name *").assertTextContains("Unsaved draft")
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        waitFor("Discard changes?")
+        compose.onNodeWithText("Discard").performClick()
+        waitFor("Students")
+        compose.onNodeWithText("Discard changes?").assertDoesNotExist()
     }
 
     @Test

@@ -27,7 +27,8 @@ class InvoicerDatabase(
     context: Context,
     name: String? = NAME,
     private val io: CoroutineDispatcher = Dispatchers.IO,
-) : SQLiteOpenHelper(context, name, null, VERSION) {
+    health: DatabaseHealth = DatabaseHealth(context),
+) : SQLiteOpenHelper(context, name, null, VERSION, KeepingDatabaseErrorHandler(context, name, health)) {
     private val versions = Table.entries.associateWith { MutableStateFlow(0L) }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -43,6 +44,10 @@ class InvoicerDatabase(
         if (oldVersion < 2) Schema.migrateTo2.forEach(db::execSQL)
         if (oldVersion < 3) Schema.migrateTo3.forEach(db::execSQL)
         if (oldVersion < 4) Schema.migrateTo4.forEach(db::execSQL)
+    }
+
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        throw DatabaseTooNewException(oldVersion, newVersion)
     }
 
     fun <T> observe(vararg tables: Table, query: (SQLiteDatabase) -> T): Flow<T> =

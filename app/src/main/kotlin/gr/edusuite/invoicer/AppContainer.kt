@@ -1,6 +1,13 @@
 package gr.edusuite.invoicer
 
 import android.content.Context
+import gr.edusuite.invoicer.data.DatabaseHealth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import gr.edusuite.invoicer.core.backup.BackupRepository
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
@@ -34,7 +41,21 @@ class AppContainer(
     reminderStateFile: String = PrefsReminderStateRepository.FILE_NAME,
 ) {
     private val appContext = context.applicationContext
-    private val database = InvoicerDatabase(appContext, databaseName)
+    val databaseHealth = DatabaseHealth(appContext, if (databaseName == null) "$settingsFile.database_health" else "database_health")
+    private val database = InvoicerDatabase(appContext, databaseName, health = databaseHealth)
+    private val startupState = MutableStateFlow(DatabaseStartup())
+    val startup = startupState.asStateFlow()
+
+    init {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            startupState.value = try {
+                database.read { Unit }
+                DatabaseStartup(ready = true)
+            } catch (error: Exception) {
+                DatabaseStartup(error = error.message ?: "The database could not be opened")
+            }
+        }
+    }
 
     val settingsRepository: SettingsRepository = PrefsSettingsRepository(appContext, settingsFile)
     val studentRepository: StudentRepository = SqlStudentRepository(database)
@@ -51,3 +72,6 @@ class AppContainer(
         pdfWriter = InvoicePdfWriter(appContext),
     )
 }
+
+/** Navigation starts only after the database has opened safely. */
+data class DatabaseStartup(val ready: Boolean = false, val error: String? = null)

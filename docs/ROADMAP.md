@@ -26,15 +26,16 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 
 | # | Item | Status | Size |
 |---|------|--------|------|
-| 1 | One state and one change path per ViewModel | Done | M |
+| 1 | One state and one change path per ViewModel | Done (2.1.0) | M |
 | 2 | Undo for destructive actions | Not started | L |
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
 | 5 | Golden tests for the billing engine | Done (2.1.0) | S |
 | 6 | Automatic tag and GitHub release | Done (2.0.0-alpha03) | S |
 | 7 | CI on every branch | Done (2.0.0-alpha03) | S |
-| 8 | Saving and corrupt data | Partial | M |
+| 8 | Saving and corrupt data | Done (2.1.0) | M |
 | 9 | Print statements | Partial | S |
+
 | 10 | Backup and device-transfer rules | Done | — |
 | 11 | Smaller footprint | Partial | S |
 | 12 | App theme drives the system bars | Done | — |
@@ -145,33 +146,6 @@ once fixed.
 - [ ] Optional: fail CI if the debug APK grows by more than 10% against the last release. This needs
       the last release's size, which item 6 now provides.
 
-## 8. Saving and corrupt data
-
-**Today.** Every database write commits at once: `db.write` is a `NonCancellable` transaction, and
-settings use `commit()`. Settings save as you type, 0.4 s after the last keystroke; the Settings
-screen flushes a waiting save on Back and in `onStop`, and a started save always finishes. Gaps:
-- **Corrupt database.** `InvoicerDatabase` uses the framework's default error handler, which *deletes* a
-  corrupt database file without asking. Coursebook Pacer keeps the bad file as `.bad` and starts
-  clean.
-- **Downgrade.** There is no `onDowngrade`. Installing an older build over a newer one throws on
-  open, and that error crashes the app (see item 1).
-- **Drafts.** Form state lives only in the ViewModel. It survives rotation but not process death,
-  and Back discards edits without asking.
-
-**Tasks**
-- [ ] Pass a `DatabaseErrorHandler` to `InvoicerDatabase` that copies the file to `course_invoicer.db.bad`
-      before the framework resets it, and flags it so Home can say: "The database was damaged.
-      Import your last backup."
-- [ ] Override `onDowngrade` to refuse with a clear message: "This build is older than your data.
-      Install the latest release." Never drop data.
-- [ ] Save form drafts in `SavedStateHandle` (LessonEdit, StudentEdit, GroupEdit, CreateInvoice), so
-      they survive process death.
-- [ ] Ask before Back discards unsaved changes in a form.
-- [ ] Tests: on the emulator, a corrupt file gives a `.bad` copy and an empty database, and a
-      downgrade is refused. A JVM test that the draft restores from `SavedStateHandle`.
-
-**Done when** no failure mode deletes data silently, and a form survives process death.
-
 ## 9. Print invoices
 
 **Today.** `data/InvoicePdfWriter.kt` draws an A4 PDF on a framework `PdfDocument` canvas, writes it
@@ -270,6 +244,8 @@ The owner split the 2.1.0 work between two agents:
 | 12. App theme drives the system bars | 2.0.0-alpha03 |
 | 13. Short, rule-focused agent guide | 2.0.0-alpha03 |
 | 5. Golden tests for the billing engine | 2.1.0 |
+| 1. One state and one change path per ViewModel | 2.1.0 |
+| 8. Saving and corrupt data | 2.1.0 |
 
 Move items here with the version they shipped in.
 
@@ -311,3 +287,23 @@ through tested core use cases. Reminder-state writes remain orchestration inside
 
 **Done when** no ViewModel calls a repository write directly, no flow error can crash a screen, and
 R3 is enforced in `:core`.
+
+### Item 8 — 2.1.0: saving and corrupt data
+
+A damaged database and its journals are kept before recovery; a failed copy never deletes the
+original. Downgrades show a startup error. Each navigation entry now owns a saved-state registry,
+so the form handles restore after process death and Back asks before discarding changes.
+
+**Tasks**
+- [x] Pass a `DatabaseErrorHandler` to `InvoicerDatabase` that copies the file to `course_invoicer.db.bad`
+      before the framework resets it, and flags it so Home can say: "The database was damaged.
+      Import your last backup."
+- [x] Override `onDowngrade` to refuse with a clear message: "This build is older than your data.
+      Install the latest release." Never drop data.
+- [x] Save form drafts in `SavedStateHandle` (LessonEdit, StudentEdit, GroupEdit, CreateInvoice), so
+      they survive process death.
+- [x] Ask before Back discards unsaved changes in a form.
+- [x] Tests: on the emulator, a corrupt file gives a `.bad` copy and an empty database, and a
+      downgrade is refused. A JVM test that the draft restores from `SavedStateHandle`.
+
+**Done when** no failure mode deletes data silently, and a form survives process death.

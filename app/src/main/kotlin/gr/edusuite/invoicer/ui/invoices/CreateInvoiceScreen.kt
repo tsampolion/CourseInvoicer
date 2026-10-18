@@ -29,6 +29,7 @@ import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.StudentPickerField
 import gr.edusuite.invoicer.ui.common.MissingEntityScreen
+import gr.edusuite.invoicer.ui.common.draftBack
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
@@ -40,14 +41,15 @@ fun CreateInvoiceScreen(
     onBack: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CreateInvoiceViewModel = appViewModel {
+    viewModel: CreateInvoiceViewModel = appViewModel { container, savedState ->
         CreateInvoiceViewModel(
             initialStudentId = studentId,
-            students = it.studentRepository,
-            groups = it.groupRepository,
-            lessons = it.lessonRepository,
-            invoices = it.invoiceRepository,
-            renderer = it.invoiceRenderer,
+            students = container.studentRepository,
+            groups = container.groupRepository,
+            lessons = container.lessonRepository,
+            invoices = container.invoiceRepository,
+            renderer = container.invoiceRenderer,
+            savedState = savedState,
         )
     },
 ) {
@@ -57,6 +59,7 @@ fun CreateInvoiceScreen(
         return
     }
     val formats = LocalFormats.current
+    val onDraftBack = draftBack(state.dirty, "statement", onBack)
     val snackbar = remember { SnackbarHostState() }
     val shareInvoice = rememberInvoiceSharer(viewModel::showMessage)
     MessageEffect(state.message, snackbar, viewModel::messageShown)
@@ -64,7 +67,7 @@ fun CreateInvoiceScreen(
     ScreenScaffold(
         title = "New statement",
         modifier = modifier,
-        onBack = onBack,
+        onBack = onDraftBack,
         snackbarHostState = snackbar,
         actions = {
             TextButton(
