@@ -176,8 +176,10 @@ isn't enough, then wait for approval.
   `SavedStateHandle`. A stubbed Android call returns 0 or null instead of failing.
 - **Instrumented tests run through `InvoicerTestRunner`,** which uses an in-memory database and its own
   settings file. Gradle still uninstalls the app when they finish, so run them on an emulator.
-- **A corrupt database file is deleted** by the framework's default error handler, and drafts in
-  forms don't survive process death (ROADMAP item 8). Don't build on either behaviour.
+- **A corrupt database is kept as `.bad`** (with journal files) before a reset and a Home warning.
+  A failed copy leaves the original in place and blocks recovery. Downgrades are refused with a
+  startup message. Forms keep drafts in `SavedStateHandle`, with one registry per navigation entry,
+  and ask before Back discards changes. Restored lesson drafts re-check the statement lock (R7).
 - **Adding a stored file?** Check `res/xml/data_extraction_rules.xml`. It keeps every domain out of
   Google cloud backup on purpose, so student data stays on the phone; the in-app JSON backup is the
   way to save it.

@@ -35,6 +35,7 @@ import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.MissingEntityScreen
+import gr.edusuite.invoicer.ui.common.draftBack
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.students.RateInput
 import gr.edusuite.invoicer.ui.students.TextInput
@@ -45,8 +46,8 @@ fun GroupEditScreen(
     onBack: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: GroupEditViewModel = appViewModel {
-        GroupEditViewModel(groupId, it.groupRepository, it.studentRepository, it.lessonRepository)
+    viewModel: GroupEditViewModel = appViewModel { container, savedState ->
+        GroupEditViewModel(groupId, container.groupRepository, container.studentRepository, container.lessonRepository, savedState = savedState)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -54,6 +55,7 @@ fun GroupEditScreen(
         MissingEntityScreen(state.message ?: "This group no longer exists", onBack)
         return
     }
+    val onDraftBack = draftBack(state.dirty, "group", onBack)
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val form = state.form
@@ -63,7 +65,7 @@ fun GroupEditScreen(
     ScreenScaffold(
         title = if (state.isNew) "New group" else "Edit group",
         modifier = modifier,
-        onBack = onBack,
+        onBack = onDraftBack,
         snackbarHostState = snackbar,
         actions = {
             if (!state.isNew) {

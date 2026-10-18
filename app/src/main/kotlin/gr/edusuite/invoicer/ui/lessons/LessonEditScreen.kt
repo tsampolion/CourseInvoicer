@@ -44,6 +44,7 @@ import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.StudentPickerField
 import gr.edusuite.invoicer.ui.common.TimeField
 import gr.edusuite.invoicer.ui.common.MissingEntityScreen
+import gr.edusuite.invoicer.ui.common.draftBack
 import gr.edusuite.invoicer.ui.common.appViewModel
 
 @Composable
@@ -53,14 +54,15 @@ fun LessonEditScreen(
     onBack: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LessonEditViewModel = appViewModel {
+    viewModel: LessonEditViewModel = appViewModel { container, savedState ->
         LessonEditViewModel(
             lessonId = lessonId,
             initialStudentId = studentId,
-            students = it.studentRepository,
-            groups = it.groupRepository,
-            lessons = it.lessonRepository,
-            settings = it.settingsRepository,
+            students = container.studentRepository,
+            groups = container.groupRepository,
+            lessons = container.lessonRepository,
+            settings = container.settingsRepository,
+            savedState = savedState,
         )
     },
 ) {
@@ -69,6 +71,7 @@ fun LessonEditScreen(
         MissingEntityScreen(state.message ?: "This lesson no longer exists", onBack)
         return
     }
+    val onDraftBack = draftBack(state.dirty, "lesson", onBack)
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     MessageEffect(state.message, snackbar, viewModel::messageShown)
@@ -78,7 +81,7 @@ fun LessonEditScreen(
     ScreenScaffold(
         title = if (state.isNew) "Log lesson" else "Edit lesson",
         modifier = modifier,
-        onBack = onBack,
+        onBack = onDraftBack,
         snackbarHostState = snackbar,
         actions = {
             if (!state.isNew && editable) {

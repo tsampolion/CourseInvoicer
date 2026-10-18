@@ -39,6 +39,8 @@ fun CourseInvoicerApp() {
                     HomeViewModel(
                         it.studentRepository, it.groupRepository, it.lessonRepository,
                         it.invoiceRepository, it.settingsRepository, it.reminderStateRepository,
+                        databaseDamaged = it.databaseHealth.damaged,
+                        acknowledgeDamage = it.databaseHealth::acknowledge,
                     )
                 }
                 val state by vm.state.collectAsStateWithLifecycle()

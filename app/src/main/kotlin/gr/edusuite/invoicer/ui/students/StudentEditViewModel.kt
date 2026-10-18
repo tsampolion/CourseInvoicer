@@ -1,5 +1,7 @@
 package gr.edusuite.invoicer.ui.students
 
+import androidx.lifecycle.SavedStateHandle
+import gr.edusuite.invoicer.ui.common.FormDraft
 import androidx.lifecycle.ViewModel
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
@@ -29,6 +31,7 @@ data class StudentForm(
 data class StudentEditUiState(
     val loading: Boolean = true,
     val notFound: Boolean = false,
+    val dirty: Boolean = false,
     val isNew: Boolean = true,
     val form: StudentForm = StudentForm(),
     val classSuggestions: List<String> = emptyList(),
@@ -42,7 +45,9 @@ data class StudentEditUiState(
 class StudentEditViewModel(
     private val studentId: Long,
     private val students: StudentRepository,
+    savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
+    private val draft = FormDraft(savedState)
     private val saveStudent = SaveStudent(students)
     private var original: Student? = null
     private val mutableState = MutableStateFlow(StudentEditUiState(isNew = studentId == 0L))
@@ -59,7 +64,8 @@ class StudentEditViewModel(
             mutableState.update { current ->
                 current.copy(
                     loading = false,
-                    form = original?.toForm() ?: current.form,
+                    form = if (draft.exists) restoreForm() else original?.toForm() ?: current.form,
+                    dirty = draft.exists,
                     classSuggestions = all.map { it.className }.filter { it.isNotBlank() }.distinct().sorted(),
                 )
             }
@@ -68,10 +74,37 @@ class StudentEditViewModel(
 
     fun update(transform: (StudentForm) -> StudentForm) = edit(transform = transform)
 
-    private fun edit(allowedWhenLocked: Boolean = false, transform: (StudentForm) -> StudentForm) = mutableState.update {
-        if (it.loading || it.notFound || it.saving) it
-        else it.copy(form = transform(it.form), firstNameError = false, rateError = false)
+    private fun edit(allowedWhenLocked: Boolean = false, transform: (StudentForm) -> StudentForm) {
+        val current = state.value
+        if (current.loading || current.notFound || current.saving) return
+        val updated = current.copy(form = transform(current.form), dirty = true, firstNameError = false, rateError = false)
+        mutableState.value = updated
+        rememberDraft(updated.form)
     }
+
+    private fun rememberDraft(form: StudentForm) = draft.save(
+        "firstName" to form.firstName,
+        "lastName" to form.lastName,
+        "className" to form.className,
+        "guardianName" to form.guardianName,
+        "phone" to form.phone,
+        "email" to form.email,
+        "rate" to form.rate,
+        "rateType" to form.rateType.name,
+        "notes" to form.notes,
+    )
+
+    private fun restoreForm() = StudentForm(
+        firstName = draft.text("firstName"),
+        lastName = draft.text("lastName"),
+        className = draft.text("className"),
+        guardianName = draft.text("guardianName"),
+        phone = draft.text("phone"),
+        email = draft.text("email"),
+        rate = draft.text("rate"),
+        rateType = RateType.valueOf(draft.text("rateType", RateType.HOURLY.name)),
+        notes = draft.text("notes"),
+    )
 
     fun save() {
         if (state.value.loading || state.value.notFound || state.value.saving) return
@@ -96,7 +129,8 @@ class StudentEditViewModel(
                     notes = form.notes,
                 ),
             )
-            mutableState.update { it.copy(saving = false, savedId = id) }
+            draft.clear()
+            mutableState.update { it.copy(saving = false, dirty = false, savedId = id) }
         }
     }
 
