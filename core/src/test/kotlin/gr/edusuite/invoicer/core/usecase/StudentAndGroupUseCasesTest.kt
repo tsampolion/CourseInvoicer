@@ -165,4 +165,24 @@ class StudentAndGroupUseCasesTest {
         assertRejected("not found") { log(999, date, time, 60, listOf(Attendance(maria))) }
         assertEquals("nothing was logged", 0, repos.lessons.size)
     }
+    @Test fun `archive use cases change only the flag and reject missing ids`() = runTest {
+        val studentId = repos.saveStudent(student())
+        val groupId = repos.saveGroup(StudentGroup(name = "History", rate = hourly("12"), memberIds = setOf(studentId)))
+        val originalStudent = repos.getStudent(studentId)!!
+        val originalGroup = repos.getGroup(groupId)!!
+        for (archived in listOf(true, false)) {
+            ArchiveStudent(repos)(studentId, archived)
+            ArchiveGroup(repos)(groupId, archived)
+            assertEquals(originalStudent.copy(archived = archived), repos.getStudent(studentId))
+            assertEquals(originalGroup.copy(archived = archived), repos.getGroup(groupId))
+        }
+        for ((action, message) in listOf<suspend () -> Unit>(
+            { ArchiveStudent(repos)(999, true) },
+            { ArchiveGroup(repos)(999, true) },
+        ).zip(listOf("This student no longer exists", "This group no longer exists"))) {
+            try { action(); org.junit.Assert.fail("Missing id must fail") }
+            catch (error: DomainException) { assertEquals(message, error.message) }
+        }
+    }
+
 }

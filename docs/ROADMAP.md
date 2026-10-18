@@ -26,48 +26,21 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 
 | # | Item | Status | Size |
 |---|------|--------|------|
-| 1 | One state and one change path per ViewModel | Partial | M |
+| 1 | One state and one change path per ViewModel | Done (2.1.0) | M |
 | 2 | Undo for destructive actions | Not started | L |
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
 | 5 | Golden tests for the billing engine | Done (2.1.0) | S |
 | 6 | Automatic tag and GitHub release | Done (2.0.0-alpha03) | S |
 | 7 | CI on every branch | Done (2.0.0-alpha03) | S |
-| 8 | Saving and corrupt data | Partial | M |
+| 8 | Saving and corrupt data | Done (2.1.0) | M |
 | 9 | Print statements | Partial | S |
+
 | 10 | Backup and device-transfer rules | Done | — |
 | 11 | Smaller footprint | Partial | S |
 | 12 | App theme drives the system bars | Done | — |
 | 13 | Short, rule-focused agent guide | Done (2.0.0-alpha03) | S |
 | 14 | Theme and components for style guide v3 | In progress | L |
-
-## 1. One state and one change path per ViewModel
-
-**Today.** All 12 screen ViewModels expose one `StateFlow<XxxUiState>`. Writes go through
-`launchCatching` (`ui/common/ViewModelSupport.kt`). But:
-- the `combine(…).stateIn(…)` flows have no `.catch`, so a database error crashes the app;
-- initial loads in the form ViewModels use a bare `viewModelScope.launch` (LessonEdit,
-  CreateInvoice, StudentEdit, GroupEdit, GroupLesson);
-- `LessonEditViewModel.setPaid` and `setNotes` bypass its `edit()` guard;
-- some writes skip the use cases: `lessons.setPaid` is called from `LessonsViewModel` and
-  `StudentDetailViewModel`, and archiving is a read-modify-write in `StudentDetailViewModel`;
-- R3 (excused absences are never paid) is enforced by `SaveLesson` and by `setPaid`, which skips
-  lessons that are not charged (2.0.0), but not yet by a use case.
-
-**Tasks**
-- [ ] Add a `stateInCatching` helper next to `launchCatching`. It catches upstream errors, keeps the
-      last good state and sets the screen's `message`. Use it in every list ViewModel.
-- [ ] Run every initial form load through `launchCatching`. A missing entity sets a message and a
-      `notFound` flag; it does not show a blank form.
-- [ ] Give each form ViewModel one private `edit(transform)` that every setter calls, with the lock
-      check (R7) inside it.
-- [ ] Add `MarkPaid` and `ArchiveStudent` / `ArchiveGroup` use cases in `core/usecase`. `MarkPaid`
-      refuses lessons that are not charged (R3). Call them from the ViewModels instead of the repositories.
-- [ ] Tests: `core` tests for the new use cases. A `ViewModelsTest` case where the repository flow
-      throws and the screen shows a message instead of crashing.
-
-**Done when** no ViewModel calls a repository write directly, no flow error can crash a screen, and
-R3 is enforced in `:core`.
 
 ## 2. Undo for destructive actions
 
@@ -173,33 +146,6 @@ once fixed.
 - [ ] Optional: fail CI if the debug APK grows by more than 10% against the last release. This needs
       the last release's size, which item 6 now provides.
 
-## 8. Saving and corrupt data
-
-**Today.** Every database write commits at once: `db.write` is a `NonCancellable` transaction, and
-settings use `commit()`. Settings save as you type, 0.4 s after the last keystroke; the Settings
-screen flushes a waiting save on Back and in `onStop`, and a started save always finishes. Gaps:
-- **Corrupt database.** `InvoicerDatabase` uses the framework's default error handler, which *deletes* a
-  corrupt database file without asking. Coursebook Pacer keeps the bad file as `.bad` and starts
-  clean.
-- **Downgrade.** There is no `onDowngrade`. Installing an older build over a newer one throws on
-  open, and that error crashes the app (see item 1).
-- **Drafts.** Form state lives only in the ViewModel. It survives rotation but not process death,
-  and Back discards edits without asking.
-
-**Tasks**
-- [ ] Pass a `DatabaseErrorHandler` to `InvoicerDatabase` that copies the file to `course_invoicer.db.bad`
-      before the framework resets it, and flags it so Home can say: "The database was damaged.
-      Import your last backup."
-- [ ] Override `onDowngrade` to refuse with a clear message: "This build is older than your data.
-      Install the latest release." Never drop data.
-- [ ] Save form drafts in `SavedStateHandle` (LessonEdit, StudentEdit, GroupEdit, CreateInvoice), so
-      they survive process death.
-- [ ] Ask before Back discards unsaved changes in a form.
-- [ ] Tests: on the emulator, a corrupt file gives a `.bad` copy and an empty database, and a
-      downgrade is refused. A JVM test that the draft restores from `SavedStateHandle`.
-
-**Done when** no failure mode deletes data silently, and a form survives process death.
-
 ## 9. Print invoices
 
 **Today.** `data/InvoicePdfWriter.kt` draws an A4 PDF on a framework `PdfDocument` canvas, writes it
@@ -275,7 +221,7 @@ These came up during the comparison but aren't among the 13 items.
 - [x] **Security.** A Firebase API key from v0.x is in the git history of `main` and `Rebuild`
       (`app/google-services.json`). The owner deleted the Firebase project, and its key with it, in
       October 2026. The legacy branches stay as history.
-- [ ] A test for R3 in `:core` once `MarkPaid` exists (item 1).
+- [x] A test for R3 in `:core` once `MarkPaid` exists (item 1).
 - [ ] **Third-party notices.** The APK bundles Apache-2.0 libraries (Kotlin, AndroidX, Compose).
       Giving the APK to anyone else requires passing on their licence and notices. Add an
       *Open-source licences* entry in Settings, or ship the notices with each release.
@@ -298,6 +244,8 @@ The owner split the 2.1.0 work between two agents:
 | 12. App theme drives the system bars | 2.0.0-alpha03 |
 | 13. Short, rule-focused agent guide | 2.0.0-alpha03 |
 | 5. Golden tests for the billing engine | 2.1.0 |
+| 1. One state and one change path per ViewModel | 2.1.0 |
+| 8. Saving and corrupt data | 2.1.0 |
 
 Move items here with the version they shipped in.
 
@@ -318,3 +266,44 @@ only (D21), while retaining backup compatibility with 2.0.0.
       never regenerated.
 
 **Done when** each rule in R1, R5 and R13 has at least one test that would fail if it changed.
+
+### Item 1 — 2.1.0: one state and one change path per ViewModel
+
+List flows keep their last good data on error and still deliver messages. Form loads are guarded,
+missing entities cannot be edited, and setters share one edit path. Payment and archiving go
+through tested core use cases. Reminder-state writes remain orchestration inside `launchCatching`.
+
+**Tasks**
+- [x] Add a `stateInCatching` helper next to `launchCatching`. It catches upstream errors, keeps the
+      last good state and sets the screen's `message`. Use it in every list ViewModel.
+- [x] Run every initial form load through `launchCatching`. A missing entity sets a message and a
+      `notFound` flag; it does not show a blank form.
+- [x] Give each form ViewModel one private `edit(transform)` that every setter calls, with the lock
+      check (R7) inside it.
+- [x] Add `MarkPaid` and `ArchiveStudent` / `ArchiveGroup` use cases in `core/usecase`. `MarkPaid`
+      refuses lessons that are not charged (R3). Call them from the ViewModels instead of the repositories.
+- [x] Tests: `core` tests for the new use cases. A `ViewModelsTest` case where the repository flow
+      throws and the screen shows a message instead of crashing.
+
+**Done when** no ViewModel calls a repository write directly, no flow error can crash a screen, and
+R3 is enforced in `:core`.
+
+### Item 8 — 2.1.0: saving and corrupt data
+
+A damaged database and its journals are kept before recovery; a failed copy never deletes the
+original. Downgrades show a startup error. Each navigation entry now owns a saved-state registry,
+so the form handles restore after process death and Back asks before discarding changes.
+
+**Tasks**
+- [x] Pass a `DatabaseErrorHandler` to `InvoicerDatabase` that copies the file to `course_invoicer.db.bad`
+      before the framework resets it, and flags it so Home can say: "The database was damaged.
+      Import your last backup."
+- [x] Override `onDowngrade` to refuse with a clear message: "This build is older than your data.
+      Install the latest release." Never drop data.
+- [x] Save form drafts in `SavedStateHandle` (LessonEdit, StudentEdit, GroupEdit, CreateInvoice), so
+      they survive process death.
+- [x] Ask before Back discards unsaved changes in a form.
+- [x] Tests: on the emulator, a corrupt file gives a `.bad` copy and an empty database, and a
+      downgrade is refused. A JVM test that the draft restores from `SavedStateHandle`.
+
+**Done when** no failure mode deletes data silently, and a form survives process death.

@@ -187,7 +187,8 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
             ids.distinct().chunked(InvoicerDatabase.MAX_ARGS).forEach { chunk ->
                 // Lessons that are not charged are never paid.
                 d.execSQL(
-                    "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)}) AND $CHARGED_LESSON",
+                    "UPDATE lessons SET paid_on = ? WHERE id IN (${placeholders(chunk.size)})" +
+                        if (paidOn == null) "" else " AND $CHARGED_LESSON",
                     arrayOf<Any?>(paidOn?.toString(), *chunk.toTypedArray()),
                 )
             }

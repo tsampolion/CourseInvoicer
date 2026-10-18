@@ -9,10 +9,9 @@ import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.VoidInvoice
 import gr.edusuite.invoicer.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import gr.edusuite.invoicer.ui.common.stateInCatching
 import java.time.LocalDate
 
 data class InvoiceItem(val invoice: Invoice, val studentName: String, val paid: Boolean)
@@ -32,7 +31,7 @@ class InvoicesViewModel(
     private val message = MutableStateFlow<String?>(null)
     private val voidInvoice = VoidInvoice(invoices)
 
-    val state: StateFlow<InvoicesUiState> = combine(
+    private val observedState: StateFlow<InvoicesUiState> = combine(
         invoices.observeInvoices(),
         students.observeStudents(),
         lessons.observeInvoicePayments(),
@@ -52,7 +51,13 @@ class InvoicesViewModel(
             },
             message = currentMessage,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InvoicesUiState())
+    }.stateInCatching(viewModelScope, InvoicesUiState(), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<InvoicesUiState> = combine(observedState, message) { snapshot, event ->
+        snapshot.copy(message = event)
+    }.stateInCatching(viewModelScope, InvoicesUiState(), ::showMessage)
+
 
     fun markVoid(invoice: Invoice) = launchCatching({ message.value = it }) {
         voidInvoice(invoice.id, today())

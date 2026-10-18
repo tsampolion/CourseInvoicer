@@ -27,6 +27,7 @@ import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.TimeField
+import gr.edusuite.invoicer.ui.common.MissingEntityScreen
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.lessons.DurationInput
 
@@ -41,6 +42,10 @@ fun GroupLessonScreen(
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.notFound) {
+        MissingEntityScreen(state.message ?: "This group no longer exists", onBack)
+        return
+    }
     val formats = LocalFormats.current
     val snackbar = remember { SnackbarHostState() }
     MessageEffect(state.message, snackbar, viewModel::messageShown)

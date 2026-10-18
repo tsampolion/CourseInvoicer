@@ -13,15 +13,16 @@ import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
+import gr.edusuite.invoicer.core.usecase.MarkPaid
+import gr.edusuite.invoicer.core.usecase.ArchiveStudent
 import gr.edusuite.invoicer.core.usecase.DeleteStudent
 import gr.edusuite.invoicer.core.usecase.RecordPayment
 import gr.edusuite.invoicer.ui.common.launchCatching
 import gr.edusuite.invoicer.ui.common.plural
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import gr.edusuite.invoicer.ui.common.stateInCatching
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 import java.util.Locale
@@ -51,10 +52,12 @@ class StudentDetailViewModel(
     private data class Events(val message: String? = null, val deleted: Boolean = false)
 
     private val events = MutableStateFlow(Events())
+    private val markPaid = MarkPaid(lessons)
+    private val archiveStudent = ArchiveStudent(students)
     private val recordPaymentUseCase = RecordPayment(lessons)
     private val deleteStudent = DeleteStudent(students, lessons, invoices)
 
-    val state: StateFlow<StudentDetailUiState> = combine(
+    private val observedState: StateFlow<StudentDetailUiState> = combine(
         students.observeStudent(studentId),
         lessons.observeLessonsOfStudent(studentId),
         invoices.observeInvoices(),
@@ -73,7 +76,13 @@ class StudentDetailViewModel(
             message = event.message,
             deleted = event.deleted,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StudentDetailUiState())
+    }.stateInCatching(viewModelScope, StudentDetailUiState(), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<StudentDetailUiState> = combine(observedState, events) { snapshot, event ->
+        snapshot.copy(message = event.message, deleted = event.deleted)
+    }.stateInCatching(viewModelScope, StudentDetailUiState(), ::showMessage)
+
 
     fun recordPayment() = launchCatching(::showMessage) {
         val result = recordPaymentUseCase(studentId, today())
@@ -82,12 +91,11 @@ class StudentDetailViewModel(
     }
 
     fun setPaid(lesson: Lesson, paid: Boolean) = launchCatching(::showMessage) {
-        lessons.setPaid(listOf(lesson.id), if (paid) today() else null)
+        markPaid(listOf(lesson.id), if (paid) today() else null)
     }
 
     fun setArchived(archived: Boolean) = launchCatching(::showMessage) {
-        val student = students.getStudent(studentId) ?: return@launchCatching
-        students.saveStudent(student.copy(archived = archived))
+        archiveStudent(studentId, archived)
         showMessage(if (archived) "Student archived" else "Student restored")
     }
 

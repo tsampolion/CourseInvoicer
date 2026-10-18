@@ -90,3 +90,12 @@ class LogGroupLesson(
         return lessons.insertLessons(rows)
     }
 }
+
+/** Archives or restores a group without changing its history (R10). */
+class ArchiveGroup(private val groups: GroupRepository) {
+    suspend operator fun invoke(groupId: Long, archived: Boolean) {
+        val existing = groups.getGroup(groupId)
+            ?: throw DomainException("This group no longer exists")
+        groups.saveGroup(existing.copy(archived = archived))
+    }
+}

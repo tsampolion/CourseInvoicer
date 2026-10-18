@@ -7,6 +7,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
@@ -152,12 +154,11 @@ fun NavHost(navigator: Navigator, content: @Composable (Route) -> Unit) {
 
     BackHandler(enabled = navigator.backStack.size > 1) { navigator.pop() }
 
-    val owner = remember(entry.id) {
-        object : ViewModelStoreOwner {
-            override val viewModelStore: ViewModelStore = navigator.storeFor(entry)
-        }
-    }
     stateHolder.SaveableStateProvider(entry.id) {
+        val owner = rememberSaveable(entry.id, saver = Saver<EntryStateOwner, android.os.Bundle>(
+            save = { it.save() },
+            restore = { EntryStateOwner(navigator.storeFor(entry), it) },
+        )) { EntryStateOwner(navigator.storeFor(entry)) }
         CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
             content(entry.route)
         }

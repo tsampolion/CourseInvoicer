@@ -31,6 +31,8 @@ import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
+import gr.edusuite.invoicer.ui.common.MissingEntityScreen
+import gr.edusuite.invoicer.ui.common.draftBack
 import gr.edusuite.invoicer.ui.common.appViewModel
 
 @Composable
@@ -39,9 +41,14 @@ fun StudentEditScreen(
     onBack: () -> Unit,
     onSaved: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: StudentEditViewModel = appViewModel { StudentEditViewModel(studentId, it.studentRepository) },
+    viewModel: StudentEditViewModel = appViewModel { container, savedState -> StudentEditViewModel(studentId, container.studentRepository, savedState = savedState) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.notFound) {
+        MissingEntityScreen(state.message ?: "This student no longer exists", onBack)
+        return
+    }
+    val onDraftBack = draftBack(state.dirty, "student", onBack)
     val snackbar = remember { SnackbarHostState() }
     val form = state.form
     MessageEffect(state.message, snackbar, viewModel::messageShown)
@@ -50,7 +57,7 @@ fun StudentEditScreen(
     ScreenScaffold(
         title = if (state.isNew) "New student" else "Edit student",
         modifier = modifier,
-        onBack = onBack,
+        onBack = onDraftBack,
         snackbarHostState = snackbar,
         actions = {
             TextButton(onClick = viewModel::save, enabled = !state.loading && !state.saving) { Text("Save") }
