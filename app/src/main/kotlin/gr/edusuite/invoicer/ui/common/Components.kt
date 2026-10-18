@@ -3,7 +3,6 @@ package gr.edusuite.invoicer.ui.common
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -20,7 +19,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -45,7 +43,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -286,25 +283,6 @@ fun ConfirmDialog(
     )
 }
 
-enum class ChipTone { Neutral, Good, Warning }
-
-@Composable
-fun StatusChip(text: String, tone: ChipTone, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
-    val (container, content) = when (tone) {
-        ChipTone.Neutral -> colors.surfaceVariant to colors.onSurfaceVariant
-        ChipTone.Good -> colors.tertiaryContainer to colors.onTertiaryContainer
-        ChipTone.Warning -> colors.errorContainer to colors.onErrorContainer
-    }
-    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.small, modifier = modifier) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-        )
-    }
-}
-
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -315,7 +293,10 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A labelled figure, e.g. "Earned · €320.00": a flat suite panel with the value in monospace. */
+/**
+ * A labelled figure, e.g. "Earned · €320.00": a stat tile (guide §6) on the surface colour, with the value
+ * in monospace SemiBold. For a row of tinted figures use [StatTileRow].
+ */
 @Composable
 fun MetricCard(
     label: String,
@@ -323,17 +304,13 @@ fun MetricCard(
     modifier: Modifier = Modifier,
     valueColor: Color = Color.Unspecified,
 ) {
-    SuitePanel(modifier) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = Invoicer.colors.muted)
-            MoneyText(
-                value,
-                style = MaterialTheme.typography.titleLarge,
-                color = valueColor,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    StatTile(
+        stat = Stat(label = label, figure = value, figureColor = valueColor),
+        modifier = modifier,
+        color = Invoicer.colors.surface,
+        labelColor = Invoicer.colors.muted,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 /** Standard padding for a form column. */

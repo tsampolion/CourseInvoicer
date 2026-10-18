@@ -17,7 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import gr.edusuite.invoicer.ui.common.SuiteSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -196,6 +196,6 @@ internal fun SwitchRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        SuiteSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

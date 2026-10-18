@@ -21,7 +21,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import gr.edusuite.invoicer.ui.common.SuiteSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -248,7 +248,7 @@ private fun SettingSwitch(
             Modifier.weight(1f),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else DISABLED_ALPHA),
         )
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        SuiteSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

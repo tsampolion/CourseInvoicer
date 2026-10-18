@@ -38,6 +38,11 @@ How to use this file:
   Open Font License, licence in `assets/licenses/outfit_ofl.txt`) with monospace figures, larger
   corners and pill chips, and shared `Space` and `Motion` tokens. The window background and the
   launcher icon's paper follow the new paper colour.
+- **Style guide v3 components** (roadmap item 14): tiles, a hero tile, stat tile rows, a day strip,
+  list rows and pill buttons, with the suite's motion: buttons and tiles spring on press with a
+  light haptic tick, switches show ✕ or ✓ on the thumb and tick on each change, and figures roll
+  when they change. Status chips are pills; eyebrows are sentence case; panels, the home buttons,
+  the dashboard figures and empty states take the new look.
 
 ### Removed
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
