@@ -262,7 +262,7 @@ look. Bring the code in line, in small PRs:
 
 - [x] Tokens: `Color.kt` (neutrals, tile sets light and dark), `Type.kt` with the Outfit font files,
   `Shape.kt`, a `Space` and a `Motion` object.
-- [ ] Components in `SuiteComponents.kt`: Tile, hero tile, stat tile row, day strip, status chip, list
+- [x] Components in `SuiteComponents.kt`: Tile, hero tile, stat tile row, day strip, status chip, list
   row, pill buttons, and the press, toggle, slider and rolling-figure motion.
 - [ ] Home: the greeting header and the bento tile grid.
 - [ ] Flow: swipe actions and bottom-sheet edits (Undo itself is item 2).

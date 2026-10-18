@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,11 +22,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import gr.edusuite.invoicer.ui.theme.Invoicer
+import gr.edusuite.invoicer.ui.theme.Space
 
 /**
  * What a list shows when it has nothing yet (docs/EDUSUITE_STYLE_GUIDE.md, "EmptyState"): a 120dp
- * accentSoft circle holding a 48dp accent [icon], a serif [title], a short muted [message] and, when
- * [actionLabel] is set, a button that leads to adding the first item. Centred, 16dp between parts.
+ * circle in a tile tint holding a 48dp [icon] in `onTile`, a [title], a short muted [message] and, when
+ * [actionLabel] is set, a pill button that leads to adding the first item. Centred, 16dp between parts.
  */
 @Composable
 fun EmptyState(
@@ -41,21 +41,21 @@ fun EmptyState(
     // Scrolls so the parts stay reachable at large font sizes or in landscape.
     Box(modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.padding(horizontal = 24.dp, vertical = 40.dp),
+            Modifier.padding(horizontal = Space.xl, vertical = Space.xxl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.l),
         ) {
             Box(
                 Modifier
                     .size(120.dp)
-                    .background(Invoicer.colors.accentSoft, CircleShape),
+                    .background(Invoicer.colors.tileLilac, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 // Decorative: the title says the same thing in words.
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Invoicer.colors.onTile,
                     modifier = Modifier.size(48.dp),
                 )
             }
@@ -72,7 +72,7 @@ fun EmptyState(
                 textAlign = TextAlign.Center,
             )
             if (actionLabel != null) {
-                Button(onClick = onAction) { Text(actionLabel) }
+                PillButton(actionLabel, onClick = onAction)
             }
         }
     }

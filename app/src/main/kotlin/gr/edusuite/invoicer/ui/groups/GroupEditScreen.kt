@@ -14,7 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import gr.edusuite.invoicer.ui.common.SuiteSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -93,7 +93,7 @@ fun GroupEditScreen(
             if (!state.isNew) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Archived", Modifier.weight(1f))
-                    Switch(checked = form.archived, onCheckedChange = { v -> viewModel.update { it.copy(archived = v) } })
+                    SuiteSwitch(checked = form.archived, onCheckedChange = { v -> viewModel.update { it.copy(archived = v) } })
                 }
             }
             Text("Members (${form.memberIds.size})", style = MaterialTheme.typography.titleSmall)
