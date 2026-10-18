@@ -1,7 +1,6 @@
 package gr.edusuite.invoicer.ui.groups
 
 import androidx.lifecycle.SavedStateHandle
-import gr.edusuite.invoicer.ui.common.FormDraft
 import androidx.lifecycle.ViewModel
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
@@ -11,8 +10,12 @@ import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
+import gr.edusuite.invoicer.core.usecase.ArchiveGroup
 import gr.edusuite.invoicer.core.usecase.DeleteGroup
 import gr.edusuite.invoicer.core.usecase.SaveGroup
+import gr.edusuite.invoicer.ui.common.FormDraft
+import gr.edusuite.invoicer.ui.common.Messages
+import gr.edusuite.invoicer.ui.common.UserMessage
 import gr.edusuite.invoicer.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,8 +53,10 @@ class GroupEditViewModel(
     private val students: StudentRepository,
     lessons: LessonRepository,
     savedState: SavedStateHandle = SavedStateHandle(),
+    private val messages: Messages = Messages(),
 ) : ViewModel() {
     private val draft = FormDraft(savedState)
+    private val archiveGroup = ArchiveGroup(groups)
     private val saveGroup = SaveGroup(groups)
     private val deleteGroup = DeleteGroup(groups, lessons)
     private val mutableState = MutableStateFlow(GroupEditUiState(isNew = groupId == 0L))
@@ -71,7 +76,7 @@ class GroupEditViewModel(
                     loading = false,
                     candidates = candidates,
                     dirty = draft.exists,
-                    form = if (draft.exists) restoreForm() else group?.let {
+                    form = if (draft.exists) restoreForm().copy(archived = group?.archived ?: false) else group?.let {
                         GroupForm(it.name, it.className, it.rate.amount.toPlainString(), it.rate.type, it.memberIds, it.archived)
                     } ?: current.form,
                 )
@@ -81,7 +86,7 @@ class GroupEditViewModel(
 
     fun update(transform: (GroupForm) -> GroupForm) = edit(transform = transform)
 
-    private fun edit(allowedWhenLocked: Boolean = false, transform: (GroupForm) -> GroupForm) {
+    private fun edit(transform: (GroupForm) -> GroupForm) {
         val current = state.value
         if (current.loading || current.notFound || current.saving) return
         val updated = current.copy(form = transform(current.form), dirty = true, nameError = false, rateError = false)
@@ -128,11 +133,28 @@ class GroupEditViewModel(
                     className = form.className,
                     rate = Rate(rate, form.rateType),
                     memberIds = form.memberIds,
-                    archived = form.archived,
+                    archived = if (groupId == 0L) form.archived else groups.getGroup(groupId)?.archived ?: form.archived,
                 ),
             )
             draft.clear()
             mutableState.update { it.copy(saving = false, dirty = false, done = true) }
+        }
+    }
+
+    fun setArchived(archived: Boolean) {
+        if (state.value.loading || state.value.notFound || state.value.saving || state.value.isNew) return
+        launchCatching(::fail) {
+            val action = archiveGroup(groupId, archived)
+            mutableState.update { it.copy(form = it.form.copy(archived = archived)) }
+            if (state.value.dirty) rememberDraft(state.value.form)
+            messages.post(UserMessage(
+                if (archived) "Group archived" else "Group restored", "Undo",
+            ) {
+                action.undo()
+                val restored = groups.getGroup(groupId) ?: return@UserMessage
+                mutableState.update { it.copy(form = it.form.copy(archived = restored.archived)) }
+                if (state.value.dirty) rememberDraft(state.value.form)
+            })
         }
     }
 

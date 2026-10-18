@@ -57,6 +57,22 @@ class EndToEndTest {
     }
 
     @Test
+    fun deletingALessonOffersUndoAfterTheEditorCloses() {
+        addStudent("Undo${System.currentTimeMillis() % 1_000_000}")
+        compose.onNodeWithContentDescription("Log lesson").performClick()
+        waitFor("20.00")
+        compose.onNodeWithText("Save").performClick()
+        waitFor("Lessons (1)")
+        compose.onNodeWithText("Lesson", substring = false).performScrollTo().performClick()
+        waitFor("Edit lesson")
+        compose.onNodeWithContentDescription("Delete").performClick()
+        waitFor("Undo")
+        compose.onNodeWithText("Delete lesson").assertDoesNotExist()
+        compose.onNodeWithText("Undo").performClick()
+        waitFor("Lessons (1)")
+    }
+
+    @Test
     fun backAsksBeforeDiscardingAFormDraft() {
         waitFor("Welcome to Course Invoicer")
         openFromHome("Students")

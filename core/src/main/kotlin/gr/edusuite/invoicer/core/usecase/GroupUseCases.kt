@@ -93,9 +93,15 @@ class LogGroupLesson(
 
 /** Archives or restores a group without changing its history (R10). */
 class ArchiveGroup(private val groups: GroupRepository) {
-    suspend operator fun invoke(groupId: Long, archived: Boolean) {
+    suspend operator fun invoke(groupId: Long, archived: Boolean): Undoable<Unit> {
         val existing = groups.getGroup(groupId)
             ?: throw DomainException("This group no longer exists")
+        if (existing.archived == archived) return Undoable(Unit, Undo {})
         groups.saveGroup(existing.copy(archived = archived))
+        return Undoable(Unit, undoOnce {
+            val current = groups.getGroup(groupId)
+                ?: throw DomainException("This group no longer exists")
+            groups.saveGroup(current.copy(archived = existing.archived))
+        })
     }
 }

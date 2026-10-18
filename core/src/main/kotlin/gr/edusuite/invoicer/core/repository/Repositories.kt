@@ -84,6 +84,12 @@ interface LessonRepository {
     /** Updates all lessons (matched by id) atomically. */
     suspend fun updateLessons(lessons: List<Lesson>)
 
+    /** Inserts the exact row with its explicit id; refuses an existing id. */
+    suspend fun restoreLesson(lesson: Lesson)
+
+    /** Restores payment dates atomically, checking that every row exists and paid rows are charged. */
+    suspend fun restorePaid(previous: Map<Long, LocalDate?>)
+
     suspend fun deleteLesson(id: Long)
 
     /**

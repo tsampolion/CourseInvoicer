@@ -134,7 +134,7 @@ class LessonUseCasesTest {
         repos.saveLesson(lesson(nikos, fee = "25"))
         val today = LocalDate.parse("2026-03-31")
 
-        val result = RecordPayment(repos)(maria, today)
+        val result = RecordPayment(repos)(maria, today).result
 
         assertEquals(3, result.lessonCount)
         assertEquals(euros("62"), result.amount)
@@ -154,7 +154,7 @@ class LessonUseCasesTest {
 
         val moved = RescheduleLessons(repos)(listOf(a, b), newDate, LocalTime.of(18, 30))
 
-        assertEquals(2, moved)
+        assertEquals(2, moved.result)
         repos.getLessons(listOf(a, b)).forEach {
             assertEquals(newDate, it.date)
             assertEquals(LocalTime.of(18, 30), it.startTime)
@@ -188,13 +188,13 @@ class LessonUseCasesTest {
         val free = repos.saveLesson(lesson(maria, fee = "0"))
         val mark = MarkPaid(repos)
         val day = LocalDate.of(2026, 3, 31)
-        assertEquals(2, mark(listOf(held, late, excused, free, held), day))
+        assertEquals(2, mark(listOf(held, late, excused, free, held), day).result)
         assertEquals(day, repos.getLesson(held)?.paidOn)
         assertEquals(day, repos.getLesson(late)?.paidOn)
         assertNull(repos.getLesson(excused)?.paidOn)
         assertNull(repos.getLesson(free)?.paidOn)
-        assertEquals(0, mark(listOf(held, late), day))
-        assertEquals(0, mark(emptyList(), day))
+        assertEquals(0, mark(listOf(held, late), day).result)
+        assertEquals(0, mark(emptyList(), day).result)
         try {
             mark(listOf(excused), day)
             org.junit.Assert.fail("An excused absence cannot be paid")
@@ -209,11 +209,11 @@ class LessonUseCasesTest {
         repos.createInvoiceUseCase()(maria, listOf(held), LocalDate.of(2026, 3, 31))
         val day = LocalDate.of(2026, 4, 1)
         val mark = MarkPaid(repos)
-        assertEquals(1, mark(listOf(held), day))
+        assertEquals(1, mark(listOf(held), day).result)
         org.junit.Assert.assertNotNull(repos.getLesson(held)?.invoiceId)
         // Legacy invalid payment: clearing must also repair an uncharged lesson.
         val excused = repos.saveLesson(lesson(maria, absent = true, paidOn = "2026-03-31"))
-        assertEquals(2, mark(listOf(held, excused), null))
+        assertEquals(2, mark(listOf(held, excused), null).result)
         assertNull(repos.getLesson(held)?.paidOn)
         assertNull(repos.getLesson(excused)?.paidOn)
     }

@@ -69,6 +69,59 @@ class ViewModelsTest {
         paidOn = paidOn?.let(LocalDate::parse),
     )
 
+    @Test fun `lesson deletion posts app Undo which restores after the editor is done`() = runTest {
+        val student = addStudent("Maria")
+        val id = repos.saveLesson(lesson(student, "2026-03-10", 2000))
+        val before = repos.getLesson(id)
+        val messages = gr.edusuite.invoicer.ui.common.Messages()
+        val posted = mutableListOf<gr.edusuite.invoicer.ui.common.UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { messages.flow.collect { posted += it } }
+        val vm = LessonEditViewModel(id, student, repos, repos, repos, repos.settingsRepository, messages = messages)
+        vm.delete()
+        assertTrue(vm.state.value.done)
+        assertNull(repos.getLesson(id))
+        assertEquals("Lesson deleted", posted.single().text)
+        assertEquals("Undo", posted.single().actionLabel)
+        posted.single().action!!.invoke()
+        assertEquals(before, repos.getLesson(id))
+    }
+
+    @Test fun `record payment acts immediately and offers Undo`() = runTest {
+        val student = addStudent("Maria")
+        val id = repos.saveLesson(lesson(student, "2026-03-10", 2000))
+        val messages = gr.edusuite.invoicer.ui.common.Messages()
+        val posted = mutableListOf<gr.edusuite.invoicer.ui.common.UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { messages.flow.collect { posted += it } }
+        val vm = gr.edusuite.invoicer.ui.students.StudentDetailViewModel(
+            student, repos, repos, repos, repos, repos.settingsRepository,
+            today = { LocalDate.parse("2026-03-20") }, messages = messages,
+        )
+        vm.recordPayment()
+        assertEquals(LocalDate.parse("2026-03-20"), repos.getLesson(id)?.paidOn)
+        assertEquals("Undo", posted.single().actionLabel)
+        posted.single().action!!.invoke()
+        assertNull(repos.getLesson(id)?.paidOn)
+    }
+
+    @Test fun `group archive is immediate without saving other form edits and Undo keeps those edits`() = runTest {
+        val group = repos.saveGroup(StudentGroup(name = "Class", rate = Rate(Money(2000), RateType.HOURLY)))
+        val messages = gr.edusuite.invoicer.ui.common.Messages()
+        val posted = mutableListOf<gr.edusuite.invoicer.ui.common.UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { messages.flow.collect { posted += it } }
+        val vm = GroupEditViewModel(group, repos, repos, repos, messages = messages)
+        vm.update { it.copy(name = "Draft name") }
+        vm.setArchived(true)
+        assertTrue(repos.getGroup(group)!!.archived)
+        assertEquals("Class", repos.getGroup(group)!!.name)
+        posted.single().action!!.invoke()
+        assertFalse(repos.getGroup(group)!!.archived)
+        assertFalse(vm.state.value.form.archived)
+        assertEquals("Draft name", vm.state.value.form.name)
+        vm.save()
+        assertFalse(repos.getGroup(group)!!.archived)
+        assertEquals("Draft name", repos.getGroup(group)!!.name)
+    }
+
     @Test fun `lesson draft restores typed fields and clears only after a successful save`() = runTest {
         val maria = addStudent("Maria")
         val saved = SavedStateHandle(mapOf(
@@ -208,14 +261,17 @@ class ViewModelsTest {
         val held = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
         val excused = repos.saveLesson(lesson(maria, "2026-03-11", 2000).copy(absent = true))
         val day = LocalDate.of(2026, 3, 31)
-        val vm = LessonsViewModel(repos, repos, repos) { day }
+        val messages = gr.edusuite.invoicer.ui.common.Messages()
+        val posted = mutableListOf<gr.edusuite.invoicer.ui.common.UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { messages.flow.collect { posted += it } }
+        val vm = LessonsViewModel(repos, repos, repos, today = { day }, messages = messages)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         vm.toggleSelection(held)
         vm.toggleSelection(excused)
         vm.markSelectedPaid()
         assertEquals(day, repos.getLesson(held)?.paidOn)
         assertNull(repos.getLesson(excused)?.paidOn)
-        assertEquals("Marked 1 lesson as paid", vm.state.value.message)
+        assertEquals("Marked 1 lesson paid", posted.single().text)
     }
 
     @Test

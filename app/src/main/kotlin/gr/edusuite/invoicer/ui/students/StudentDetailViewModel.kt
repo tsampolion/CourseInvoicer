@@ -13,19 +13,20 @@ import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
-import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.ArchiveStudent
 import gr.edusuite.invoicer.core.usecase.DeleteStudent
+import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.RecordPayment
+import gr.edusuite.invoicer.ui.common.Messages
 import gr.edusuite.invoicer.ui.common.launchCatching
 import gr.edusuite.invoicer.ui.common.plural
+import gr.edusuite.invoicer.ui.common.stateInCatching
+import java.time.LocalDate
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import gr.edusuite.invoicer.ui.common.stateInCatching
 import kotlinx.coroutines.flow.update
-import java.time.LocalDate
-import java.util.Locale
 
 data class StudentDetailUiState(
     val loading: Boolean = true,
@@ -48,6 +49,7 @@ class StudentDetailViewModel(
     invoices: InvoiceRepository,
     private val settings: SettingsRepository,
     private val today: () -> LocalDate = LocalDate::now,
+    private val messages: Messages = Messages(),
 ) : ViewModel() {
     private data class Events(val message: String? = null, val deleted: Boolean = false)
 
@@ -85,18 +87,20 @@ class StudentDetailViewModel(
 
 
     fun recordPayment() = launchCatching(::showMessage) {
-        val result = recordPaymentUseCase(studentId, today())
+        val action = recordPaymentUseCase(studentId, today())
+        val result = action.result
         val formats = Formats(Locale.getDefault())
-        showMessage("Recorded ${formats.money(result.amount)} for ${plural(result.lessonCount, "lesson")}")
+        messages.postUndo("Recorded ${formats.money(result.amount)} for ${plural(result.lessonCount, "lesson")}", action)
     }
 
     fun setPaid(lesson: Lesson, paid: Boolean) = launchCatching(::showMessage) {
-        markPaid(listOf(lesson.id), if (paid) today() else null)
+        val action = markPaid(listOf(lesson.id), if (paid) today() else null)
+        messages.postUndo("Marked ${plural(action.result, "lesson")} ${if (paid) "paid" else "unpaid"}", action)
     }
 
     fun setArchived(archived: Boolean) = launchCatching(::showMessage) {
-        archiveStudent(studentId, archived)
-        showMessage(if (archived) "Student archived" else "Student restored")
+        val action = archiveStudent(studentId, archived)
+        messages.postUndo(if (archived) "Student archived" else "Student restored", action)
     }
 
     fun delete() = launchCatching(::showMessage) {

@@ -2,6 +2,7 @@ package gr.edusuite.invoicer.ui.lessons
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import gr.edusuite.invoicer.core.format.Formats
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.sumOfMoney
@@ -10,18 +11,19 @@ import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.RescheduleLessons
+import gr.edusuite.invoicer.ui.common.Messages
 import gr.edusuite.invoicer.ui.common.launchCatching
 import gr.edusuite.invoicer.ui.common.plural
+import gr.edusuite.invoicer.ui.common.stateInCatching
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.YearMonth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import gr.edusuite.invoicer.ui.common.stateInCatching
 import kotlinx.coroutines.flow.update
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.YearMonth
 
 enum class LessonFilter(val label: String) {
     ALL("All"),
@@ -65,6 +67,7 @@ class LessonsViewModel(
     students: StudentRepository,
     groups: GroupRepository,
     private val today: () -> LocalDate = LocalDate::now,
+    private val messages: Messages = Messages(),
 ) : ViewModel() {
     private val month = MutableStateFlow(YearMonth.from(today()))
     private val filter = MutableStateFlow(LessonFilter.ALL)
@@ -141,7 +144,7 @@ class LessonsViewModel(
         launchCatching({ message.value = it }) {
             val changed = markPaid(owed.map { it.id }, today())
             clearSelection()
-            message.value = "Marked ${plural(changed, "lesson")} as paid"
+            messages.postUndo("Marked ${plural(changed.result, "lesson")} paid", changed)
         }
     }
 
@@ -150,12 +153,14 @@ class LessonsViewModel(
         launchCatching({ message.value = it }) {
             val moved = rescheduleLessons(ids, date, startTime)
             clearSelection()
-            message.value = "Moved ${plural(moved, "lesson")}"
+            val formats = Formats()
+            messages.postUndo("Moved ${plural(moved.result, "lesson")} to ${formats.date(date)}, ${formats.time(startTime)}", moved)
         }
     }
 
     fun setPaid(lesson: Lesson, paid: Boolean) = launchCatching({ message.value = it }) {
-        markPaid(listOf(lesson.id), if (paid) today() else null)
+        val action = markPaid(listOf(lesson.id), if (paid) today() else null)
+        messages.postUndo("Marked ${plural(action.result, "lesson")} ${if (paid) "paid" else "unpaid"}", action)
     }
 
     fun messageShown() {

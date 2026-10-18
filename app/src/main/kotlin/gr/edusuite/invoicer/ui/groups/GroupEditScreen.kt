@@ -47,7 +47,7 @@ fun GroupEditScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GroupEditViewModel = appViewModel { container, savedState ->
-        GroupEditViewModel(groupId, container.groupRepository, container.studentRepository, container.lessonRepository, savedState = savedState)
+        GroupEditViewModel(groupId, container.groupRepository, container.studentRepository, container.lessonRepository, savedState = savedState, messages = container.messages)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -100,7 +100,7 @@ fun GroupEditScreen(
             if (!state.isNew) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Archived", Modifier.weight(1f))
-                    SuiteSwitch(checked = form.archived, onCheckedChange = { v -> viewModel.update { it.copy(archived = v) } })
+                    SuiteSwitch(checked = form.archived, onCheckedChange = viewModel::setArchived)
                 }
             }
             Text("Members (${form.memberIds.size})", style = MaterialTheme.typography.titleSmall)

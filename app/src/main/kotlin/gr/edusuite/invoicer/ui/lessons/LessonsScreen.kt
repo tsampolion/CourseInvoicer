@@ -50,7 +50,7 @@ fun LessonsScreen(
     onAddLesson: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LessonsViewModel = appViewModel {
-        LessonsViewModel(it.lessonRepository, it.studentRepository, it.groupRepository)
+        LessonsViewModel(it.lessonRepository, it.studentRepository, it.groupRepository, messages = it.messages)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
