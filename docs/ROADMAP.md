@@ -31,14 +31,14 @@ Sizes: **S** is under half a day, **M** is one or two days, **L** is more.
 | 3 | Navigation rules as pure, tested code | Partial | M |
 | 4 | Problems that link to the screen that fixes them | Not started | M |
 | 5 | Golden tests for the billing engine | Partial | S |
-| 6 | Automatic tag and GitHub release | In review | S |
-| 7 | CI on every branch | In review | S |
+| 6 | Automatic tag and GitHub release | Done (2.0.0-alpha03) | S |
+| 7 | CI on every branch | Done (2.0.0-alpha03) | S |
 | 8 | Saving and corrupt data | Partial | M |
-| 9 | Print invoices | Partial | S |
+| 9 | Print statements | Partial | S |
 | 10 | Backup and device-transfer rules | Done | — |
 | 11 | Smaller footprint | Partial | S |
 | 12 | App theme drives the system bars | Done | — |
-| 13 | Short, rule-focused agent guide | In review | S |
+| 13 | Short, rule-focused agent guide | Done (2.0.0-alpha03) | S |
 | 14 | Theme and components for style guide v3 | Not started | L |
 
 ## 1. One state and one change path per ViewModel
@@ -173,7 +173,7 @@ use-case tests cover the rules. Gaps:
 
 ## 6. Automatic tag and GitHub release
 
-**In review:** `.github/workflows/release.yml`
+**Done in 2.0.0-alpha03:** `.github/workflows/release.yml`
 ([#353](https://github.com/tsampolion/EduInvoiceApp/pull/353)).
 
 **Tasks**
@@ -190,7 +190,7 @@ use-case tests cover the rules. Gaps:
 
 ## 7. CI on every branch
 
-**In review** in the same pull request as item 6.
+**Done in 2.0.0-alpha03**, in the same pull request as item 6.
 
 - [x] CI runs on every branch push. Pull requests from this repository reuse their branch's run;
       fork pull requests run their own.
@@ -270,7 +270,7 @@ colour applied on Android 12 and later until 2.0.0, which turned it off for the 
 
 ## 13. Short, rule-focused agent guide
 
-**In review** in the documentation pull request.
+**Done in 2.0.0-alpha03**, in the documentation pull request.
 
 - [x] `CLAUDE.md` imports `AGENTS.md`, so every coding agent reads one file.
 - [x] `AGENTS.md` has sections for commands, architecture (how data flows), rules, recipes, gotchas
@@ -305,6 +305,22 @@ These came up during the comparison but aren't among the 13 items.
       Giving the APK to anyone else requires passing on their licence and notices. Add an
       *Open-source licences* entry in Settings, or ship the notices with each release.
 
+## Who works on what (2.1.0)
+
+The owner split the 2.1.0 work between two agents:
+- **ChatGPT:** items 5, 1 and 8, as three stacked pull requests. The brief is
+  [`handoff/CHATGPT_BRIEF.md`](handoff/CHATGPT_BRIEF.md).
+- **Claude Code:** item 14 (style guide v3 in code), then item 2 (Undo), which builds on item 1's
+  `MarkPaid`.
+
 ## Done
 
-Nothing yet. Move items here with the version they shipped in.
+| Item | Version |
+|------|---------|
+| 6. Automatic tag and GitHub release | 2.0.0-alpha03 |
+| 7. CI on every branch | 2.0.0-alpha03 |
+| 10. Backup and device-transfer rules | 2.0.0-alpha03 |
+| 12. App theme drives the system bars | 2.0.0-alpha03 |
+| 13. Short, rule-focused agent guide | 2.0.0-alpha03 |
+
+Move items here with the version they shipped in.
