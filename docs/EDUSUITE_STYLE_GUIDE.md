@@ -209,6 +209,7 @@ Motion makes the app feel alive and confirms what happened. It never decorates.
   rises and from above when it falls (`AnimatedContent`).
 - **Lists:** rows use `Modifier.animateItem()` for insert, remove and reorder. A swiped row reveals
   its action behind it with resistance, and the action's icon scales up once past the threshold.
+  Grid tiles glide to their new places (`Motion.settle`) when the column count changes.
 - **Expand and collapse:** `animateContentSize(Motion.settle)` with a chevron that rotates 180°.
 - **Text fields:** the outline animates to the accent on focus; an error shakes the field once
   (3 × 4dp, 300 ms) with a `Reject` haptic.
@@ -231,8 +232,10 @@ These are behaviours, not code: each app implements them in its own code.
 - **Tile.** The base block: a tile colour (§2.2), 24dp corners, 16dp padding, no border. Optional
   status chip at the top, a title (`headlineSmall`), details in `onTileMuted`, and a figure or icon.
   The whole tile is one touch target with the press motion (§5).
-- **Tile grid (Home).** Each section of the app is a tile in a 2-column grid of mixed heights (a
-  bento): the most-used sections are tall, the rest are short. Each tile carries a **live subtitle**
+- **Tile grid (Home).** Each section of the app is a tile in a grid of mixed heights (a bento): the
+  most-used sections are tall, the rest are short. The grid has as many 160dp columns as the width
+  fits (at least two, at most one per tile), so a phone in landscape or a tablet uses its whole
+  width; each tile goes into the shortest column. Each tile carries a **live subtitle**
   with the current count or next step (*3 lessons this week*). An empty section's tile **dims**:
   background at 30%, text and icon at 60%; it still opens so the user can add the first item. At
   200% font scale or under 360dp width the grid becomes one column.
@@ -278,7 +281,7 @@ Identical in every suite app, at the top of the home screen, left-aligned:
    for example *Friday 16 October*).
 3. At the end, a 40dp pill icon button (Settings).
 
-Below it, *part of EduSuite apps* in `bodySmall` italic muted, once, under the tile grid.
+*Part of the EduSuite apps* is said once, in Settings → About, not on Home.
 
 ## 7. Accessibility
 

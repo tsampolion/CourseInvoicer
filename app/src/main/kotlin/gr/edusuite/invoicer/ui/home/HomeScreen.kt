@@ -31,8 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.ui.common.AppIcons
@@ -233,15 +231,6 @@ fun HomeScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(Space.xl))
-                Text(
-                    "part of EduSuite apps",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontStyle = FontStyle.Italic,
-                    color = colors.muted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
                 // Room for the floating button, so it never covers the last tile.
                 Spacer(Modifier.height(88.dp))
             }
