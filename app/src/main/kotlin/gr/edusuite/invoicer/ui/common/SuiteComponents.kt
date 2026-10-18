@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import gr.edusuite.invoicer.R
 import gr.edusuite.invoicer.ui.theme.Invoicer
 import gr.edusuite.invoicer.ui.theme.Mono
+import gr.edusuite.invoicer.ui.theme.TabularFigures
 
 // Shared EduSuite building blocks (docs/EDUSUITE_STYLE_GUIDE.md, "Components").
 
@@ -116,7 +117,7 @@ fun MoneyText(
         fontWeight = fontWeight,
         fontFamily = Mono,
         maxLines = maxLines,
-        style = style,
+        style = style.copy(fontFeatureSettings = TabularFigures),
     )
 }
 

@@ -5,13 +5,14 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * EduSuite shapes: 4dp for chips and fields, 6dp for cards and panels, a little more for dialogs and
- * sheets. The logo tile has its own 22dp radius (`Logo` in ui/common/SuiteComponents.kt).
+ * EduSuite shapes (guide §4): pills for chips and buttons (extraSmall, 50%), 12dp text fields, 16dp list
+ * groups, panels and stat tiles, 24dp tiles, 28dp dialogs and sheets. The logo tile has its own radius, a
+ * quarter of its size (`Logo` in ui/common/SuiteComponents.kt).
  */
 internal val InvoicerShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(4.dp),
-    medium = RoundedCornerShape(6.dp),
-    large = RoundedCornerShape(6.dp),
-    extraLarge = RoundedCornerShape(12.dp),
+    extraSmall = RoundedCornerShape(percent = 50),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )

@@ -94,7 +94,12 @@ fun StudentDetailScreen(
             if (student != null) {
                 IconButton(onClick = onEdit) { Icon(AppIcons.Edit, contentDescription = "Edit") }
                 IconButton(onClick = { menuOpen = true }) { Icon(AppIcons.MoreVert, contentDescription = "More") }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    // extraSmall is a pill in the suite theme; a menu takes the panel shape.
+                    shape = MaterialTheme.shapes.medium,
+                ) {
                     DropdownMenuItem(
                         text = { Text(if (student.archived) "Restore" else "Archive") },
                         onClick = {

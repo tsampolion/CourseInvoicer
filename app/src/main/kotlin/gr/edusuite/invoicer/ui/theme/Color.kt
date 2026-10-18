@@ -10,31 +10,40 @@ import androidx.compose.ui.graphics.Color
 // EduSuite colour tokens (docs/EDUSUITE_STYLE_GUIDE.md, "Colour"). The neutrals and the warn/ok pairs are
 // shared by every suite app; only the accent is Course Invoicer's own. Contrast ratios are listed in the guide.
 
-// Shared neutrals, light.
-private val PaperLight = Color(0xFFF2F5F2)
-private val SurfaceLight = Color(0xFFFBFCFB)
-private val SurfaceLowestLight = Color(0xFFFFFFFF)
-private val ContainerLight = Color(0xFFE9EEEA)
-private val ContainerHighLight = Color(0xFFE3E9E5)
-private val ContainerHighestLight = Color(0xFFDDE4DF)
-private val LineLight = Color(0xFFD2DAD5)
-private val OutlineLight = Color(0xFF7D8A83)
-private val MutedLight = Color(0xFF56625B)
-private val InkLight = Color(0xFF1A211D)
-private val InverseSurfaceLight = Color(0xFF2C332F)
-private val InverseInkLight = Color(0xFFEDF1EE)
+// Shared neutrals, light (guide §2.1).
+private val PaperLight = Color(0xFFF6F5FA)
+private val SurfaceLight = Color(0xFFFFFFFF)
+private val ContainerLight = Color(0xFFE8E6EF)
+private val LineLight = Color(0xFFE4E2EA)
+private val OutlineLight = Color(0xFF7A7686)
+private val MutedLight = Color(0xFF5E5A6B)
+private val InkLight = Color(0xFF1B1A22)
 
 // Shared neutrals, dark.
-private val PaperDark = Color(0xFF0F1413)
-private val SurfaceDark = Color(0xFF161C1A)
-private val SurfaceLowestDark = Color(0xFF0A0E0D)
-private val ContainerDark = Color(0xFF1A2120)
-private val ContainerHighDark = Color(0xFF212927)
-private val ContainerHighestDark = Color(0xFF28312E)
-private val LineDark = Color(0xFF2F3A36)
-private val OutlineDark = Color(0xFF7F8C86)
-private val MutedDark = Color(0xFF9DABA4)
-private val InkDark = Color(0xFFE3EAE6)
+private val PaperDark = Color(0xFF121118)
+private val SurfaceDark = Color(0xFF1C1B22)
+private val ContainerDark = Color(0xFF2A2832)
+private val LineDark = Color(0xFF2E2C37)
+private val OutlineDark = Color(0xFF8C889A)
+private val MutedDark = Color(0xFFA9A5B5)
+private val InkDark = Color(0xFFECEAF2)
+
+// Tiles (guide §2.2). Dark mode uses its own deep set with light text, not the pastels dimmed.
+private val TileLilacLight = Color(0xFFD9CCF5)
+private val TileMintLight = Color(0xFFBFE8C8)
+private val TileSkyLight = Color(0xFFBDE6F0)
+private val TileApricotLight = Color(0xFFFFD39A)
+private val TilePinkLight = Color(0xFFF4C6E6)
+private val OnTileLight = Color(0xFF1B1A22)
+private val OnTileMutedLight = Color(0xFF46424F)
+
+private val TileLilacDark = Color(0xFF3A2E5C)
+private val TileMintDark = Color(0xFF1F4A33)
+private val TileSkyDark = Color(0xFF1B4350)
+private val TileApricotDark = Color(0xFF5A3B12)
+private val TilePinkDark = Color(0xFF55264A)
+private val OnTileDark = Color(0xFFF3F1F8)
+private val OnTileMutedDark = Color(0xFFD6D2E0)
 
 // Semantic: warn (rust) and ok (moss).
 private val WarnLight = Color(0xFF9E4A24)
@@ -55,7 +64,7 @@ private val OnOkDark = Color(0xFF0F2A17)
 private val OkSoftDark = Color(0xFF1D3424)
 private val OnOkSoftDark = Color(0xFFDCEBDF)
 
-// Course Invoicer accent (purple).
+// Course Invoicer accent (purple), guide §2.4.
 private val AccentLight = Color(0xFF5B3FA0)
 private val OnAccentLight = Color(0xFFFFFFFF)
 private val AccentSoftLight = Color(0xFFE9E2FA)
@@ -70,48 +79,111 @@ private val OnAccentSoftDark = Color(0xFFE9E2FA)
  * Suite tokens that Material 3's [ColorScheme] has no slot for. Read them as `Invoicer.colors`.
  *
  * The same tokens are also mapped into the scheme (accent → primary, ok → tertiary, warn → error,
- * line → outlineVariant, muted → onSurfaceVariant), so stock Material components follow the suite look.
+ * line → outlineVariant, muted → onSurfaceVariant, ink → onSurface), so stock Material components follow
+ * the suite look.
  */
 @Immutable
 data class InvoicerColors(
     /** The page background. */
     val paper: Color,
-    /** 1dp borders and dividers; used instead of shadows. */
+    /** Sheets, list groups and fields. */
+    val surface: Color,
+    /** Neutral tiles, bars, unselected chips. */
+    val surfaceContainer: Color,
+    /** Hairline dividers (decorative). */
     val line: Color,
-    /** Secondary text: captions, eyebrows, hints. */
+    /** Secondary text on paper and surface. Use [onTileMuted] on a tile. */
     val muted: Color,
+    /** Body text, titles and the selected fill. */
+    val ink: Color,
+    /** The app's accent, also `MaterialTheme.colorScheme.primary`. */
+    val accent: Color,
+    val onAccent: Color,
     /** Soft accent container, e.g. a tinted home button or an empty-state badge. */
     val accentSoft: Color,
+    val onAccentSoft: Color,
     val warn: Color,
+    val onWarn: Color,
     val warnSoft: Color,
+    val onWarnSoft: Color,
     val ok: Color,
+    val onOk: Color,
     val okSoft: Color,
-)
+    val onOkSoft: Color,
+    val tileLilac: Color,
+    val tileMint: Color,
+    val tileSky: Color,
+    val tileApricot: Color,
+    val tilePink: Color,
+    /** Text and icons on any tile. */
+    val onTile: Color,
+    /** Secondary text on any tile. */
+    val onTileMuted: Color,
+) {
+    /** Paper text on the ink fill of a selected chip or day. */
+    val onSelected: Color get() = paper
+}
 
 internal val LightInvoicerColors = InvoicerColors(
     paper = PaperLight,
+    surface = SurfaceLight,
+    surfaceContainer = ContainerLight,
     line = LineLight,
     muted = MutedLight,
+    ink = InkLight,
+    accent = AccentLight,
+    onAccent = OnAccentLight,
     accentSoft = AccentSoftLight,
+    onAccentSoft = OnAccentSoftLight,
     warn = WarnLight,
+    onWarn = OnWarnLight,
     warnSoft = WarnSoftLight,
+    onWarnSoft = OnWarnSoftLight,
     ok = OkLight,
+    onOk = OnOkLight,
     okSoft = OkSoftLight,
+    onOkSoft = OnOkSoftLight,
+    tileLilac = TileLilacLight,
+    tileMint = TileMintLight,
+    tileSky = TileSkyLight,
+    tileApricot = TileApricotLight,
+    tilePink = TilePinkLight,
+    onTile = OnTileLight,
+    onTileMuted = OnTileMutedLight,
 )
 
 internal val DarkInvoicerColors = InvoicerColors(
     paper = PaperDark,
+    surface = SurfaceDark,
+    surfaceContainer = ContainerDark,
     line = LineDark,
     muted = MutedDark,
+    ink = InkDark,
+    accent = AccentDark,
+    onAccent = OnAccentDark,
     accentSoft = AccentSoftDark,
+    onAccentSoft = OnAccentSoftDark,
     warn = WarnDark,
+    onWarn = OnWarnDark,
     warnSoft = WarnSoftDark,
+    onWarnSoft = OnWarnSoftDark,
     ok = OkDark,
+    onOk = OnOkDark,
     okSoft = OkSoftDark,
+    onOkSoft = OnOkSoftDark,
+    tileLilac = TileLilacDark,
+    tileMint = TileMintDark,
+    tileSky = TileSkyDark,
+    tileApricot = TileApricotDark,
+    tilePink = TilePinkDark,
+    onTile = OnTileDark,
+    onTileMuted = OnTileMutedDark,
 )
 
 internal val LocalInvoicerColors = staticCompositionLocalOf { LightInvoicerColors }
 
+// Material 3 slots per the guide's tables (§2.1, §2.3, §2.4). Surface containers High and Highest equal
+// surfaceContainer; there is no tonal elevation.
 internal val LightColorScheme: ColorScheme = lightColorScheme(
     primary = AccentLight,
     onPrimary = OnAccentLight,
@@ -119,7 +191,7 @@ internal val LightColorScheme: ColorScheme = lightColorScheme(
     onPrimaryContainer = OnAccentSoftLight,
     inversePrimary = AccentDark,
     secondary = MutedLight,
-    onSecondary = SurfaceLowestLight,
+    onSecondary = SurfaceLight,
     secondaryContainer = AccentSoftLight,
     onSecondaryContainer = OnAccentSoftLight,
     tertiary = OkLight,
@@ -130,11 +202,11 @@ internal val LightColorScheme: ColorScheme = lightColorScheme(
     onBackground = InkLight,
     surface = PaperLight,
     onSurface = InkLight,
-    surfaceVariant = ContainerHighLight,
+    surfaceVariant = ContainerLight,
     onSurfaceVariant = MutedLight,
     surfaceTint = AccentLight,
-    inverseSurface = InverseSurfaceLight,
-    inverseOnSurface = InverseInkLight,
+    inverseSurface = InkLight,
+    inverseOnSurface = PaperLight,
     error = WarnLight,
     onError = OnWarnLight,
     errorContainer = WarnSoftLight,
@@ -142,12 +214,12 @@ internal val LightColorScheme: ColorScheme = lightColorScheme(
     outline = OutlineLight,
     outlineVariant = LineLight,
     surfaceBright = SurfaceLight,
-    surfaceDim = ContainerHighestLight,
-    surfaceContainerLowest = SurfaceLowestLight,
+    surfaceDim = ContainerLight,
+    surfaceContainerLowest = SurfaceLight,
     surfaceContainerLow = SurfaceLight,
     surfaceContainer = ContainerLight,
-    surfaceContainerHigh = ContainerHighLight,
-    surfaceContainerHighest = ContainerHighestLight,
+    surfaceContainerHigh = ContainerLight,
+    surfaceContainerHighest = ContainerLight,
 )
 
 internal val DarkColorScheme: ColorScheme = darkColorScheme(
@@ -168,22 +240,22 @@ internal val DarkColorScheme: ColorScheme = darkColorScheme(
     onBackground = InkDark,
     surface = PaperDark,
     onSurface = InkDark,
-    surfaceVariant = ContainerHighDark,
+    surfaceVariant = ContainerDark,
     onSurfaceVariant = MutedDark,
     surfaceTint = AccentDark,
     inverseSurface = InkDark,
-    inverseOnSurface = InverseSurfaceLight,
+    inverseOnSurface = PaperDark,
     error = WarnDark,
     onError = OnWarnDark,
     errorContainer = WarnSoftDark,
     onErrorContainer = OnWarnSoftDark,
     outline = OutlineDark,
     outlineVariant = LineDark,
-    surfaceBright = ContainerHighestDark,
+    surfaceBright = ContainerDark,
     surfaceDim = PaperDark,
-    surfaceContainerLowest = SurfaceLowestDark,
+    surfaceContainerLowest = PaperDark,
     surfaceContainerLow = SurfaceDark,
     surfaceContainer = ContainerDark,
-    surfaceContainerHigh = ContainerHighDark,
-    surfaceContainerHighest = ContainerHighestDark,
+    surfaceContainerHigh = ContainerDark,
+    surfaceContainerHighest = ContainerDark,
 )

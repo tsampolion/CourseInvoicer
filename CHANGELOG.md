@@ -26,8 +26,6 @@ How to use this file:
 - Golden tests pin the billing maths (rounding, limits, Greek formatting).
 
 ### Changed
-- **Faster CI:** the emulator boots while the test APKs build, and the minified-APK smoke test waits
-  less, which takes about a minute and a half off each run.
 - Rates are capped at 100,000.
 - **EduSuite style guide, version 3** (`docs/EDUSUITE_STYLE_GUIDE.md`): a brighter, livelier look
   with pastel tiles (a separate deep set in dark mode), pill controls, the bundled Outfit typeface
@@ -35,6 +33,11 @@ How to use this file:
   toggles, sliders, rolling figures, haptics), loading, empty and error states, strings and icons,
   and a fluid flow (undo instead of confirm, smart defaults, swipe actions, two taps to the daily
   work), plus an overview diagram. Guide only: the app's theme follows in later changes.
+- **Style guide v3 theme tokens** (roadmap item 14): the lavender-grey paper and ink neutrals, the
+  pastel tile set with its separate deep dark set, the bundled Outfit typeface (variable font, SIL
+  Open Font License, licence in `assets/licenses/outfit_ofl.txt`) with monospace figures, larger
+  corners and pill chips, and shared `Space` and `Motion` tokens. The window background and the
+  launcher icon's paper follow the new paper colour.
 
 ### Removed
 - The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
@@ -45,6 +48,7 @@ How to use this file:
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 
 ### Added
+- **Outfit is the only font.** Figures use Outfit's tabular figures instead of a monospace font.
 - **EduSuite style guide** (`docs/EDUSUITE_STYLE_GUIDE.md`, D19): the shared look of Course
   Invoicer and Course Pacer, with colour tokens and their contrast ratios, type, shapes, spacing,
   components, the home header, launcher icon rules, accessibility and copy tone.
