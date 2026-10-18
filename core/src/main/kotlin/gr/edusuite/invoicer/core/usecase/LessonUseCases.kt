@@ -84,3 +84,23 @@ class RescheduleLessons(private val lessons: LessonRepository) {
         return selected.size
     }
 }
+
+/** Records or clears payment (R3, R9). Uncharged lessons can never be paid. */
+class MarkPaid(private val lessons: LessonRepository) {
+    /** Returns the number of distinct lessons whose payment date changed. */
+    suspend operator fun invoke(lessonIds: Collection<Long>, paidOn: LocalDate?): Int {
+        val selected = lessons.getLessons(lessonIds.toSet())
+        val eligible = if (paidOn == null) selected else selected.filter { it.charge.isPositive }
+        if (paidOn != null && lessonIds.isNotEmpty() && eligible.isEmpty()) requireCharged(false)
+        val changed = eligible.filter { it.paidOn != paidOn }
+        if (changed.isNotEmpty()) lessons.setPaid(changed.map { it.id }, paidOn)
+        return changed.size
+    }
+
+    companion object {
+        /** The same R3 guard is used by the unsaved lesson form, before any repository write. */
+        fun requireCharged(charged: Boolean) {
+            if (!charged) throw DomainException("An excused absence is not charged, so it can't be paid")
+        }
+    }
+}

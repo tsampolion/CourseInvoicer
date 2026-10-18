@@ -1,6 +1,8 @@
 package gr.edusuite.invoicer.ui
 
 import android.content.ContextWrapper
+import androidx.lifecycle.SavedStateHandle
+import gr.edusuite.invoicer.ui.students.StudentEditViewModel
 import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
@@ -66,6 +68,155 @@ class ViewModelsTest {
         fee = Money(fee),
         paidOn = paidOn?.let(LocalDate::parse),
     )
+
+    @Test fun `lesson draft restores typed fields and clears only after a successful save`() = runTest {
+        val maria = addStudent("Maria")
+        val saved = SavedStateHandle(mapOf(
+            "draft.present" to true, "draft.studentId" to maria,
+            "draft.date" to LocalDate.of(2026, 3, 11).toEpochDay(), "draft.time" to "16:30",
+            "draft.duration" to "90", "draft.fee" to "31.25", "draft.feeEdited" to true,
+            "draft.notes" to "typed homework", "draft.locked" to false,
+        ))
+        val vm = LessonEditViewModel(0, 0, repos, repos, repos, repos.settingsRepository, savedState = saved)
+        assertEquals("typed homework", vm.state.value.notes)
+        assertEquals("31.25", vm.state.value.fee)
+        assertEquals(LocalTime.of(16, 30), vm.state.value.time)
+        assertTrue(vm.state.value.dirty)
+        vm.setDuration("0")
+        vm.save()
+        assertTrue(saved.keys().any { it.startsWith("draft.") })
+        vm.setDuration("90")
+        vm.save()
+        assertFalse(vm.state.value.dirty)
+        assertFalse(saved.keys().any { it.startsWith("draft.") })
+        assertEquals("typed homework", repos.lessons.single().notes)
+    }
+
+    @Test fun `restored lesson draft cannot bypass a new statement lock`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val saved = SavedStateHandle()
+        val original = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository, savedState = saved)
+        original.setFee("99")
+        createInvoice(maria, listOf(id), LocalDate.of(2026, 3, 31))
+        val restored = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository, savedState = saved)
+        assertTrue(restored.state.value.locked)
+        assertEquals("20.00", restored.state.value.fee)
+        assertFalse(restored.state.value.dirty)
+        assertTrue(restored.state.value.message!!.contains("statement status changed"))
+        assertFalse(saved.keys().any { it.startsWith("draft.") })
+    }
+
+    @Test fun `student and group drafts restore and clear on save`() = runTest {
+        val studentDraft = SavedStateHandle()
+        val first = StudentEditViewModel(0, repos, studentDraft)
+        first.update { it.copy(firstName = "Draft student", rate = "25", notes = "typed") }
+        val restored = StudentEditViewModel(0, repos, studentDraft)
+        assertTrue(restored.state.value.dirty)
+        assertEquals("typed", restored.state.value.form.notes)
+        restored.save()
+        assertFalse(restored.state.value.dirty)
+        assertTrue(studentDraft.keys().isEmpty())
+        val groupDraft = SavedStateHandle()
+        val group = GroupEditViewModel(0, repos, repos, repos, groupDraft)
+        group.update { it.copy(name = "Draft group", rate = "12", memberIds = setOf(repos.students.single().id)) }
+        val restoredGroup = GroupEditViewModel(0, repos, repos, repos, groupDraft)
+        assertTrue(restoredGroup.state.value.dirty)
+        assertEquals("Draft group", restoredGroup.state.value.form.name)
+        restoredGroup.save()
+        assertFalse(restoredGroup.state.value.dirty)
+        assertTrue(groupDraft.keys().isEmpty())
+    }
+
+    @Test fun `statement draft restores selection and clears after issue`() = runTest {
+        val maria = addStudent("Maria")
+        val firstId = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val secondId = repos.saveLesson(lesson(maria, "2026-03-11", 2000))
+        val saved = SavedStateHandle()
+        fun form() = CreateInvoiceViewModel(maria, repos, repos, repos, repos,
+            InvoiceRenderer(repos, repos, repos.settingsRepository), savedState = saved)
+        val original = form()
+        assertFalse(original.state.value.dirty)
+        original.toggle(secondId)
+        original.setNotes("draft statement")
+        val restored = form()
+        assertEquals(setOf(firstId), restored.state.value.selected)
+        assertEquals("draft statement", restored.state.value.notes)
+        assertTrue(restored.state.value.dirty)
+        restored.create()
+        assertFalse(restored.state.value.dirty)
+        assertTrue(saved.keys().isEmpty())
+    }
+
+    @Test fun `home exposes database damage and acknowledging calls through`() = runTest {
+        var acknowledged = false
+        val damage = kotlinx.coroutines.flow.MutableStateFlow(true)
+        val vm = HomeViewModel(repos, repos, repos, repos, repos.settingsRepository,
+            InMemoryReminderStateRepository(), databaseDamaged = damage,
+            acknowledgeDamage = { acknowledged = true; damage.value = false })
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertTrue(vm.state.value.databaseDamaged)
+        vm.acknowledgeDamagedDatabase().join()
+        runCurrent()
+        assertTrue(acknowledged)
+        assertFalse(vm.state.value.databaseDamaged)
+    }
+
+    @Test fun `a failed list flow reports an error and can clear it without losing the last data`() = runTest {
+        val maria = addStudent("Maria")
+        val failure = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val broken = object : gr.edusuite.invoicer.core.repository.StudentRepository by repos {
+            override fun observeStudents() = kotlinx.coroutines.flow.flow {
+                emit(listOf(repos.getStudent(maria)!!))
+                failure.await()
+                throw IllegalStateException("disk")
+            }
+        }
+        val vm = StudentsViewModel(broken, repos)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertEquals(1, vm.state.value.rows.size)
+        failure.complete(Unit)
+        assertEquals("Something went wrong: disk", vm.state.value.message)
+        assertEquals("Maria", vm.state.value.rows.single().student.firstName)
+        vm.messageShown()
+        assertNull(vm.state.value.message)
+        assertEquals(1, vm.state.value.rows.size)
+    }
+
+    @Test fun `missing lesson is not an editable blank form`() = runTest {
+        val vm = LessonEditViewModel(999, 0, repos, repos, repos, repos.settingsRepository)
+        assertTrue(vm.state.value.notFound)
+        assertEquals("This lesson no longer exists", vm.state.value.message)
+        vm.setNotes("ignored")
+        vm.save()
+        assertEquals("", vm.state.value.notes)
+        assertTrue(repos.lessons.isEmpty())
+    }
+
+    @Test fun `an excused lesson form refuses payment and reports the core rule`() = runTest {
+        val maria = addStudent("Maria")
+        val id = repos.saveLesson(lesson(maria, "2026-03-10", 2000).copy(absent = true))
+        val vm = LessonEditViewModel(id, 0, repos, repos, repos, repos.settingsRepository)
+        vm.setPaid(true)
+        assertFalse(vm.state.value.paid)
+        assertEquals("An excused absence is not charged, so it can't be paid", vm.state.value.message)
+        assertNull(repos.getLesson(id)?.paidOn)
+    }
+
+    @Test fun `bulk payment skips selected excused absences`() = runTest {
+        val maria = addStudent("Maria")
+        val held = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val excused = repos.saveLesson(lesson(maria, "2026-03-11", 2000).copy(absent = true))
+        val day = LocalDate.of(2026, 3, 31)
+        val vm = LessonsViewModel(repos, repos, repos) { day }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.toggleSelection(held)
+        vm.toggleSelection(excused)
+        vm.markSelectedPaid()
+        assertEquals(day, repos.getLesson(held)?.paidOn)
+        assertNull(repos.getLesson(excused)?.paidOn)
+        assertEquals("Marked 1 lesson as paid", vm.state.value.message)
+    }
 
     @Test
     fun `dashboard summarises the month and lists who owes`() = runTest {

@@ -180,4 +180,42 @@ class LessonUseCasesTest {
         assertRejected("at least one") { reschedule(emptyList(), date, LocalTime.NOON) }
         assertEquals(LocalDate.parse("2026-03-10"), repos.getLesson(open)?.date)
     }
+    @Test fun `MarkPaid pays held and late lessons skips excused and counts distinct changes`() = runTest {
+        val maria = repos.saveStudent(student())
+        val held = repos.saveLesson(lesson(maria))
+        val late = repos.saveLesson(lateCancel(maria))
+        val excused = repos.saveLesson(lesson(maria, absent = true))
+        val free = repos.saveLesson(lesson(maria, fee = "0"))
+        val mark = MarkPaid(repos)
+        val day = LocalDate.of(2026, 3, 31)
+        assertEquals(2, mark(listOf(held, late, excused, free, held), day))
+        assertEquals(day, repos.getLesson(held)?.paidOn)
+        assertEquals(day, repos.getLesson(late)?.paidOn)
+        assertNull(repos.getLesson(excused)?.paidOn)
+        assertNull(repos.getLesson(free)?.paidOn)
+        assertEquals(0, mark(listOf(held, late), day))
+        assertEquals(0, mark(emptyList(), day))
+        try {
+            mark(listOf(excused), day)
+            org.junit.Assert.fail("An excused absence cannot be paid")
+        } catch (error: gr.edusuite.invoicer.core.model.DomainException) {
+            assertEquals("An excused absence is not charged, so it can't be paid", error.message)
+        }
+    }
+
+    @Test fun `MarkPaid clears any lesson and payment remains editable on a statement`() = runTest {
+        val maria = repos.saveStudent(student())
+        val held = repos.saveLesson(lesson(maria))
+        repos.createInvoiceUseCase()(maria, listOf(held), LocalDate.of(2026, 3, 31))
+        val day = LocalDate.of(2026, 4, 1)
+        val mark = MarkPaid(repos)
+        assertEquals(1, mark(listOf(held), day))
+        org.junit.Assert.assertNotNull(repos.getLesson(held)?.invoiceId)
+        // Legacy invalid payment: clearing must also repair an uncharged lesson.
+        val excused = repos.saveLesson(lesson(maria, absent = true, paidOn = "2026-03-31"))
+        assertEquals(2, mark(listOf(held, excused), null))
+        assertNull(repos.getLesson(held)?.paidOn)
+        assertNull(repos.getLesson(excused)?.paidOn)
+    }
+
 }

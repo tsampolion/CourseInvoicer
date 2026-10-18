@@ -485,6 +485,13 @@ class SqlRepositoriesTest {
         }
     }
 
+    @Test fun clearingPaymentRepairsAnUnchargedLegacyRow() = runTest {
+        val maria = student()
+        val excused = lessons.saveLesson(lesson(maria).copy(absent = true, paidOn = LocalDate.of(2026, 3, 31)))
+        lessons.setPaid(listOf(excused), null)
+        assertNull(lessons.getLesson(excused)?.paidOn)
+    }
+
     private companion object {
         /** Frozen copy of the version 3 changes (2.0.0-alpha03). Never edit. */
         val V3_CHANGES = listOf("ALTER TABLE invoices ADD COLUMN document TEXT")

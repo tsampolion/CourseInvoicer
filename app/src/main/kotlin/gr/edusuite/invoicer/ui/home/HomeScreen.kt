@@ -201,6 +201,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(Space.xxl))
                 // Slot for the damaged-database banner: a one-line DamagedDatabaseBanner(…) call
                 // (ui/home/DamagedDatabaseBanner.kt) goes here when it lands, above the header.
+                if (state.databaseDamaged) DamagedDatabaseBanner(onOpenSettings, viewModel::acknowledgeDamagedDatabase)
                 HomeHeader(onOpenSettings)
                 Spacer(Modifier.height(Space.xl))
                 BoxWithConstraints(Modifier.fillMaxWidth()) {

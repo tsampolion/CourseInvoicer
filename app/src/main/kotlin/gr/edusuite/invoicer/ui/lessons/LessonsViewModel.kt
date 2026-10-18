@@ -8,16 +8,16 @@ import gr.edusuite.invoicer.core.model.sumOfMoney
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
+import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.RescheduleLessons
 import gr.edusuite.invoicer.ui.common.launchCatching
 import gr.edusuite.invoicer.ui.common.plural
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
+import gr.edusuite.invoicer.ui.common.stateInCatching
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 import java.time.LocalTime
@@ -70,11 +70,14 @@ class LessonsViewModel(
     private val filter = MutableStateFlow(LessonFilter.ALL)
     private val message = MutableStateFlow<String?>(null)
     private val selection = MutableStateFlow<Set<Long>>(emptySet())
+    private fun showMessage(text: String) { message.value = text }
+
+    private val markPaid = MarkPaid(lessons)
     private val rescheduleLessons = RescheduleLessons(lessons)
 
     private val monthLessons = month.flatMapLatest { lessons.observeLessonsBetween(it.atDay(1), it.atEndOfMonth()) }
 
-    val state: StateFlow<LessonsUiState> = combine(
+    private val observedState: StateFlow<LessonsUiState> = combine(
         combine(month, filter, message, selection) { m, f, msg, sel -> Controls(m, f, msg, sel) },
         monthLessons,
         students.observeStudents(),
@@ -103,7 +106,13 @@ class LessonsViewModel(
             // Lessons that left the list (filtered out or deleted) silently leave the selection.
             selected = selectedIds.filterTo(mutableSetOf()) { id -> visible.any { it.id == id } },
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LessonsUiState(month = YearMonth.from(today())))
+    }.stateInCatching(viewModelScope, LessonsUiState(month = YearMonth.from(today())), ::showMessage)
+
+    // Keep error delivery alive even after the repository flow has completed with an error.
+    val state: StateFlow<LessonsUiState> = combine(observedState, message) { snapshot, event ->
+        snapshot.copy(message = event)
+    }.stateInCatching(viewModelScope, LessonsUiState(month = YearMonth.from(today())), ::showMessage)
+
 
     fun previousMonth() {
         clearSelection()
@@ -130,9 +139,9 @@ class LessonsViewModel(
     fun markSelectedPaid() {
         val owed = state.value.items.map { it.lesson }.filter { it.id in state.value.selected && it.isOutstanding }
         launchCatching({ message.value = it }) {
-            lessons.setPaid(owed.map { it.id }, today())
+            val changed = markPaid(owed.map { it.id }, today())
             clearSelection()
-            message.value = "Marked ${plural(owed.size, "lesson")} as paid"
+            message.value = "Marked ${plural(changed, "lesson")} as paid"
         }
     }
 
@@ -146,7 +155,7 @@ class LessonsViewModel(
     }
 
     fun setPaid(lesson: Lesson, paid: Boolean) = launchCatching({ message.value = it }) {
-        lessons.setPaid(listOf(lesson.id), if (paid) today() else null)
+        markPaid(listOf(lesson.id), if (paid) today() else null)
     }
 
     fun messageShown() {

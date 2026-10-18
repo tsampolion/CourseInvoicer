@@ -44,7 +44,7 @@ data class Lesson(
     val isLateCancellation: Boolean get() = absent && absenceCharge == AbsenceCharge.LATE_CANCELLATION
 
     /** What the student is charged: the fee, except for excused absences, which are never charged. */
-    val charge: Money get() = if (isExcused) Money.ZERO else fee
+    val charge: Money get() = chargeFor(fee, absent, absenceCharge)
 
     /** Charged but not yet paid. */
     val isOutstanding: Boolean get() = !isPaid && charge.isPositive
@@ -52,3 +52,7 @@ data class Lesson(
     /** Can be put on a new statement. Excused absences can too, as 0.00 lines (R4). */
     val isInvoiceable: Boolean get() = !isInvoiced
 }
+
+/** Charge for a saved lesson or an unsaved form (R3). */
+fun chargeFor(fee: Money, absent: Boolean, absenceCharge: AbsenceCharge): Money =
+    if (absent && absenceCharge == AbsenceCharge.NONE) Money.ZERO else fee

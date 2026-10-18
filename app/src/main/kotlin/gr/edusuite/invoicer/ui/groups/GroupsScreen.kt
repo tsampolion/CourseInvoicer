@@ -25,6 +25,7 @@ import gr.edusuite.invoicer.ui.common.AppIcons
 import gr.edusuite.invoicer.ui.common.EmptyState
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
+import gr.edusuite.invoicer.ui.common.ScreenErrorNotice
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.students.rateLabel
@@ -39,6 +40,7 @@ fun GroupsScreen(
     viewModel: GroupsViewModel = appViewModel { GroupsViewModel(it.groupRepository, it.studentRepository) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    ScreenErrorNotice(state.message, viewModel::messageShown)
     val formats = LocalFormats.current
     ScreenScaffold(
         title = "Groups",

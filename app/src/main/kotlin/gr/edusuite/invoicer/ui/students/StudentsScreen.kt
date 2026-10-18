@@ -34,6 +34,7 @@ import gr.edusuite.invoicer.ui.common.AppIcons
 import gr.edusuite.invoicer.ui.common.EmptyState
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
+import gr.edusuite.invoicer.ui.common.ScreenErrorNotice
 import gr.edusuite.invoicer.ui.common.appViewModel
 
 @Composable
@@ -45,6 +46,7 @@ fun StudentsScreen(
     viewModel: StudentsViewModel = appViewModel { StudentsViewModel(it.studentRepository, it.lessonRepository) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    ScreenErrorNotice(state.message, viewModel::messageShown)
     val formats = LocalFormats.current
     // The field owns its text so typing never waits for the filtered list (or the database) to update.
     var query by rememberSaveable { mutableStateOf("") }

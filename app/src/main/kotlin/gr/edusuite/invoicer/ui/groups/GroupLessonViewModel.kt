@@ -1,7 +1,6 @@
 package gr.edusuite.invoicer.ui.groups
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Student
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -44,6 +42,7 @@ data class Attendee(val student: Student, val presence: Presence = Presence.PRES
 
 data class GroupLessonUiState(
     val loading: Boolean = true,
+    val notFound: Boolean = false,
     val group: StudentGroup? = null,
     val date: LocalDate,
     val time: LocalTime,
@@ -79,34 +78,39 @@ class GroupLessonViewModel(
     val state: StateFlow<GroupLessonUiState> = mutableState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        launchCatching(::fail) {
             val group = groups.getGroup(groupId)
+            if (group == null) {
+                mutableState.update { it.copy(loading = false, notFound = true, message = "This group no longer exists") }
+                return@launchCatching
+            }
             val members = students.observeStudents().first()
                 .filter { group != null && it.id in group.memberIds && !it.archived }
             mutableState.update { it.copy(loading = false, group = group, attendees = members.map(::Attendee)) }
         }
     }
 
-    fun setDate(date: LocalDate) = mutableState.update { it.copy(date = date) }
+    fun setDate(date: LocalDate) = edit { it.copy(date = date) }
 
-    fun setTime(time: LocalTime) = mutableState.update { it.copy(time = time) }
+    fun setTime(time: LocalTime) = edit { it.copy(time = time) }
 
-    fun setDuration(text: String) = mutableState.update {
+    fun setDuration(text: String) = edit {
         it.copy(duration = text.filter(Char::isDigit).take(3), durationError = false)
     }
 
-    fun setNotes(text: String) = mutableState.update { it.copy(notes = text) }
+    fun setNotes(text: String) = edit { it.copy(notes = text) }
 
     fun setPresence(studentId: Long, presence: Presence) = updateAttendee(studentId) { it.copy(presence = presence) }
 
     /** The reason for an absence; kept if the member is marked present again, but not saved then. */
     fun setReason(studentId: Long, text: String) = updateAttendee(studentId) { it.copy(reason = text) }
 
-    private fun updateAttendee(studentId: Long, transform: (Attendee) -> Attendee) = mutableState.update { state ->
+    private fun updateAttendee(studentId: Long, transform: (Attendee) -> Attendee) = edit { state ->
         state.copy(attendees = state.attendees.map { if (it.student.id == studentId) transform(it) else it })
     }
 
     fun save() {
+        if (state.value.loading || state.value.notFound || state.value.saving) return
         val current = state.value
         val minutes = current.minutes
         if (minutes == null) {
@@ -139,4 +143,10 @@ class GroupLessonViewModel(
     }
 
     fun messageShown() = mutableState.update { it.copy(message = null) }
+    private fun edit(allowedWhenLocked: Boolean = false, transform: (GroupLessonUiState) -> GroupLessonUiState) = mutableState.update {
+        if (it.loading || it.notFound || it.saving) it else transform(it)
+    }
+
+    private fun fail(message: String) = mutableState.update { it.copy(loading = false, notFound = it.notFound || it.loading, saving = false, message = message) }
+
 }
