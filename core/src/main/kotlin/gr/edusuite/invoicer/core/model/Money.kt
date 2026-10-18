@@ -2,7 +2,7 @@ package gr.edusuite.invoicer.core.model
 
 import java.math.BigDecimal
 
-/** An amount of money in minor units (cents). The currency is an app-wide setting. */
+/** An amount of money in minor units (cents). All amounts are euro cents. */
 @JvmInline
 value class Money(val cents: Long) : Comparable<Money> {
     operator fun plus(other: Money): Money = Money(cents + other.cents)

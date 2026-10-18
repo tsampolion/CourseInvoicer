@@ -77,7 +77,7 @@ class StudentDetailViewModel(
 
     fun recordPayment() = launchCatching(::showMessage) {
         val result = recordPaymentUseCase(studentId, today())
-        val formats = Formats(Locale.getDefault(), settings.settings.value.currencyCode)
+        val formats = Formats(Locale.getDefault())
         showMessage("Recorded ${formats.money(result.amount)} for ${plural(result.lessonCount, "lesson")}")
     }
 

@@ -31,7 +31,6 @@ class BackupCodecTest {
         exportedAt = "2026-10-10T09:00:00Z",
         settings = AppSettings(
             business = BusinessProfile(name = "Δημήτρης Τ.", address = "Οδός 1\nΑθήνα", iban = "GR16 0110"),
-            currencyCode = "EUR",
             defaultLessonMinutes = 45,
             themeMode = ThemeMode.DARK,
             invoiceFooter = "Thank you \"very\" much \\ ☺",
@@ -98,6 +97,14 @@ class BackupCodecTest {
             )
         },
     )
+
+    @Test fun `writes EUR for old readers and ignores any legacy currency without changing data`() {
+        val encoded = BackupCodec.encode(snapshot)
+        assertTrue(encoded.contains("\"currencyCode\": \"EUR\""))
+        for (legacy in listOf("GBP", "JPY", "KWD", "unknown")) {
+            assertEquals(snapshot, BackupCodec.decode(encoded.replace("\"EUR\"", "\"$legacy\"")))
+        }
+    }
 
     @Test fun `restore accepts capped rates and rejects student and group rates above the cap`() {
         val capped = snapshot.copy(
@@ -208,7 +215,6 @@ class BackupCodecTest {
         val lessonOnInvoice = snapshot.lessons.first()
         fun withLesson(extra: Lesson) = snapshot.copy(lessons = snapshot.lessons + extra)
 
-        rejects(snapshot.copy(settings = snapshot.settings.copy(currencyCode = "XX")), "currency")
         rejects(snapshot.copy(settings = snapshot.settings.copy(defaultLessonMinutes = 0)), "lesson length")
         rejects(snapshot.copy(students = snapshot.students + snapshot.students.first()), "share an id")
         rejects(withLesson(lessonOnInvoice.copy(id = 20, durationMinutes = 900)), "Lesson 20")

@@ -22,13 +22,21 @@ How to use this file:
 
 ## [2.1.0] - Unreleased
 
+### Added
+- Golden tests pin the billing maths (rounding, limits, Greek formatting).
+
 ### Changed
+- Rates are capped at 100,000.
 - **EduSuite style guide, version 3** (`docs/EDUSUITE_STYLE_GUIDE.md`): a brighter, livelier look
   with pastel tiles (a separate deep set in dark mode), pill controls, the bundled Outfit typeface
   with monospace figures, and larger corners. It adds rules for micro-interactions (springy presses,
   toggles, sliders, rolling figures, haptics), loading, empty and error states, strings and icons,
   and a fluid flow (undo instead of confirm, smart defaults, swipe actions, two taps to the daily
   work), plus an overview diagram. Guide only: the app's theme follows in later changes.
+
+### Removed
+- The currency setting. Course Invoicer works in euros only. Backups from 2.0.0 still import,
+  with every amount read as euros, and new backups still open in 2.0.0.
 
 ## [2.0.0] - 2026-10-16
 

@@ -18,7 +18,7 @@ import java.time.LocalDate
 import java.util.Locale
 
 class InvoiceDocumentTest {
-    private val formats = Formats(Locale.UK, "EUR")
+    private val formats = Formats(Locale.UK)
     private val settings = AppSettings(
         business = BusinessProfile(
             name = "Dimitris Tutoring",

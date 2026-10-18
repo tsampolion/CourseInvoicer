@@ -2,6 +2,7 @@ package gr.edusuite.invoicer.core.backup
 
 import gr.edusuite.invoicer.core.invoice.InvoiceDocumentCodec
 import gr.edusuite.invoicer.core.model.AbsenceCharge
+import gr.edusuite.invoicer.core.model.CURRENCY_CODE
 import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
@@ -88,9 +89,6 @@ object BackupCodec {
     private fun BackupSnapshot.validate() {
         fun reject(message: String): Nothing = throw BackupFormatException(message)
 
-        if (!SettingsRules.isValidCurrency(settings.currencyCode)) {
-            reject("Unknown currency '${settings.currencyCode}'")
-        }
         if (!SettingsRules.isValidLessonMinutes(settings.defaultLessonMinutes)) {
             reject("Default lesson length must be between 1 and $MAX_LESSON_MINUTES minutes")
         }
@@ -146,7 +144,7 @@ object BackupCodec {
         "phone" to business.phone,
         "email" to business.email,
         "iban" to business.iban,
-        "currencyCode" to currencyCode,
+        "currencyCode" to CURRENCY_CODE, // Retained so 2.0.0 can import new backups.
         "defaultLessonMinutes" to defaultLessonMinutes.toLong(),
         "themeMode" to themeMode.name,
         "invoiceFooter" to invoiceFooter,
@@ -158,6 +156,7 @@ object BackupCodec {
     )
 
     // Backups made before 2.0.0 also hold "taxId"; the field was removed and is ignored on purpose.
+    // Ignore any legacy currencyCode: all numeric amounts import unchanged as euro cents (D21).
     private fun Map<*, *>.toSettings() = AppSettings(
         business = BusinessProfile(
             name = string("businessName"),
@@ -166,7 +165,6 @@ object BackupCodec {
             email = string("email"),
             iban = string("iban"),
         ),
-        currencyCode = string("currencyCode"),
         defaultLessonMinutes = int("defaultLessonMinutes"),
         themeMode = enum<ThemeMode>("themeMode"),
         invoiceFooter = string("invoiceFooter"),
