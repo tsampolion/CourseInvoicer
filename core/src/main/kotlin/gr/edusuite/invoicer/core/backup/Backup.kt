@@ -6,6 +6,7 @@ import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.Lesson
+import gr.edusuite.invoicer.core.model.MAX_RATE
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
@@ -97,12 +98,14 @@ object BackupCodec {
         val studentIds = students.map { it.id }.toSet()
         if (studentIds.size != students.size) reject("Two students share an id")
         students.forEach {
+            if (it.rate.amount > MAX_RATE) reject("Student ${it.id} has a rate above 100,000")
             if (it.id <= 0 || it.firstName.isBlank() || it.rate.amount.cents < 0) reject("Student ${it.id} is invalid")
         }
 
         val groupIds = groups.map { it.id }.toSet()
         if (groupIds.size != groups.size) reject("Two groups share an id")
         groups.forEach {
+            if (it.rate.amount > MAX_RATE) reject("Group ${it.id} has a rate above 100,000")
             if (it.id <= 0 || it.name.isBlank() || it.rate.amount.cents < 0 || !studentIds.containsAll(it.memberIds)) {
                 reject("Group ${it.id} is invalid")
             }

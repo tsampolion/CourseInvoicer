@@ -10,6 +10,8 @@ import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
+import gr.edusuite.invoicer.core.model.MAX_RATE
+import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -96,6 +98,21 @@ class BackupCodecTest {
             )
         },
     )
+
+    @Test fun `restore accepts capped rates and rejects student and group rates above the cap`() {
+        val capped = snapshot.copy(
+            students = snapshot.students.map { it.copy(rate = it.rate.copy(amount = MAX_RATE)) },
+            groups = snapshot.groups.map { it.copy(rate = it.rate.copy(amount = MAX_RATE)) },
+        )
+        assertEquals(capped, BackupCodec.decode(BackupCodec.encode(capped)))
+        val brokenStudent = capped.copy(students = capped.students.map { it.copy(rate = it.rate.copy(amount = MAX_RATE + Money(1))) })
+        val brokenGroup = capped.copy(groups = capped.groups.map { it.copy(rate = it.rate.copy(amount = MAX_RATE + Money(1))) })
+        for ((broken, message) in listOf(brokenStudent to "Student 1", brokenGroup to "Group 3")) {
+            val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(BackupCodec.encode(broken)) }
+            assertTrue(error.message!!.contains(message))
+            assertTrue(error.message!!.contains("100,000"))
+        }
+    }
 
     @Test
     fun `round trips every field`() {

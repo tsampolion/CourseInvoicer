@@ -41,4 +41,27 @@ class ReportsTest {
         assertEquals(listOf(1, 1, 2), balances.map { it.openLessons })
         assertEquals(euros("110"), Reports.outstanding(lessons))
     }
+    @Test fun `attendance table pins charge and report totals before and after payment`() {
+        data class Row(val lesson: gr.edusuite.invoicer.core.model.Lesson, val charge: String, val count: Int, val absent: Int, val late: Int)
+        val rows = listOf(
+            Row(lesson(studentId = 1, fee = "20"), "20", 1, 0, 0),
+            Row(lesson(studentId = 1, fee = "20", absent = true), "0", 0, 1, 0),
+            Row(lateCancel(studentId = 1, fee = "20"), "20", 0, 1, 1),
+        )
+        for (row in rows) {
+            for (paid in listOf(false, true)) {
+                val lesson = row.lesson.copy(paidOn = if (paid) LocalDate.of(2026, 3, 31) else null)
+                assertEquals(row.toString(), euros(row.charge), lesson.charge)
+                assertEquals(row.toString(), row.charge != "0" && !paid, lesson.isOutstanding)
+                val summary = Reports.summarize(listOf(lesson), YearMonth.from(lesson.date))
+                assertEquals(row.count, summary.lessonCount)
+                assertEquals(row.absent, summary.absentCount)
+                assertEquals(row.late, summary.lateCancelCount)
+                assertEquals(euros(row.charge), summary.earned)
+                assertEquals(euros(if (paid) row.charge else "0"), summary.paid)
+                assertEquals(euros(if (paid) "0" else row.charge), summary.unpaid)
+            }
+        }
+    }
+
 }
