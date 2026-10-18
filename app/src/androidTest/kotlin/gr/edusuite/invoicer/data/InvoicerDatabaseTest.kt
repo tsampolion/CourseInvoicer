@@ -64,6 +64,12 @@ class InvoicerDatabaseTest {
                 assertArrayEquals(original, file.readBytes())
                 assertTrue(memory.isOpen)
             }
+            // Exercise the real helper too: its retry path must not bypass preservation failure.
+            InvoicerDatabase(context, name, health = DatabaseHealth(context, prefs)).use { helper ->
+                assertThrows(SQLiteException::class.java) { helper.readableDatabase }
+            }
+            assertArrayEquals(original, file.readBytes())
+            assertFalse(DatabaseHealth(context, prefs).damaged.value)
         } finally { cleanup(name, prefs) }
     }
 
