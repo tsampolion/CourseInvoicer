@@ -56,6 +56,8 @@ class InvoicerDatabaseTest {
             file.parentFile!!.mkdirs()
             file.writeBytes(original)
             File(file.path + ".bad").mkdir()
+            // copyTo(overwrite = true) can replace an empty directory; a non-empty one must fail.
+            File(file.path + ".bad/blocker").writeText("occupied")
             SQLiteDatabase.create(null).use { memory ->
                 val error = assertThrows(SQLiteException::class.java) {
                     KeepingDatabaseErrorHandler(context, name, DatabaseHealth(context, prefs)).onCorruption(memory)
