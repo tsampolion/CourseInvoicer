@@ -1,5 +1,6 @@
 package gr.edusuite.invoicer.core.format
 
+import gr.edusuite.invoicer.core.model.CURRENCY_CODE
 import gr.edusuite.invoicer.core.model.Money
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -11,12 +12,8 @@ import java.util.Currency
 import java.util.Locale
 
 /** Locale-aware formatting for money, dates and durations. */
-class Formats(
-    val locale: Locale = Locale.getDefault(),
-    currencyCode: String = "EUR",
-) {
-    private val currency: Currency = runCatching { Currency.getInstance(currencyCode) }
-        .getOrElse { Currency.getInstance("EUR") }
+class Formats(val locale: Locale = Locale.getDefault()) {
+    private val currency: Currency = Currency.getInstance(CURRENCY_CODE)
     private val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", locale)
 

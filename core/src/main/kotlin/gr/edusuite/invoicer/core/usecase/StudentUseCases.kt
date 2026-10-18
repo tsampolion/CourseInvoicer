@@ -1,5 +1,6 @@
 package gr.edusuite.invoicer.core.usecase
 
+import gr.edusuite.invoicer.core.model.MAX_RATE
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
@@ -10,6 +11,7 @@ class SaveStudent(private val students: StudentRepository) {
     suspend operator fun invoke(student: Student): Long {
         if (student.firstName.isBlank()) throw DomainException("First name is required")
         if (student.rate.amount.cents < 0) throw DomainException("Rate cannot be negative")
+        if (student.rate.amount > MAX_RATE) throw DomainException("Rate cannot be more than 100,000")
         if (student.email.isNotBlank() && !EMAIL.matches(student.email.trim())) {
             throw DomainException("Email address is not valid")
         }

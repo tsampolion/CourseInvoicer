@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.core.usecase
 
 import gr.edusuite.invoicer.core.model.AbsenceCharge
+import gr.edusuite.invoicer.core.model.MAX_RATE
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -13,6 +14,7 @@ class SaveGroup(private val groups: GroupRepository) {
     suspend operator fun invoke(group: StudentGroup): Long {
         if (group.name.isBlank()) throw DomainException("Group name is required")
         if (group.rate.amount.cents < 0) throw DomainException("Rate cannot be negative")
+        if (group.rate.amount > MAX_RATE) throw DomainException("Rate cannot be more than 100,000")
         return groups.saveGroup(group.copy(name = group.name.trim(), className = group.className.trim()))
     }
 }

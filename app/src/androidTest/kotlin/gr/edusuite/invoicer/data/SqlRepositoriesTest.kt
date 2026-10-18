@@ -173,7 +173,7 @@ class SqlRepositoriesTest {
     }
 
     @Test
-    fun settingsDropTheRemovedTaxIdWhenLoaded() {
+    fun settingsDropRemovedTaxIdAndCurrencyWhenLoaded() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val file = "settings-tax-id-test"
         val prefs = context.getSharedPreferences(file, Context.MODE_PRIVATE)
@@ -181,15 +181,18 @@ class SqlRepositoriesTest {
             clear()
             putString("business_name", "Tutor")
             putString("tax_id", "123456789")
+            putString("currency", "GBP")
         }
         try {
             val settings = PrefsSettingsRepository(context, file).settings.value
             assertEquals("Tutor", settings.business.name)
             assertFalse(prefs.contains("tax_id"))
+            assertFalse(prefs.contains("currency"))
 
             // Loading again finds nothing to remove and keeps the rest.
             assertEquals("Tutor", PrefsSettingsRepository(context, file).settings.value.business.name)
             assertFalse(prefs.contains("tax_id"))
+            assertFalse(prefs.contains("currency"))
         } finally {
             context.deleteSharedPreferences(file)
         }

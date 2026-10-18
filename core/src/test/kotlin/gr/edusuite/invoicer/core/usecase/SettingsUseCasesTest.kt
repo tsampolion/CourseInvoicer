@@ -13,36 +13,31 @@ class SettingsUseCasesTest {
     private val save = SaveSettings(repository)
 
     @Test
-    fun `saves trimmed settings with an upper-case currency`() = runTest {
+    fun `saves the minimum and maximum default lesson lengths`() = runTest {
+        for (minutes in listOf(1, MAX_LESSON_MINUTES)) {
+            save(AppSettings(defaultLessonMinutes = minutes))
+            assertEquals(minutes, repository.settings.value.defaultLessonMinutes)
+        }
+    }
+
+    @Test
+    fun `saves trimmed settings`() = runTest {
         val typed = AppSettings(
             business = BusinessProfile(name = " Tutor "),
-            currencyCode = " gbp ",
             invoiceFooter = " Thanks ",
         )
         save(typed)
 
         val saved = repository.settings.value
         assertEquals("Tutor", saved.business.name)
-        assertEquals("GBP", saved.currencyCode)
         assertEquals("Thanks", saved.invoiceFooter)
     }
 
     @Test
-    fun `rejects unknown currencies and impossible lesson lengths`() = runTest {
-        assertRejected("currency") { save(AppSettings(currencyCode = "XX")) }
+    fun `rejects impossible lesson lengths`() = runTest {
         assertRejected("Default lesson length") { save(AppSettings(defaultLessonMinutes = 0)) }
         assertRejected("Default lesson length") { save(AppSettings(defaultLessonMinutes = MAX_LESSON_MINUTES + 1)) }
         assertEquals("nothing is saved", AppSettings(), repository.settings.value)
-    }
-
-    @Test
-    fun `reads a typed currency code as the code to store, or nothing`() {
-        assertEquals("EUR", SettingsRules.normalisedCurrency("EUR"))
-        assertEquals("GBP", SettingsRules.normalisedCurrency(" gbp "))
-        assertNull(SettingsRules.normalisedCurrency(""))
-        assertNull(SettingsRules.normalisedCurrency("EU"))
-        assertNull(SettingsRules.normalisedCurrency("QQQ"))
-        assertNull(SettingsRules.normalisedCurrency("EURO"))
     }
 
     @Test

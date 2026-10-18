@@ -160,6 +160,14 @@ jobs:
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n ci -k "$SYSTEM_IMAGE" --force
           ls "$ANDROID_AVD_HOME"
 
+      # The emulator boots in the background while Gradle builds, instead of after it: the boot
+      # (about a minute) and the build (about three) overlap.
+      - name: Start emulator
+        run: |
+          nohup "$ANDROID_HOME/emulator/emulator" -avd ci -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none > emulator.log 2>&1 &
+          echo $! > emulator.pid
+
       - name: Build app and test APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
 
@@ -170,10 +178,7 @@ jobs:
           EMULATOR="$ANDROID_HOME/emulator/emulator"
           ls -l /dev/kvm || true
           "$EMULATOR" -accel-check || true
-          "$EMULATOR" -list-avds
-          "$EMULATOR" -avd ci -no-window -no-audio -no-boot-anim -no-snapshot \
-            -gpu swiftshader_indirect -camera-back none -camera-front none > emulator.log 2>&1 &
-          EMULATOR_PID=$!
+          EMULATOR_PID="$(cat emulator.pid)"
           booted=""
           for attempt in $(seq 1 90); do
             if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
@@ -198,11 +203,12 @@ jobs:
           "$ADB" install -r app/build/outputs/apk/release/app-release.apk
           "$ADB" logcat -c
           "$ADB" shell am start -W -n gr.edusuite.invoicer/.MainActivity
-          sleep 10
+          # am start -W returns once the first frame is drawn; give a crash on start a few seconds to show.
+          sleep 3
           if ! "$ADB" shell pidof gr.edusuite.invoicer > /dev/null; then
-            echo "::error::The minified app is not running 10 s after launch"; "$ADB" logcat -d | tail -200; exit 1
+            echo "::error::The minified app is not running after launch"; "$ADB" logcat -d | tail -200; exit 1
           fi
-          "$ADB" shell monkey -p gr.edusuite.invoicer -s 42 --throttle 200 --pct-syskeys 0 --pct-appswitch 0 \
+          "$ADB" shell monkey -p gr.edusuite.invoicer -s 42 --throttle 100 --pct-syskeys 0 --pct-appswitch 0 \
             --ignore-timeouts 300 > monkey.log 2>&1 || true
           if grep -q "CRASH: gr.edusuite.invoicer" monkey.log || "$ADB" logcat -d -b crash | grep -q "Process: gr.edusuite.invoicer"; then
             echo "::error::The minified app crashed during the smoke test"

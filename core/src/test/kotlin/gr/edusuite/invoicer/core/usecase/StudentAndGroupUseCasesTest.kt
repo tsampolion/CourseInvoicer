@@ -4,6 +4,11 @@ import gr.edusuite.invoicer.core.createInvoiceUseCase
 import gr.edusuite.invoicer.core.euros
 import gr.edusuite.invoicer.core.hourly
 import gr.edusuite.invoicer.core.lesson
+import gr.edusuite.invoicer.core.model.MAX_RATE
+import gr.edusuite.invoicer.core.model.Money
+import gr.edusuite.invoicer.core.model.Rate
+import gr.edusuite.invoicer.core.model.RateType
+import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.perLesson
@@ -18,6 +23,30 @@ import java.time.LocalTime
 
 class StudentAndGroupUseCasesTest {
     private val repos = InMemoryRepositories()
+
+    @Test
+    fun `student and group rates accept the cap and reject one cent above or negative`() = runTest {
+        for (type in RateType.entries) {
+            val rate = Rate(MAX_RATE, type)
+            val studentId = SaveStudent(repos)(student(rate = rate))
+            val groupId = SaveGroup(repos)(StudentGroup(name = "Cap", rate = rate))
+            assertEquals(rate, repos.getStudent(studentId)?.rate)
+            assertEquals(rate, repos.getGroup(groupId)?.rate)
+            for ((amount, message) in listOf(
+                (MAX_RATE + Money(1)) to "Rate cannot be more than 100,000",
+                Money(-1) to "Rate cannot be negative",
+            )) {
+                try {
+                    SaveStudent(repos)(student(rate = Rate(amount, type)))
+                    org.junit.Assert.fail("Student rate must be rejected")
+                } catch (error: DomainException) { assertEquals(message, error.message) }
+                try {
+                    SaveGroup(repos)(StudentGroup(name = "Rejected", rate = Rate(amount, type)))
+                    org.junit.Assert.fail("Group rate must be rejected")
+                } catch (error: DomainException) { assertEquals(message, error.message) }
+            }
+        }
+    }
 
     @Test
     fun `save student trims fields and validates`() = runTest {

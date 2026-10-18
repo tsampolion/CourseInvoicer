@@ -31,7 +31,7 @@ class InvoiceRenderer(
             .mapNotNull { id -> groups.getGroup(id)?.let { id to it.name } }
             .toMap()
         val current = settings.settings.value
-        val formats = Formats(locale(), current.currencyCode)
+        val formats = Formats(locale())
         return InvoiceDocumentBuilder.build(invoice, student, lessons, groupNames, current, formats).copy(paid = false)
     }
 }

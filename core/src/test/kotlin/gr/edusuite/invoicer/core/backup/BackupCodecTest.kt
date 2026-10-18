@@ -10,6 +10,8 @@ import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.BusinessProfile
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoiceDocument
+import gr.edusuite.invoicer.core.model.MAX_RATE
+import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.StudentGroup
@@ -29,7 +31,6 @@ class BackupCodecTest {
         exportedAt = "2026-10-10T09:00:00Z",
         settings = AppSettings(
             business = BusinessProfile(name = "Δημήτρης Τ.", address = "Οδός 1\nΑθήνα", iban = "GR16 0110"),
-            currencyCode = "EUR",
             defaultLessonMinutes = 45,
             themeMode = ThemeMode.DARK,
             invoiceFooter = "Thank you \"very\" much \\ ☺",
@@ -96,6 +97,29 @@ class BackupCodecTest {
             )
         },
     )
+
+    @Test fun `writes EUR for old readers and ignores any legacy currency without changing data`() {
+        val encoded = BackupCodec.encode(snapshot)
+        assertTrue(encoded.contains("\"currencyCode\": \"EUR\""))
+        for (legacy in listOf("GBP", "JPY", "KWD", "unknown")) {
+            assertEquals(snapshot, BackupCodec.decode(encoded.replace("\"EUR\"", "\"$legacy\"")))
+        }
+    }
+
+    @Test fun `restore accepts capped rates and rejects student and group rates above the cap`() {
+        val capped = snapshot.copy(
+            students = snapshot.students.map { it.copy(rate = it.rate.copy(amount = MAX_RATE)) },
+            groups = snapshot.groups.map { it.copy(rate = it.rate.copy(amount = MAX_RATE)) },
+        )
+        assertEquals(capped, BackupCodec.decode(BackupCodec.encode(capped)))
+        val brokenStudent = capped.copy(students = capped.students.map { it.copy(rate = it.rate.copy(amount = MAX_RATE + Money(1))) })
+        val brokenGroup = capped.copy(groups = capped.groups.map { it.copy(rate = it.rate.copy(amount = MAX_RATE + Money(1))) })
+        for ((broken, message) in listOf(brokenStudent to "Student 1", brokenGroup to "Group 3")) {
+            val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(BackupCodec.encode(broken)) }
+            assertTrue(error.message!!.contains(message))
+            assertTrue(error.message!!.contains("100,000"))
+        }
+    }
 
     @Test
     fun `round trips every field`() {
@@ -191,7 +215,6 @@ class BackupCodecTest {
         val lessonOnInvoice = snapshot.lessons.first()
         fun withLesson(extra: Lesson) = snapshot.copy(lessons = snapshot.lessons + extra)
 
-        rejects(snapshot.copy(settings = snapshot.settings.copy(currencyCode = "XX")), "currency")
         rejects(snapshot.copy(settings = snapshot.settings.copy(defaultLessonMinutes = 0)), "lesson length")
         rejects(snapshot.copy(students = snapshot.students + snapshot.students.first()), "share an id")
         rejects(withLesson(lessonOnInvoice.copy(id = 20, durationMinutes = 900)), "Lesson 20")

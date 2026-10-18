@@ -1,5 +1,8 @@
 package gr.edusuite.invoicer.core.model
 
+/** All stored amounts are euro cents (D21). */
+const val CURRENCY_CODE = "EUR"
+
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /** The tutor's details, printed at the top of every statement. */
@@ -13,7 +16,6 @@ data class BusinessProfile(
 
 data class AppSettings(
     val business: BusinessProfile = BusinessProfile(),
-    val currencyCode: String = "EUR",
     val defaultLessonMinutes: Int = 60,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val invoiceFooter: String = "",
