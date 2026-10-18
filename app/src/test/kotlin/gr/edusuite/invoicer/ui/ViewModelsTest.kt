@@ -26,6 +26,7 @@ import gr.edusuite.invoicer.ui.home.HomeViewModel
 import gr.edusuite.invoicer.ui.home.ReminderPrompt
 import gr.edusuite.invoicer.ui.invoices.CreateInvoiceViewModel
 import gr.edusuite.invoicer.ui.invoices.InvoicesViewModel
+import gr.edusuite.invoicer.ui.invoices.StatementDetailsViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonEditViewModel
 import gr.edusuite.invoicer.ui.lessons.LessonsViewModel
 import gr.edusuite.invoicer.ui.settings.SAVE_DEBOUNCE_MS
@@ -40,6 +41,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -186,8 +188,9 @@ class ViewModelsTest {
         val firstId = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
         val secondId = repos.saveLesson(lesson(maria, "2026-03-11", 2000))
         val saved = SavedStateHandle()
+        repos.settingsRepository.update { it.copy(business = it.business.copy(name = "Tutor")) }
         fun form() = CreateInvoiceViewModel(maria, repos, repos, repos, repos,
-            InvoiceRenderer(repos, repos, repos.settingsRepository), savedState = saved)
+            InvoiceRenderer(repos, repos, repos.settingsRepository), repos.settingsRepository, savedState = saved)
         val original = form()
         assertFalse(original.state.value.dirty)
         original.toggle(secondId)
@@ -626,8 +629,10 @@ class ViewModelsTest {
             lessons = repos,
             invoices = repos,
             renderer = InvoiceRenderer(repos, repos, repos.settingsRepository),
+            settings = repos.settingsRepository,
             today = LocalDate.parse("2026-03-31"),
         )
+        repos.settingsRepository.update { it.copy(business = it.business.copy(name = "Tutor")) }
 
         assertEquals(setOf(held, excused, late), viewModel.state.value.selected)
         assertEquals(Money(3500), viewModel.state.value.total)
@@ -644,7 +649,7 @@ class ViewModelsTest {
         val maria = addStudent("Maria")
         val excused = repos.saveLesson(lesson(maria, "2026-03-10", 2000).copy(absent = true))
         createInvoice(maria, listOf(excused), LocalDate.parse("2026-03-31"))
-        val viewModel = InvoicesViewModel(repos, repos, repos)
+        val viewModel = InvoicesViewModel(repos, repos, repos, repos.settingsRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
         val item = viewModel.state.value.items.single()
@@ -673,7 +678,7 @@ class ViewModelsTest {
         val a = repos.saveLesson(lesson(maria, "2026-03-10", 2000))
         val b = repos.saveLesson(lesson(maria, "2026-03-11", 2000))
         val invoice = createInvoice(maria, listOf(a, b), LocalDate.parse("2026-03-31"))
-        val viewModel = InvoicesViewModel(repos, repos, repos)
+        val viewModel = InvoicesViewModel(repos, repos, repos, repos.settingsRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
         repos.setPaid(listOf(a), LocalDate.parse("2026-04-01"))
@@ -712,9 +717,11 @@ class ViewModelsTest {
         runCurrent()
     }
 
+    private fun statementDetailsViewModel() = StatementDetailsViewModel(repos.settingsRepository)
+
     @Test
-    fun `settings save once typing pauses`() = runTest {
-        val viewModel = settingsViewModel()
+    fun `statement details save once typing pauses`() = runTest {
+        val viewModel = statementDetailsViewModel()
 
         viewModel.onName("Dimitris")
         advanceTimeBy(SAVE_DEBOUNCE_MS - 1)
@@ -729,15 +736,15 @@ class ViewModelsTest {
     }
 
     @Test
-    fun `invalid settings keep the stored value while the other fields save`() = runTest {
+    fun `an invalid lesson length keeps the stored value while the theme saves`() = runTest {
         val viewModel = settingsViewModel()
 
         viewModel.onMinutes("0")
-        viewModel.onName("Tutor")
         pauseTyping()
+        viewModel.onTheme(ThemeMode.DARK)
 
         assertEquals(60, stored.defaultLessonMinutes)
-        assertEquals("Tutor", stored.business.name)
+        assertEquals(ThemeMode.DARK, stored.themeMode)
         assertTrue(viewModel.state.value.minutesError)
 
         viewModel.onMinutes("45")
@@ -752,11 +759,11 @@ class ViewModelsTest {
     fun `the theme saves at once with any typing still pending`() = runTest {
         val viewModel = settingsViewModel()
 
-        viewModel.onFooter("Thanks")
+        viewModel.onMinutes("50")
         viewModel.onTheme(ThemeMode.DARK)
 
         assertEquals(ThemeMode.DARK, stored.themeMode)
-        assertEquals("Thanks", stored.invoiceFooter)
+        assertEquals(50, stored.defaultLessonMinutes)
         assertEquals(ThemeMode.DARK, viewModel.state.value.form.themeMode)
     }
 
@@ -764,10 +771,10 @@ class ViewModelsTest {
     fun `reminder switches save at once`() = runTest {
         val viewModel = settingsViewModel()
 
-        viewModel.onName("Tutor")
+        viewModel.onMinutes("90")
         viewModel.onRemindEarlyJune(false)
         assertEquals(ReminderSettings(earlyJune = false), stored.reminders)
-        assertEquals("pending typing is saved too", "Tutor", stored.business.name)
+        assertEquals("pending typing is saved too", 90, stored.defaultLessonMinutes)
 
         viewModel.onRemindersEnabled(false)
         viewModel.onRemindEarlyEaster(false)
@@ -777,8 +784,21 @@ class ViewModelsTest {
     }
 
     @Test
+    fun `settings and statement details each save only their own fields`() = runTest {
+        val settings = settingsViewModel()
+        val details = statementDetailsViewModel()
+
+        details.onName("Tutor")
+        settings.onTheme(ThemeMode.LIGHT)
+        pauseTyping()
+
+        assertEquals("Tutor", stored.business.name)
+        assertEquals(ThemeMode.LIGHT, stored.themeMode)
+    }
+
+    @Test
     fun `the show-address switch saves at once`() = runTest {
-        val viewModel = settingsViewModel()
+        val viewModel = statementDetailsViewModel()
         assertFalse(stored.showAddressOnStatements)
 
         viewModel.onAddress("1 Main St")
@@ -791,7 +811,7 @@ class ViewModelsTest {
 
     @Test
     fun `flush saves pending typing without waiting`() = runTest {
-        val viewModel = settingsViewModel()
+        val viewModel = statementDetailsViewModel()
 
         viewModel.onEmail("t@example.com")
         viewModel.onIban("GR16 0110")
@@ -804,5 +824,39 @@ class ViewModelsTest {
         pauseTyping()
         viewModel.flush()
         assertEquals("nothing left to save", "Changed elsewhere", stored.invoiceFooter)
+    }
+
+    @Test
+    fun `create asks for the name when it is blank`() = runTest {
+        val maria = addStudent("Maria")
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000))
+        val viewModel = CreateInvoiceViewModel(
+            maria, repos, repos, repos, repos,
+            InvoiceRenderer(repos, repos, repos.settingsRepository), repos.settingsRepository,
+        )
+
+        viewModel.create()
+        assertTrue(viewModel.state.value.askForDetails)
+        assertNull("nothing is issued yet", viewModel.state.value.created)
+
+        viewModel.saveDetailsAndCreate("", "GR16")
+        assertTrue("a blank name keeps asking", viewModel.state.value.askForDetails)
+
+        viewModel.saveDetailsAndCreate("Tutor", "GR16 0110")
+        assertFalse(viewModel.state.value.askForDetails)
+        assertEquals("Tutor", stored.business.name)
+        assertEquals("GR16 0110", stored.business.iban)
+        assertNotNull(viewModel.state.value.created)
+    }
+
+    @Test
+    fun `statements list shows whether the statement details are set`() = runTest {
+        val viewModel = InvoicesViewModel(repos, repos, repos, repos.settingsRepository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        assertEquals("", viewModel.state.value.businessName)
+
+        repos.settingsRepository.update { it.copy(business = it.business.copy(name = "Tutor", iban = "GR16")) }
+        assertEquals("Tutor", viewModel.state.value.businessName)
+        assertTrue(viewModel.state.value.ibanSet)
     }
 }

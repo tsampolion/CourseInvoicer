@@ -24,18 +24,14 @@ import kotlinx.coroutines.withContext
 /** How long typing pauses before the settings are saved. */
 const val SAVE_DEBOUNCE_MS = 400L
 
-/** The text in the Settings fields, as typed. What is stored is `SettingsRepository.settings`. */
+/**
+ * The app-wide settings as typed. What is stored is `SettingsRepository.settings`. The details printed on
+ * statements have their own screen (`StatementDetailsViewModel`).
+ */
 data class SettingsForm(
-    val name: String = "",
-    val address: String = "",
-    val phone: String = "",
-    val email: String = "",
-    val iban: String = "",
     val defaultMinutes: String = "60",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val footer: String = "",
     val reminders: ReminderSettings = ReminderSettings(),
-    val showAddressOnStatements: Boolean = false,
 )
 
 data class SettingsUiState(
@@ -61,18 +57,6 @@ class SettingsViewModel(
     /** The debounced save, while one is waiting or running. */
     private var pendingSave: Job? = null
 
-    fun onName(text: String) = edit { it.copy(name = text) }
-
-    fun onAddress(text: String) = edit { it.copy(address = text) }
-
-    fun onPhone(text: String) = edit { it.copy(phone = text) }
-
-    fun onEmail(text: String) = edit { it.copy(email = text) }
-
-    fun onIban(text: String) = edit { it.copy(iban = text) }
-
-    fun onFooter(text: String) = edit { it.copy(footer = text) }
-
     fun onMinutes(text: String) {
         if (SettingsRules.lessonMinutes(text) != null) mutableState.update { it.copy(minutesError = false) }
         edit { it.copy(defaultMinutes = text) }
@@ -80,9 +64,6 @@ class SettingsViewModel(
 
     /** The theme applies at once, so it is saved without waiting (with any typing still pending). */
     fun onTheme(mode: ThemeMode) = editNow { it.copy(themeMode = mode) }
-
-    /** Like the theme, a switch saves at once. */
-    fun onShowAddressOnStatements(show: Boolean) = editNow { it.copy(showAddressOnStatements = show) }
 
     fun onRemindersEnabled(on: Boolean) = setReminders { it.copy(enabled = on) }
 
@@ -168,18 +149,9 @@ class SettingsViewModel(
         val stored = settings.settings.value
         saveSettings(
             stored.copy(
-                business = stored.business.copy(
-                    name = form.name,
-                    address = form.address,
-                    phone = form.phone,
-                    email = form.email,
-                    iban = form.iban,
-                ),
                 defaultLessonMinutes = minutes ?: stored.defaultLessonMinutes,
                 themeMode = form.themeMode,
-                invoiceFooter = form.footer,
                 reminders = form.reminders,
-                showAddressOnStatements = form.showAddressOnStatements,
             ),
         )
     }
@@ -198,15 +170,8 @@ class SettingsViewModel(
     private fun showMessage(message: String) = mutableState.update { it.copy(message = message) }
 
     private fun AppSettings.toForm() = SettingsForm(
-        name = business.name,
-        address = business.address,
-        phone = business.phone,
-        email = business.email,
-        iban = business.iban,
         defaultMinutes = defaultLessonMinutes.toString(),
         themeMode = themeMode,
-        footer = invoiceFooter,
         reminders = reminders,
-        showAddressOnStatements = showAddressOnStatements,
     )
 }

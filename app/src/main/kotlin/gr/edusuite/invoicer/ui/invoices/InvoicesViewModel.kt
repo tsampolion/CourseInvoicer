@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
+import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.VoidInvoice
 import gr.edusuite.invoicer.ui.common.launchCatching
@@ -19,6 +20,9 @@ data class InvoiceItem(val invoice: Invoice, val studentName: String, val paid: 
 data class InvoicesUiState(
     val loading: Boolean = true,
     val items: List<InvoiceItem> = emptyList(),
+    /** The name printed on statements (Statement details); blank until the tutor adds it. */
+    val businessName: String = "",
+    val ibanSet: Boolean = false,
     val message: String? = null,
 )
 
@@ -26,6 +30,7 @@ class InvoicesViewModel(
     invoices: InvoiceRepository,
     students: StudentRepository,
     lessons: LessonRepository,
+    settings: SettingsRepository,
     private val today: () -> LocalDate = LocalDate::now,
 ) : ViewModel() {
     private val message = MutableStateFlow<String?>(null)
@@ -35,8 +40,9 @@ class InvoicesViewModel(
         invoices.observeInvoices(),
         students.observeStudents(),
         lessons.observeInvoicePayments(),
+        settings.settings,
         message,
-    ) { invoiceList, studentList, payments, currentMessage ->
+    ) { invoiceList, studentList, payments, current, currentMessage ->
         val names = studentList.associate { it.id to it.fullName }
         InvoicesUiState(
             loading = false,
@@ -49,6 +55,8 @@ class InvoicesViewModel(
                     paid = payments[invoice.id]?.isPaid == true,
                 )
             },
+            businessName = current.business.name,
+            ibanSet = current.business.iban.isNotBlank(),
             message = currentMessage,
         )
     }.stateInCatching(viewModelScope, InvoicesUiState(), ::showMessage)

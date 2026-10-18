@@ -1,6 +1,16 @@
 package gr.edusuite.invoicer.ui.invoices
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import gr.edusuite.invoicer.ui.common.FormSpacing
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +50,7 @@ fun CreateInvoiceScreen(
     studentId: Long,
     onBack: () -> Unit,
     onDone: () -> Unit,
+    onStatementDetails: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CreateInvoiceViewModel = appViewModel { container, savedState ->
         CreateInvoiceViewModel(
@@ -49,6 +60,7 @@ fun CreateInvoiceScreen(
             lessons = container.lessonRepository,
             invoices = container.invoiceRepository,
             renderer = container.invoiceRenderer,
+            settings = container.settingsRepository,
             savedState = savedState,
         )
     },
@@ -147,6 +159,17 @@ fun CreateInvoiceScreen(
         }
     }
 
+    if (state.askForDetails) {
+        DetailsSheet(
+            onSave = viewModel::saveDetailsAndCreate,
+            onMoreDetails = {
+                viewModel.dismissDetails()
+                onStatementDetails()
+            },
+            onDismiss = viewModel::dismissDetails,
+        )
+    }
+
     state.created?.let { invoice ->
         AlertDialog(
             onDismissRequest = onDone,
@@ -155,5 +178,52 @@ fun CreateInvoiceScreen(
             confirmButton = { TextButton(onClick = { shareInvoice(invoice.id) }) { Text("Share PDF") } },
             dismissButton = { TextButton(onClick = onDone) { Text("Done") } },
         )
+    }
+}
+
+/**
+ * Asked when Create is tapped before the tutor's name is set: every statement is printed with it (R14).
+ * The IBAN is optional; *More details* opens Statement details for the rest.
+ */
+@Composable
+private fun DetailsSheet(onSave: (String, String) -> Unit, onMoreDetails: () -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var iban by rememberSaveable { mutableStateOf("") }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = FormSpacing,
+        ) {
+            Text("Your details", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Printed at the top of every statement. You can change them later in Statement details.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name or business name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = iban,
+                onValueChange = { iban = it },
+                label = { Text("IBAN for payments (optional)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onMoreDetails) { Text("More details") }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = { onSave(name, iban) }, enabled = name.isNotBlank()) { Text("Save and create") }
+            }
+        }
     }
 }
