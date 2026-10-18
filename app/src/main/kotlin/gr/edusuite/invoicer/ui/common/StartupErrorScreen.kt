@@ -8,11 +8,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import gr.edusuite.invoicer.ui.theme.Space
 
 @Composable
 fun StartupErrorScreen(message: String) {
     Surface(Modifier.fillMaxSize()) {
-        Box(Modifier.padding(24.dp), contentAlignment = Alignment.Center) { Text(message) }
+        Box(Modifier.padding(Space.xl), contentAlignment = Alignment.Center) { Text(message) }
     }
 }

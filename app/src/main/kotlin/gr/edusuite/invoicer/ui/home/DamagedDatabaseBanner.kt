@@ -11,18 +11,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import gr.edusuite.invoicer.ui.theme.Space
 
 @Composable
 fun DamagedDatabaseBanner(onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
     Card(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().padding(bottom = Space.l),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(Space.l)) {
             Text("The database was damaged and has been reset. Your old file was kept. Import your last backup in Settings.")
             Row {
                 TextButton(onClick = onOpenSettings) { Text("Open Settings") }
