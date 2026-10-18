@@ -50,6 +50,7 @@ How to use this file:
 EduInvoice becomes **Course Invoicer**, part of the EduSuite apps.
 
 ### Added
+- **Outfit is the only font.** Figures use Outfit's tabular figures instead of a monospace font.
 - **EduSuite style guide** (`docs/EDUSUITE_STYLE_GUIDE.md`, D19): the shared look of Course
   Invoicer and Course Pacer, with colour tokens and their contrast ratios, type, shapes, spacing,
   components, the home header, launcher icon rules, accessibility and copy tone.

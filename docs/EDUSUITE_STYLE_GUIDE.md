@@ -15,8 +15,8 @@ and changes nothing else.
 - **Friendly and bright.** Soft pastel tiles, generous whitespace and large rounded shapes. Content
   sits in colour blocks, not in boxes.
 - **Flat.** No shadows. Colour blocks and hairline dividers separate content.
-- **Numbers are legible.** Money, dates and counts use a monospace face, so figures line up and a
-  `1` is never mistaken for a `7`.
+- **Numbers are legible.** Money, dates and counts use Outfit's tabular figures, so figures line up.
+  Outfit is the only font.
 - **The accent identifies the app.** Wallpaper (dynamic) colour is **off** in every suite app (§11),
   so the same screen always looks the same and the accent tells the apps apart.
 - **Tokens, not literals.** Read colours, type and shapes from `MaterialTheme` or the app's extras
@@ -134,7 +134,8 @@ be re-checked against the new paper and surface values.
 ## 3. Type
 
 One bundled geometric sans, **Outfit** (SIL Open Font License), in Regular, Medium and SemiBold, as
-`res/font` files (about 150 KB). Figures stay monospace.
+`res/font` files. **Outfit is the only font**: no system serif or monospace anywhere. Figures use
+Outfit with tabular figures (`tnum`), so columns of numbers line up.
 
 | Role | Style | Weight | Size |
 |------|-------|--------|------|
@@ -145,9 +146,9 @@ One bundled geometric sans, **Outfit** (SIL Open Font License), in Regular, Medi
 | Body | `bodyLarge` / `bodyMedium` | Regular | 16 / 14sp |
 | Secondary details | `bodySmall` | Regular | 12sp |
 | Chips, labels, eyebrows | `labelLarge` / `labelMedium` / `labelSmall` | Medium | 14 / 12 / 11sp |
-| Money, dates, counts | any style | `FontFamily.Monospace`, SemiBold for headline figures | as the surrounding style |
+| Money, dates, counts | any style | Outfit with tabular figures (`tnum`), SemiBold for headline figures | as the surrounding style |
 
-- Mono is for figures only, never for whole sentences. A label next to a figure stays in sans.
+- Tabular figures are for numbers only, never for whole sentences. A label next to a figure stays in sans.
 - Text sizes are in sp so they follow the user's font scale. Layouts must survive 200%.
 
 ## 4. Shape, spacing, elevation

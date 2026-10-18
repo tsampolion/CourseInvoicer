@@ -31,10 +31,13 @@ private fun outfit(weight: FontWeight) = Font(
 )
 
 /**
- * Money, dates and counts use the system monospace font, so figures line up and a 1 is never read as a 7
- * (guide §3). Headline figures add SemiBold; the size follows the surrounding style.
+ * Money, dates and counts. Outfit is the only font the suite uses (guide §3), so figures use Outfit too,
+ * with tabular figures ([TabularFigures]) so columns of numbers line up. Headline figures add SemiBold.
  */
-val Mono: FontFamily = FontFamily.Monospace
+val Mono: FontFamily = Outfit
+
+/** OpenType feature for equal-width digits; pass as `fontFeatureSettings` wherever [Mono] is used. */
+const val TabularFigures = "tnum"
 
 private val Base = Typography()
 
