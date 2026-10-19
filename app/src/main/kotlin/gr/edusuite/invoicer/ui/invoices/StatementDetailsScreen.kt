@@ -24,6 +24,7 @@ import gr.edusuite.invoicer.ui.common.CommitField
 import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
+import gr.edusuite.invoicer.ui.common.SharePrivacyNoticeButton
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.lessons.SwitchRow
 
@@ -75,6 +76,11 @@ fun StatementDetailsScreen(
                     "Share a privacy notice with your students.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SharePrivacyNoticeButton(
+                notice = viewModel::privacyNotice,
+                onNameMissing = { viewModel.showMessage("Add your name first") },
+                onError = viewModel::showMessage,
             )
             CommitField(
                 value = form.name,

@@ -2,6 +2,8 @@ package gr.edusuite.invoicer.ui.invoices
 
 import androidx.lifecycle.ViewModel
 import gr.edusuite.invoicer.core.model.AppSettings
+import gr.edusuite.invoicer.core.privacy.NoticeLanguage
+import gr.edusuite.invoicer.core.privacy.privacyNoticeFor
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.usecase.SaveSettings
 import gr.edusuite.invoicer.ui.common.launchCatching
@@ -83,27 +85,30 @@ class StatementDetailsViewModel(private val settings: SettingsRepository) : View
         }
     }
 
-    /** Saves these fields over the stored settings. Once started, the write finishes even if the screen closes. */
-    private suspend fun commit() = withContext(NonCancellable) {
-        val form = state.value.form
-        settings.settings.value.let { stored ->
-            saveSettings(
-                stored.copy(
-                    business = stored.business.copy(
-                        name = form.name,
-                        address = form.address,
-                        phone = form.phone,
-                        email = form.email,
-                        iban = form.iban,
-                    ),
-                    invoiceFooter = form.footer,
-                    showAddressOnStatements = form.showAddressOnStatements,
-                ),
-            )
-        }
-    }
+    /** The parent privacy notice from the details as typed, or null while the name is blank. */
+    fun privacyNotice(language: NoticeLanguage): String? = privacyNoticeFor(withForm(), language)
 
-    private fun showMessage(message: String) = mutableState.update { it.copy(message = message) }
+    fun showMessage(message: String) = mutableState.update { it.copy(message = message) }
+
+    /** Saves these fields over the stored settings. Once started, the write finishes even if the screen closes. */
+    private suspend fun commit() = withContext(NonCancellable) { saveSettings(withForm()) }
+
+    /** The stored settings with this screen's fields as typed. */
+    private fun withForm(): AppSettings {
+        val form = state.value.form
+        val stored = settings.settings.value
+        return stored.copy(
+            business = stored.business.copy(
+                name = form.name,
+                address = form.address,
+                phone = form.phone,
+                email = form.email,
+                iban = form.iban,
+            ),
+            invoiceFooter = form.footer,
+            showAddressOnStatements = form.showAddressOnStatements,
+        )
+    }
 
     private fun AppSettings.toForm() = StatementDetailsForm(
         name = business.name,

@@ -1,6 +1,7 @@
 package gr.edusuite.invoicer.ui.common
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.Composable
@@ -53,4 +54,22 @@ fun pdfShareIntent(uri: Uri): Intent {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     return Intent.createChooser(send, "Share statement")
+}
+
+/**
+ * Opens the system share sheet with plain [text] (for example the privacy notice), [title] as its subject
+ * and the chooser's title. Returns false when no app can receive text.
+ */
+fun shareText(context: Context, title: String, text: String): Boolean {
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, title)
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    return try {
+        context.startActivity(Intent.createChooser(send, title))
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    }
 }

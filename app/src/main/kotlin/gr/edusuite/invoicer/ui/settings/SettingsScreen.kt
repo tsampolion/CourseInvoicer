@@ -41,6 +41,10 @@ import gr.edusuite.invoicer.core.usecase.MAX_LESSON_MINUTES
 import gr.edusuite.invoicer.ui.common.CommitField
 import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.FormSpacing
+import gr.edusuite.invoicer.ui.common.LocalAppContainer
+import gr.edusuite.invoicer.ui.common.SharePrivacyNoticeButton
+import gr.edusuite.invoicer.ui.common.UserMessage
+import gr.edusuite.invoicer.ui.theme.Invoicer
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.appViewModel
@@ -49,10 +53,12 @@ import java.time.LocalDate
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onStatementDetails: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = appViewModel { SettingsViewModel(it.settingsRepository, it.backupFiles) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val messages = LocalAppContainer.current.messages
     val snackbar = remember { SnackbarHostState() }
     var pendingImport by remember { mutableStateOf<Uri?>(null) }
     val form = state.form
@@ -143,6 +149,26 @@ fun SettingsScreen(
                 checked = form.reminders.earlyEaster,
                 onCheckedChange = viewModel::onRemindEarlyEaster,
                 enabled = form.reminders.enabled,
+            )
+
+            Section(
+                "Privacy",
+                "You are responsible for the personal data you keep here (GDPR). Share a privacy notice with your students.",
+            )
+            SharePrivacyNoticeButton(
+                notice = viewModel::privacyNotice,
+                onNameMissing = {
+                    // The notice names the tutor as controller, so the name comes first. The app-level
+                    // snackbar outlives this screen.
+                    messages.post(UserMessage("Add your name first"))
+                    onStatementDetails()
+                },
+                onError = viewModel::showMessage,
+            )
+            Text(
+                "Backups are not encrypted: keep them somewhere only you can open.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Invoicer.colors.warn,
             )
 
             Section("Backup", "Export a backup regularly and keep it somewhere safe.")

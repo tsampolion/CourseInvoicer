@@ -20,6 +20,20 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.5.0] - 2026-10-18
+
+### Added
+- **Privacy notice for parents** (GDPR Art. 13), in English or Greek. *Share privacy notice* in
+  Settings → Privacy and in Statement details asks the language and shares the notice as text. It is
+  filled from Statement details and says: the tutor is the controller; the legal basis is the
+  lessons agreement only (Art. 6(1)(b)), since statements are informational, not tax documents; no
+  one else receives the data; it is kept while lessons continue and, after the last lesson, until
+  everything is paid and for at most 12 months; the rights of Art. 15–21; and how to complain to the
+  Hellenic Data Protection Authority. Blank details are left out; with no name it asks for one
+  first.
+- Settings has a **Privacy** section: the tutor's responsibility, *Share privacy notice*, and the
+  warning "Backups are not encrypted: keep them somewhere only you can open."
+
 ## [2.4.1] - 2026-10-18
 
 ### Changed

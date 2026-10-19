@@ -6,6 +6,8 @@ import gr.edusuite.invoicer.core.backup.BackupFormatException
 import gr.edusuite.invoicer.core.model.AppSettings
 import gr.edusuite.invoicer.core.model.ReminderSettings
 import gr.edusuite.invoicer.core.model.ThemeMode
+import gr.edusuite.invoicer.core.privacy.NoticeLanguage
+import gr.edusuite.invoicer.core.privacy.privacyNoticeFor
 import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.usecase.SaveSettings
 import gr.edusuite.invoicer.core.usecase.SettingsRules
@@ -111,6 +113,11 @@ class SettingsViewModel(
         }
     }
 
+    /** The parent privacy notice from the stored Statement details, or null while the name is blank. */
+    fun privacyNotice(language: NoticeLanguage): String? = privacyNoticeFor(settings.settings.value, language)
+
+    fun showMessage(message: String) = mutableState.update { it.copy(message = message) }
+
     fun messageShown() = mutableState.update { it.copy(message = null) }
 
     private fun edit(transform: (SettingsForm) -> SettingsForm) {
@@ -167,7 +174,6 @@ class SettingsViewModel(
         }
     }
 
-    private fun showMessage(message: String) = mutableState.update { it.copy(message = message) }
 
     private fun AppSettings.toForm() = SettingsForm(
         defaultMinutes = defaultLessonMinutes.toString(),

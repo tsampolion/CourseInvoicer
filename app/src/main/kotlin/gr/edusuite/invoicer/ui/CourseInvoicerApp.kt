@@ -108,7 +108,10 @@ fun CourseInvoicerApp() {
                     onCreateInvoice = { navigator.navigate(Route.CreateInvoice()) },
                     onStatementDetails = { navigator.navigate(Route.StatementDetails) },
                 )
-                Route.Settings -> SettingsScreen(onBack = back)
+                Route.Settings -> SettingsScreen(
+                    onBack = back,
+                    onStatementDetails = { navigator.navigate(Route.StatementDetails) },
+                )
                 Route.StatementDetails -> StatementDetailsScreen(onBack = back)
                 is Route.StudentDetail -> StudentDetailScreen(
                     studentId = route.studentId,
