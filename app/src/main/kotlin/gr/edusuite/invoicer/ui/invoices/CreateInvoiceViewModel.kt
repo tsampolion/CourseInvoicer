@@ -11,9 +11,11 @@ import gr.edusuite.invoicer.core.model.sumOfMoney
 import gr.edusuite.invoicer.core.repository.GroupRepository
 import gr.edusuite.invoicer.core.repository.InvoiceRepository
 import gr.edusuite.invoicer.core.repository.LessonRepository
+import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
 import gr.edusuite.invoicer.core.usecase.InvoiceRenderer
+import gr.edusuite.invoicer.core.usecase.SaveSettings
 import gr.edusuite.invoicer.ui.common.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +39,8 @@ data class CreateInvoiceUiState(
     val saving: Boolean = false,
     val message: String? = null,
     val created: Invoice? = null,
+    /** Create was tapped while the tutor's name is blank: ask for the name and IBAN first. */
+    val askForDetails: Boolean = false,
 ) {
     val total: Money get() = lessons.filter { it.id in selected }.sumOfMoney { it.charge }
 }
@@ -48,11 +52,13 @@ class CreateInvoiceViewModel(
     private val lessons: LessonRepository,
     invoices: InvoiceRepository,
     renderer: InvoiceRenderer,
+    private val settings: SettingsRepository,
     today: LocalDate = LocalDate.now(),
     savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
     private val draft = FormDraft(savedState)
     private val createInvoice = CreateInvoice(lessons, invoices, renderer)
+    private val saveSettings = SaveSettings(settings)
     private val mutableState = MutableStateFlow(CreateInvoiceUiState(issueDate = today))
     val state: StateFlow<CreateInvoiceUiState> = mutableState.asStateFlow()
 
@@ -108,8 +114,16 @@ class CreateInvoiceViewModel(
 
     fun setMarkPaid(value: Boolean) = edit { it.copy(markPaid = value) }
 
+    /**
+     * Issues the statement. A statement is printed with the tutor's details (R14), so while the name is
+     * blank this asks for it first ([askForDetails]) instead.
+     */
     fun create() {
         if (state.value.loading || state.value.notFound || state.value.saving) return
+        if (settings.settings.value.business.name.isBlank()) {
+            mutableState.update { it.copy(askForDetails = true) }
+            return
+        }
         val current = state.value
         val studentId = current.studentId ?: return
         mutableState.update { it.copy(saving = true) }
@@ -119,6 +133,19 @@ class CreateInvoiceViewModel(
             mutableState.update { it.copy(saving = false, dirty = false, created = invoice) }
         }
     }
+
+    /** Saves the name and IBAN from the sheet, then issues the statement. A blank name keeps the sheet open. */
+    fun saveDetailsAndCreate(name: String, iban: String) {
+        if (name.isBlank()) return
+        launchCatching(::showMessage) {
+            val stored = settings.settings.value
+            saveSettings(stored.copy(business = stored.business.copy(name = name, iban = iban)))
+            mutableState.update { it.copy(askForDetails = false) }
+            create()
+        }
+    }
+
+    fun dismissDetails() = mutableState.update { it.copy(askForDetails = false) }
 
     fun showMessage(text: String) = mutableState.update { it.copy(message = text) }
 

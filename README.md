@@ -6,7 +6,7 @@ An offline Android app for private tutors. Keep a register of students and group
 who owes what, record payments and send PDF lesson statements. All data stays on the phone. Part of
 the EduSuite apps, with Course Pacer. Formerly EduInvoice.
 
-**Version:** 2.2.0 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
+**Version:** 2.3.0 · **Branch:** `Rebuild_v2` · **Android:** 8.0 (API 26) or newer
 
 How the app should behave is in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). What changed in each
 version is in [`CHANGELOG.md`](CHANGELOG.md).
@@ -32,7 +32,7 @@ replaces it (D23). To try it with real data, export a backup from the app and im
 
 | To… | Go to |
 |-----|-------|
-| Put your name and IBAN on statements | Home → ⚙ Settings → *Your details* (saves as you type). The address is printed only if you turn on *Show address on statements*. |
+| Put your name and IBAN on statements | Home → *Statements* → *Statement details* at the top (saves as you type). The address is printed only if you turn on *Show address on statements*. |
 | Add a student and their rate (per hour or per lesson) | Students → **+** |
 | Log a lesson | **Log lesson** on Home or on a student. The fee is calculated from the rate and can be changed. |
 | Log a lesson for a whole group, with attendance | Groups → **Log lesson** on the group. Mark each member Present, Absent or Late cancel. |

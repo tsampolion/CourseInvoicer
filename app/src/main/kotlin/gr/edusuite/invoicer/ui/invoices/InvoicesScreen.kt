@@ -30,10 +30,12 @@ import gr.edusuite.invoicer.ui.common.AppIcons
 import gr.edusuite.invoicer.ui.common.ChipTone
 import gr.edusuite.invoicer.ui.common.ConfirmDialog
 import gr.edusuite.invoicer.ui.common.EmptyState
+import gr.edusuite.invoicer.ui.common.ListRow
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.StatusChip
+import gr.edusuite.invoicer.ui.common.WarningBanner
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
 
@@ -41,9 +43,10 @@ import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
 fun InvoicesScreen(
     onBack: () -> Unit,
     onCreateInvoice: () -> Unit,
+    onStatementDetails: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: InvoicesViewModel = appViewModel {
-        InvoicesViewModel(it.invoiceRepository, it.studentRepository, it.lessonRepository)
+        InvoicesViewModel(it.invoiceRepository, it.studentRepository, it.lessonRepository, it.settingsRepository)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -62,15 +65,25 @@ fun InvoicesScreen(
             FloatingActionButton(onClick = onCreateInvoice) { Icon(AppIcons.Add, contentDescription = "New statement") }
         },
     ) { padding ->
+        // The details printed on every statement open from the top of the list (and above the empty state).
+        val details: @Composable () -> Unit = {
+            if (!state.loading) StatementDetailsHeader(state.businessName, state.ibanSet, onStatementDetails)
+        }
         when {
             state.loading -> Unit
-            state.items.isEmpty() -> EmptyState(
-                icon = AppIcons.Invoice,
-                title = "No statements yet",
-                message = "Tap + to list a student's lessons on one.",
-                modifier = Modifier.padding(padding),
-            )
+            state.items.isEmpty() -> Column(Modifier.padding(padding)) {
+                details()
+                EmptyState(
+                    icon = AppIcons.Invoice,
+                    title = "No statements yet",
+                    message = "Tap + to list a student's lessons on one.",
+                )
+            }
             else -> LazyColumn(Modifier.padding(padding)) {
+                item(key = "details") {
+                    details()
+                    HorizontalDivider()
+                }
                 items(state.items, key = { it.invoice.id }) { item ->
                     ListItem(
                         headlineContent = { Text("${item.invoice.number} · ${item.studentName}") },
@@ -119,6 +132,29 @@ fun InvoicesScreen(
             confirmLabel = "Void",
             onConfirm = { viewModel.markVoid(invoice) },
             onDismiss = { toVoid = null },
+        )
+    }
+}
+
+/**
+ * The way to Statement details: a row with the name and whether an IBAN is set, or, while the name is
+ * blank, a warning banner, because a statement without the tutor's name is not much use.
+ */
+@Composable
+private fun StatementDetailsHeader(name: String, ibanSet: Boolean, onOpen: () -> Unit) {
+    if (name.isBlank()) {
+        WarningBanner(
+            "Add your name before you send statements",
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            actionLabel = "Add",
+            onAction = onOpen,
+        )
+    } else {
+        ListRow(
+            title = "Statement details",
+            subtitle = "$name · ${if (ibanSet) "IBAN set" else "IBAN not set"}",
+            icon = AppIcons.Edit,
+            onClick = onOpen,
         )
     }
 }

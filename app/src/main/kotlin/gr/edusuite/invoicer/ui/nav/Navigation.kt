@@ -24,6 +24,7 @@ sealed interface Route {
     data object Lessons : Route
     data object Invoices : Route
     data object Settings : Route
+    data object StatementDetails : Route
     data class StudentDetail(val studentId: Long) : Route
     data class StudentEdit(val studentId: Long = 0) : Route
     data class GroupEdit(val groupId: Long = 0) : Route
@@ -40,6 +41,7 @@ sealed interface Route {
             Lessons -> "lessons"
             Invoices -> "invoices"
             Settings -> "settings"
+            StatementDetails -> "statement-details"
             is StudentDetail -> "student/${route.studentId}"
             is StudentEdit -> "student-edit/${route.studentId}"
             is GroupEdit -> "group-edit/${route.groupId}"
@@ -59,6 +61,7 @@ sealed interface Route {
                 "lessons" -> Lessons
                 "invoices" -> Invoices
                 "settings" -> Settings
+                "statement-details" -> StatementDetails
                 "student" -> ids.getOrNull(0)?.let(::StudentDetail)
                 "student-edit" -> ids.getOrNull(0)?.let(::StudentEdit)
                 "group-edit" -> ids.getOrNull(0)?.let(::GroupEdit)

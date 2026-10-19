@@ -14,6 +14,7 @@ class NavigatorTest {
     fun `every route survives encoding`() {
         val routes = listOf(
             Route.Home, Route.Dashboard, Route.Students, Route.Groups, Route.Lessons, Route.Invoices, Route.Settings,
+            Route.StatementDetails,
             Route.StudentDetail(3), Route.StudentEdit(), Route.StudentEdit(4), Route.GroupEdit(5),
             Route.GroupLesson(6), Route.LessonEdit(7, 8), Route.LessonEdit(studentId = 9), Route.CreateInvoice(10),
         )
@@ -21,6 +22,7 @@ class NavigatorTest {
         assertNull(Route.decode("student/abc"))
         assertNull(Route.decode("unknown"))
         assertEquals("dashboard", Route.encode(Route.Dashboard))
+        assertEquals("statement-details", Route.encode(Route.StatementDetails))
     }
 
     @Test

@@ -43,6 +43,21 @@ class EndToEndTest {
         compose.onNodeWithText(title).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
     }
 
+    /**
+     * Taps Create on New statement. Until the tutor's name is set it first asks for it in a sheet
+     * (CreateInvoiceViewModel.askForDetails), which this fills in.
+     */
+    private fun createStatement() {
+        compose.onNodeWithText("Create").performClick()
+        val sheet = hasText("Save and create")
+        compose.waitUntilAtLeastOneExists(sheet or hasText("created", substring = true), timeoutMillis = 10_000)
+        if (compose.onAllNodes(sheet).fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithText("Name or business name").performTextInput("Test tutor")
+            compose.onNode(sheet).performClick()
+        }
+        waitFor("created", substring = true)
+    }
+
     /** Adds a student at 20 an hour from Home; saving opens their detail screen. */
     private fun addStudent(name: String) {
         // Home is the launcher: each section opens from its button.
@@ -101,8 +116,7 @@ class EndToEndTest {
 
         compose.onNodeWithText("Statement").performClick()
         waitFor("1 lesson · Total", substring = true)
-        compose.onNodeWithText("Create").performClick()
-        waitFor("created", substring = true)
+        createStatement()
         compose.onNodeWithText("Done").performClick()
         waitFor("Record payment")
 
@@ -134,8 +148,7 @@ class EndToEndTest {
         waitFor("1 lesson · Total", substring = true)
         compose.onNodeWithText("Absent, not charged", substring = true).assertExists()
         compose.onNodeWithText("1 lesson · Total", substring = true).assertTextContains("0.00", substring = true)
-        compose.onNodeWithText("Create").performClick()
-        waitFor("created", substring = true)
+        createStatement()
         compose.onNodeWithText("Done").performClick()
         waitFor("Record payment")
     }
@@ -145,7 +158,12 @@ class EndToEndTest {
         val name = "Tutor${System.currentTimeMillis() % 1_000_000}"
         val settings = (compose.activity.application as CourseInvoicerApplication).container.settingsRepository
 
-        compose.onNodeWithContentDescription("Open settings").performClick()
+        // The details printed on statements open from the top of Statements (Settings is app-wide).
+        openFromHome("Statements")
+        // A row once a name is set (an earlier test run may have set one), else a banner asking for it.
+        val details = hasText("Statement details") or hasText("Add")
+        compose.waitUntilAtLeastOneExists(details, timeoutMillis = 10_000)
+        compose.onNode(details).performClick()
         compose.onNodeWithText("Name or business name").performTextInput(name)
         compose.onAllNodesWithText("Save").assertCountEquals(0)
 
@@ -153,7 +171,7 @@ class EndToEndTest {
         compose.onNodeWithContentDescription("Back").performClick()
         compose.waitUntil(timeoutMillis = 10_000) { settings.settings.value.business.name == name }
 
-        compose.onNodeWithContentDescription("Open settings").performClick()
+        compose.onNodeWithText("Statement details").performClick()
         waitFor(name)
     }
 }

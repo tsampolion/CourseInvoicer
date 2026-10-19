@@ -826,6 +826,38 @@ fun ListRow(
     }
 }
 
+/**
+ * A warning banner (guide §6): a full-width warnSoft block with 16dp corners, on-warnSoft [text] and an
+ * optional text action. For something the user should act on soon; errors from an action go in a snackbar.
+ */
+@Composable
+fun WarningBanner(
+    text: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    val colors = Invoicer.colors
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = colors.warnSoft,
+        contentColor = colors.onWarnSoft,
+    ) {
+        Row(
+            Modifier.padding(start = Space.l, end = Space.s, top = Space.xs, bottom = Space.xs).heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text, Modifier.weight(1f).padding(vertical = Space.s), style = MaterialTheme.typography.bodyMedium)
+            if (actionLabel != null && onAction != null) {
+                TextButton(onClick = onAction, colors = ButtonDefaults.textButtonColors(contentColor = colors.onWarnSoft)) {
+                    Text(actionLabel)
+                }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Guide card
 // ---------------------------------------------------------------------------------------------------

@@ -20,6 +20,21 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.3.0] - 2026-10-18
+
+### Added
+- **Statement details**, a screen of its own for what is printed on every statement: name, address
+  (and whether it is printed), phone, email, IBAN and footer. It opens from a row at the top of
+  Statements that shows the name and whether an IBAN is set; while the name is blank, a warning
+  banner there asks for it. It saves as you type, like Settings.
+- Tapping *Create* on a new statement while the name is blank first asks for the name and IBAN in a
+  bottom sheet: *Save and create*, or *More details* for the full screen.
+
+### Changed
+- **Settings is app-wide**, in sections: Appearance, Lessons (default length), Reminders, Backup and
+  About (version, part of the EduSuite apps, everything stays on this device). The statement fields
+  moved to Statement details.
+
 ## [2.2.0] - 2026-10-18
 
 ### Added

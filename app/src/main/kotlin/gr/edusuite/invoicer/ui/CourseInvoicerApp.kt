@@ -29,6 +29,7 @@ import gr.edusuite.invoicer.ui.home.HomeScreen
 import gr.edusuite.invoicer.ui.home.HomeViewModel
 import gr.edusuite.invoicer.ui.invoices.CreateInvoiceScreen
 import gr.edusuite.invoicer.ui.invoices.InvoicesScreen
+import gr.edusuite.invoicer.ui.invoices.StatementDetailsScreen
 import gr.edusuite.invoicer.ui.lessons.LessonEditScreen
 import gr.edusuite.invoicer.ui.lessons.LessonsScreen
 import gr.edusuite.invoicer.ui.nav.NavHost
@@ -105,8 +106,10 @@ fun CourseInvoicerApp() {
                 Route.Invoices -> InvoicesScreen(
                     onBack = back,
                     onCreateInvoice = { navigator.navigate(Route.CreateInvoice()) },
+                    onStatementDetails = { navigator.navigate(Route.StatementDetails) },
                 )
                 Route.Settings -> SettingsScreen(onBack = back)
+                Route.StatementDetails -> StatementDetailsScreen(onBack = back)
                 is Route.StudentDetail -> StudentDetailScreen(
                     studentId = route.studentId,
                     onBack = back,
@@ -130,7 +133,12 @@ fun CourseInvoicerApp() {
                     onBack = back,
                     onDone = back,
                 )
-                is Route.CreateInvoice -> CreateInvoiceScreen(studentId = route.studentId, onBack = back, onDone = back)
+                is Route.CreateInvoice -> CreateInvoiceScreen(
+                    studentId = route.studentId,
+                    onBack = back,
+                    onDone = back,
+                    onStatementDetails = { navigator.navigate(Route.StatementDetails) },
+                )
             }
         }
         AppSnackbarHost(

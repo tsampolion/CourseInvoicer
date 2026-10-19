@@ -16,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -31,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -46,7 +44,6 @@ import gr.edusuite.invoicer.ui.common.FormSpacing
 import gr.edusuite.invoicer.ui.common.MessageEffect
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
 import gr.edusuite.invoicer.ui.common.appViewModel
-import gr.edusuite.invoicer.ui.lessons.SwitchRow
 import java.time.LocalDate
 
 @Composable
@@ -93,63 +90,6 @@ fun SettingsScreen(
         ) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            Section("Your details", "Printed at the top of every statement.")
-            CommitField(
-                value = form.name,
-                onValueChange = viewModel::onName,
-                label = "Name or business name",
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            )
-            CommitField(
-                value = form.address,
-                onValueChange = viewModel::onAddress,
-                label = "Address",
-                singleLine = false,
-                minLines = 2,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            )
-            SwitchRow(
-                "Show address on statements",
-                form.showAddressOnStatements,
-                viewModel::onShowAddressOnStatements,
-            )
-            CommitField(
-                value = form.phone,
-                onValueChange = viewModel::onPhone,
-                label = "Phone",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            )
-            CommitField(
-                value = form.email,
-                onValueChange = viewModel::onEmail,
-                label = "Email",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            )
-            CommitField(
-                value = form.iban,
-                onValueChange = viewModel::onIban,
-                label = "IBAN for payments",
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-            )
-
-            Section("Statements & lessons")
-            CommitField(
-                value = form.defaultMinutes,
-                onValueChange = viewModel::onMinutes,
-                label = "Default lesson length (minutes)",
-                isError = state.minutesError,
-                supportingText = if (state.minutesError) "Between 1 and $MAX_LESSON_MINUTES" else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                inputFilter = { text -> text.filter(Char::isDigit).take(3) },
-            )
-            CommitField(
-                value = form.footer,
-                onValueChange = viewModel::onFooter,
-                label = "Statement footer (e.g. thank-you note)",
-                singleLine = false,
-                minLines = 2,
-            )
-
             Section("Appearance")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ThemeMode.entries.forEach { mode ->
@@ -168,6 +108,17 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            Section("Lessons")
+            CommitField(
+                value = form.defaultMinutes,
+                onValueChange = viewModel::onMinutes,
+                label = "Default lesson length (minutes)",
+                isError = state.minutesError,
+                supportingText = if (state.minutesError) "Between 1 and $MAX_LESSON_MINUTES" else null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                inputFilter = { text -> text.filter(Char::isDigit).take(3) },
+            )
 
             Section("Reminders", "From the 29th, Home reminds you of the month's lessons not on a statement yet.")
             SettingSwitch(
@@ -194,7 +145,7 @@ fun SettingsScreen(
                 enabled = form.reminders.enabled,
             )
 
-            Section("Backup", "Everything stays on this device. Export a backup regularly and keep it somewhere safe.")
+            Section("Backup", "Export a backup regularly and keep it somewhere safe.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { exportLauncher.launch("course-invoicer-backup-${LocalDate.now()}.json") },
@@ -206,14 +157,15 @@ fun SettingsScreen(
                 ) { Text("Import") }
             }
 
-            HorizontalDivider()
+            Section("About")
+            Text("Course Invoicer ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
             Text(
-                "Course Invoicer ${BuildConfig.VERSION_NAME}",
+                "Part of the EduSuite apps, alongside Course Pacer.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "Part of the EduSuite apps, alongside Course Pacer.",
+                "Everything stays on this device.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
