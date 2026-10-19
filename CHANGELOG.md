@@ -20,6 +20,17 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.1.2] - 2026-10-18
+
+### Changed
+- Home no longer shows the floating *part of EduSuite apps* line under the tiles. Settings says it
+  once, under the version: "Part of the EduSuite apps, alongside Course Pacer."
+- EduSuite style guide (`docs/EDUSUITE_STYLE_GUIDE.md`): the same three paragraph edits as Course
+  Pacer 2.4.1. §5 *Lists* says grid tiles glide when the column count changes, §6 *Tile grid*
+  describes a grid whose columns follow the width (built in 2.2.0), and §6 *Home header* keeps the
+  suite line in Settings → About only.
+- Added the agreed design and plan for this work under `docs/superpowers/`. Docs only.
+
 ## [2.1.1] - 2026-10-18
 
 ### Changed
