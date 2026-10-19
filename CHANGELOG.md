@@ -20,6 +20,15 @@ How to use this file:
 3. To start the next version, bump `versionName` and `versionCode` and open a new `Unreleased`
    section above the released one (AGENTS.md, *Workflow*).
 
+## [2.4.1] - 2026-10-18
+
+### Changed
+- Privacy hints (GDPR). The student form opens with "Only what you need for lessons and billing. It
+  stays on this device. Don't put health or other sensitive details in notes.", and its optional
+  fields say so: *Class / level (optional)*, *Parent / guardian (optional)*, *Phone (optional)*,
+  *Email (optional)*, *Notes (optional)*. Statement details adds "You are responsible for the
+  personal data you keep here (GDPR). Share a privacy notice with your students." Copy only.
+
 ## [2.4.0] - 2026-10-18
 
 ### Added

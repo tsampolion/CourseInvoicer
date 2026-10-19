@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
@@ -71,10 +72,17 @@ fun StudentEditScreen(
                 .padding(16.dp),
             verticalArrangement = FormSpacing,
         ) {
+            // Data minimisation (GDPR Art. 5(1)(c)): the tutor is the controller, so say what belongs here.
+            Text(
+                "Only what you need for lessons and billing. It stays on this device. " +
+                    "Don't put health or other sensitive details in notes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             TextInput("First name *", form.firstName, { v -> viewModel.update { it.copy(firstName = v) } },
                 isError = state.firstNameError, error = "Required", capitalize = true)
             TextInput("Last name", form.lastName, { v -> viewModel.update { it.copy(lastName = v) } }, capitalize = true)
-            TextInput("Class / level", form.className, { v -> viewModel.update { it.copy(className = v) } })
+            TextInput("Class / level (optional)", form.className, { v -> viewModel.update { it.copy(className = v) } })
             val suggestions = state.classSuggestions.filter { it != form.className }
             if (suggestions.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -86,9 +94,9 @@ fun StudentEditScreen(
                     }
                 }
             }
-            TextInput("Parent / guardian", form.guardianName, { v -> viewModel.update { it.copy(guardianName = v) } }, capitalize = true)
-            TextInput("Phone", form.phone, { v -> viewModel.update { it.copy(phone = v) } }, keyboardType = KeyboardType.Phone)
-            TextInput("Email", form.email, { v -> viewModel.update { it.copy(email = v) } }, keyboardType = KeyboardType.Email)
+            TextInput("Parent / guardian (optional)", form.guardianName, { v -> viewModel.update { it.copy(guardianName = v) } }, capitalize = true)
+            TextInput("Phone (optional)", form.phone, { v -> viewModel.update { it.copy(phone = v) } }, keyboardType = KeyboardType.Phone)
+            TextInput("Email (optional)", form.email, { v -> viewModel.update { it.copy(email = v) } }, keyboardType = KeyboardType.Email)
             RateInput(
                 amount = form.rate,
                 type = form.rateType,
@@ -99,7 +107,7 @@ fun StudentEditScreen(
             OutlinedTextField(
                 value = form.notes,
                 onValueChange = { v -> viewModel.update { it.copy(notes = v) } },
-                label = { Text("Notes") },
+                label = { Text("Notes (optional)") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
