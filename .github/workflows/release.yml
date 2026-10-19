@@ -1,6 +1,7 @@
 name: Release
 
-# Publishes a GitHub release of the signed debug APK, which is what the tutor installs (D9, D12).
+# Publishes a GitHub release of the minified APK signed with the owner's key, which is what the tutor
+# installs (D9, D12, D16). The job runs in the "release" environment, which only Rebuild_v2 may use (D23).
 #
 # Runs after CI passes on a push to Rebuild_v2. It reads versionName from app/build.gradle.kts and
 # releases it only when its CHANGELOG.md section carries a date (`## [X.Y.Z] - YYYY-MM-DD`): an
@@ -38,6 +39,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: release
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}

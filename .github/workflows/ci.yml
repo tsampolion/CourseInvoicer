@@ -18,6 +18,10 @@ jobs:
     name: Test, lint and assemble
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The signing secrets live in the "release" environment, which only Rebuild_v2 may use
+    # (docs/SIGNING_BRIEF.md, D23). A build of any other branch never gets them, whatever its own build
+    # files do, and signs with the debug key. An empty name means no environment.
+    environment: ${{ github.ref == 'refs/heads/Rebuild_v2' && 'release' || '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -30,28 +34,6 @@ jobs:
       # The runner image ships the Android SDK; AGP downloads the exact platform it needs.
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
-
-      # Before the first Gradle run, so the Gradle daemon starts with the key in its environment.
-      # The debug APK is what the tutor installs (README). Signing every build with the owner's key lets a
-      # new build install over the previous one and keep the data. Without the secrets the build still
-      # passes, but the APK is signed with a throwaway key; see README, "Install a test build".
-      - name: Use the owner's signing key
-        env:
-          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ vars.SIGNING_KEY_ALIAS || 'release' }}
-        run: |
-          if [ -z "$SIGNING_KEYSTORE_B64" ] || [ -z "$SIGNING_PASSWORD" ]; then
-            echo "::warning::Secrets SIGNING_KEYSTORE_B64 and SIGNING_PASSWORD are not both set: this app-debug.apk is signed with a throwaway key and cannot be installed over an earlier build. See README."
-            exit 0
-          fi
-          echo "::add-mask::$SIGNING_PASSWORD"
-          echo "$SIGNING_KEYSTORE_B64" | base64 --decode --ignore-garbage > "$RUNNER_TEMP/invoicer-signing.p12"
-          {
-            echo "INVOICER_DEBUG_KEYSTORE=$RUNNER_TEMP/invoicer-signing.p12"
-            echo "INVOICER_KEYSTORE_PASSWORD=$SIGNING_PASSWORD"
-            echo "INVOICER_KEY_ALIAS=$SIGNING_KEY_ALIAS"
-          } >> "$GITHUB_ENV"
 
       - name: Unit tests
         run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
@@ -68,15 +50,44 @@ jobs:
           jq -r '.runs[].results[] | "\(.level) \(.ruleId): \(.message.text) @ \(.locations[0].physicalLocation.artifactLocation.uri // "?"):\(.locations[0].physicalLocation.region.startLine // "?")"' "$SARIF" | tee lint-findings.txt
           echo "Lint findings: $(wc -l < lint-findings.txt)"
 
-      # Builds the APK the README installs. There is no release build (D9).
+      # The between-release build: a separate app, gr.edusuite.invoicer.debug, signed with the stock
+      # debug key, so it never installs over the tutor's real app or touches its data (D23).
       - name: Assemble debug
         run: ./gradlew :app:assembleDebug --stacktrace
 
-      # The minified APK that GitHub releases ship (D16). Same key as debug.
+      # The minified APK that GitHub releases ship (D16). On Rebuild_v2 it is signed with the owner's
+      # permanent key from the release environment; the password reaches only this step, never
+      # GITHUB_ENV, and the decoded keystore is deleted when the step ends. Other branches get no
+      # secrets and sign it with the debug key, so it can never be published.
       - name: Assemble release (minified)
-        run: ./gradlew :app:assembleRelease --stacktrace
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ vars.SIGNING_KEY_ALIAS || 'release' }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_B64" ]; then
+            if [ -z "$SIGNING_PASSWORD" ]; then
+              echo "::error::The SIGNING_KEYSTORE_B64 secret is set but SIGNING_PASSWORD is missing."
+              exit 1
+            fi
+            export INVOICER_RELEASE_KEYSTORE="$RUNNER_TEMP/invoicer-release.p12"
+            trap 'rm -f "$INVOICER_RELEASE_KEYSTORE"' EXIT
+            printf '%s' "$SIGNING_KEYSTORE_B64" | tr -d ' \r\n' | base64 --decode > "$INVOICER_RELEASE_KEYSTORE"
+            unset SIGNING_KEYSTORE_B64
+            export INVOICER_KEYSTORE_PASSWORD="$SIGNING_PASSWORD"
+            export INVOICER_KEY_ALIAS="$SIGNING_KEY_ALIAS"
+            echo "SIGNED_WITH_RELEASE_KEY=true" >> "$GITHUB_ENV"
+          elif [ "$GITHUB_REF" = "refs/heads/Rebuild_v2" ]; then
+            echo "::error::The SIGNING_KEYSTORE_B64 secret is missing from the release environment. Builds on Rebuild_v2 must be signed with the owner's key (README, Signing key)."
+            exit 1
+          else
+            echo "::notice::No signing secrets on this branch: app-release.apk is signed with the debug key and cannot install over a release."
+          fi
+          # No daemon: the password must not outlive this step in a long-running process.
+          ./gradlew :app:assembleRelease --stacktrace --no-daemon
 
-      # Fails the build if the APK was not signed with the key whose fingerprint is in the repository
+      # Prints the certificate of both APKs. On Rebuild_v2, or whenever the owner's key was used, fails the
+      # build unless app-release.apk is signed by exactly the key whose fingerprint is in the repository
       # variable SIGNING_CERT_SHA256 (any format: colons and case are ignored).
       - name: Check the signing certificate
         env:
@@ -88,16 +99,27 @@ jobs:
             CERTS="$("$APKSIGNER" verify --print-certs "$APK")"
             echo "$APK:" | tee -a "$GITHUB_STEP_SUMMARY"
             echo "$CERTS" | grep -E "certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
-            ACTUAL="$(echo "$CERTS" | grep -m1 "certificate SHA-256 digest" | sed 's/.*digest: //' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
-            if [ -z "$EXPECTED" ]; then
-              echo "::warning::Repository variable SIGNING_CERT_SHA256 is not set, so the signing key was not checked."
-            elif [ "$ACTUAL" = "$EXPECTED" ]; then
-              echo "Signed with the owner's key (fingerprint matches SIGNING_CERT_SHA256)." | tee -a "$GITHUB_STEP_SUMMARY"
-            else
-              echo "::error::$APK is signed with $ACTUAL, not the expected SIGNING_CERT_SHA256 $EXPECTED."
-              exit 1
-            fi
           done
+          RELEASE_CERTS="$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk)"
+          if [ "$SIGNED_WITH_RELEASE_KEY" != "true" ] && [ "$GITHUB_REF" != "refs/heads/Rebuild_v2" ]; then
+            echo "app-release.apk is signed with the debug key: not for release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "$EXPECTED" ]; then
+            echo "::error::Repository variable SIGNING_CERT_SHA256 is not set, so the release certificate cannot be checked."
+            exit 1
+          fi
+          SIGNERS="$(echo "$RELEASE_CERTS" | grep -c "certificate SHA-256 digest" || true)"
+          if [ "$SIGNERS" != "1" ]; then
+            echo "::error::app-release.apk has $SIGNERS signers; expected exactly one."
+            exit 1
+          fi
+          ACTUAL="$(echo "$RELEASE_CERTS" | grep -m1 "certificate SHA-256 digest" | sed 's/.*digest: //' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::app-release.apk is signed with $ACTUAL, not the expected SIGNING_CERT_SHA256 $EXPECTED."
+            exit 1
+          fi
+          echo "app-release.apk is signed with the owner's key (fingerprint matches SIGNING_CERT_SHA256)." | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Report APK sizes
         run: ls -l app/build/outputs/apk/*/*.apk | tee -a "$GITHUB_STEP_SUMMARY"
@@ -199,7 +221,8 @@ jobs:
           ./gradlew :app:connectedDebugAndroidTest --stacktrace
 
           # Smoke test for the minified APK (D16): R8 may strip something the debug tests can't see.
-          # Gradle uninstalled the debug app above, so this is a clean install.
+          # The tests ran as the separate debug app (gr.edusuite.invoicer.debug), so this is a clean install
+          # of gr.edusuite.invoicer. This job has no secrets, so the APK is debug-signed.
           "$ADB" install -r app/build/outputs/apk/release/app-release.apk
           "$ADB" logcat -c
           "$ADB" shell am start -W -n gr.edusuite.invoicer/.MainActivity
