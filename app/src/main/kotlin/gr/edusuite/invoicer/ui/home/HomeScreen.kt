@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -189,51 +188,27 @@ fun HomeScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Space.l),
-            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                Modifier
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth(),
-            ) {
-                Spacer(Modifier.height(Space.xxl))
-                // Slot for the damaged-database banner: a one-line DamagedDatabaseBanner(…) call
-                // (ui/home/DamagedDatabaseBanner.kt) goes here when it lands, above the header.
-                if (state.databaseDamaged) DamagedDatabaseBanner(onOpenSettings, viewModel::acknowledgeDamagedDatabase)
-                HomeHeader(onOpenSettings)
-                Spacer(Modifier.height(Space.xl))
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    // The bento becomes one column at 200% font scale or under 360dp width (guide §6).
-                    val oneColumn = LocalDensity.current.fontScale >= 2f || maxWidth < 360.dp
-                    if (oneColumn) {
-                        Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                            val full = Modifier.fillMaxWidth()
-                            lessons(full)
-                            statements(full)
-                            students(full)
-                            dashboard(full)
-                            groups(full)
-                        }
-                    } else {
-                        // A two-column bento: the most-used sections are tall, the rest short.
-                        val tall = Modifier.fillMaxWidth().heightIn(min = 184.dp)
-                        val short = Modifier.fillMaxWidth().heightIn(min = 120.dp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                                lessons(tall)
-                                students(short)
-                                groups(short)
-                            }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                                statements(tall)
-                                dashboard(tall)
-                            }
-                        }
-                    }
+            Spacer(Modifier.height(Space.xxl))
+            if (state.databaseDamaged) DamagedDatabaseBanner(onOpenSettings, viewModel::acknowledgeDamagedDatabase)
+            HomeHeader(onOpenSettings)
+            Spacer(Modifier.height(Space.xl))
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                // As many 160dp columns as the width fits; one at 200% font scale or under 360dp (guide §6).
+                val columns = homeColumns(maxWidth.value, LocalDensity.current.fontScale, tiles = 5)
+                // The most-used sections are tall, the rest short; one column needs no bento.
+                val tall = if (columns > 1) Modifier.heightIn(min = 184.dp) else Modifier
+                val short = if (columns > 1) Modifier.heightIn(min = 120.dp) else Modifier
+                HomeGrid(columns) {
+                    lessons(tall.animatePlacement())
+                    statements(tall.animatePlacement())
+                    students(short.animatePlacement())
+                    dashboard(tall.animatePlacement())
+                    groups(short.animatePlacement())
                 }
-                // Room for the floating button, so it never covers the last tile.
-                Spacer(Modifier.height(88.dp))
             }
+            // Room for the floating button, so it never covers the last tile.
+            Spacer(Modifier.height(88.dp))
         }
     }
 }

@@ -6,7 +6,7 @@ recipes for common changes and the traps. What the app should do is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md); how it should look is in
 [`docs/EDUSUITE_STYLE_GUIDE.md`](docs/EDUSUITE_STYLE_GUIDE.md).
 
-**Version:** 2.1.2 · **Default branch:** `Rebuild_v2`
+**Version:** 2.2.0 · **Default branch:** `Rebuild_v2`
 
 ## 1. Commands
 
