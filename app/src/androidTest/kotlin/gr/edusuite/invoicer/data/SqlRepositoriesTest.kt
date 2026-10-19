@@ -8,6 +8,7 @@ import gr.edusuite.invoicer.core.model.AbsenceCharge
 import gr.edusuite.invoicer.core.model.DomainException
 import gr.edusuite.invoicer.core.model.Invoice
 import gr.edusuite.invoicer.core.model.InvoicePayment
+import gr.edusuite.invoicer.core.model.OverdueSummary
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
 import gr.edusuite.invoicer.core.model.Rate
@@ -382,6 +383,22 @@ class SqlRepositoriesTest {
         val late = lessons.saveLesson(lateCancel(maria, fee = 2500))
         createInvoice(maria, listOf(late), march31)
         assertEquals(1, invoices.observeUnpaidCount().first())
+    }
+
+    @Test
+    fun overdueMatchesTheRuleInCore() = runTest {
+        val maria = student()
+        val nikos = student("Nikos")
+        createInvoice(maria, listOf(lessons.saveLesson(lesson(maria))), march31)
+        createInvoice(maria, listOf(lessons.saveLesson(lesson(maria))), march31)
+        val voided = createInvoice(nikos, listOf(lessons.saveLesson(lesson(nikos))), march31)
+        VoidInvoice(invoices)(voided.id, march31)
+        createInvoice(nikos, listOf(lessons.saveLesson(lesson(nikos).copy(absent = true))), march31)
+        createInvoice(nikos, listOf(lessons.saveLesson(lesson(nikos))), march31, markPaid = true)
+
+        // Due by the last day of the issue month: not overdue on it, overdue the day after (R16).
+        assertEquals(OverdueSummary(0, emptySet()), invoices.observeOverdue(march31).first())
+        assertEquals(OverdueSummary(2, setOf(maria)), invoices.observeOverdue(march31.plusDays(1)).first())
     }
 
     @Test

@@ -73,10 +73,27 @@ class InvoiceDocumentTest {
         )
         assertEquals("€38.00", doc.total)
         assertEquals(
-            listOf("March lessons", "Payment by bank transfer to IBAN GR16 0110 1250", "Thank you!"),
+            listOf(
+                "March lessons",
+                "Payment due by 31 Mar 2026",
+                "Payment by bank transfer to IBAN GR16 0110 1250",
+                "Thank you!",
+            ),
             doc.notes,
         )
         assertFalse(doc.paid)
+    }
+
+    @Test
+    fun `a new statement says it is due by the last day of its issue month`() {
+        val issued = invoice.copy(issueDate = LocalDate.parse("2026-10-12"))
+        val doc = InvoiceDocumentBuilder.build(issued, maria, listOf(lesson(studentId = 1)), emptyMap(), settings, formats)
+        assertTrue(doc.notes.contains("Payment due by ${formats.date(LocalDate.of(2026, 10, 31))}"))
+
+        val paid = InvoiceDocumentBuilder.build(
+            issued, maria, listOf(lesson(studentId = 1, paidOn = "2026-10-12")), emptyMap(), settings, formats,
+        )
+        assertFalse("a statement paid when issued has no due date", paid.notes.any { it.startsWith("Payment due by") })
     }
 
     @Test

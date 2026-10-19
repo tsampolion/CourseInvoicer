@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +32,10 @@ import gr.edusuite.invoicer.core.format.Formats
 import gr.edusuite.invoicer.core.model.Rate
 import gr.edusuite.invoicer.core.model.RateType
 import gr.edusuite.invoicer.ui.common.AppIcons
+import gr.edusuite.invoicer.ui.common.ChipTone
+import gr.edusuite.invoicer.ui.common.StatusChip
+import gr.edusuite.invoicer.ui.common.WarningBanner
+import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.EmptyState
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.ScreenScaffold
@@ -43,7 +48,9 @@ fun StudentsScreen(
     onOpenStudent: (Long) -> Unit,
     onAddStudent: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: StudentsViewModel = appViewModel { StudentsViewModel(it.studentRepository, it.lessonRepository) },
+    viewModel: StudentsViewModel = appViewModel {
+        StudentsViewModel(it.studentRepository, it.lessonRepository, it.invoiceRepository)
+    },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     ScreenErrorNotice(state.message, viewModel::messageShown)
@@ -79,6 +86,13 @@ fun StudentsScreen(
                     label = { Text("Archived") },
                 )
             }
+            if (state.overdueStudents > 0) {
+                val have = if (state.overdueStudents == 1) "has" else "have"
+                WarningBanner(
+                    "${plural(state.overdueStudents, "student")} $have overdue statements",
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             when {
                 state.loading -> Unit
                 state.totalCount == 0 -> EmptyState(
@@ -98,11 +112,17 @@ fun StudentsScreen(
                         ListItem(
                             headlineContent = { Text(row.student.fullName) },
                             supportingContent = {
-                                Text(
-                                    listOf(row.student.className, rateLabel(row.student.rate, formats))
-                                        .filter { it.isNotBlank() }
-                                        .joinToString(" · "),
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        listOf(row.student.className, rateLabel(row.student.rate, formats))
+                                            .filter { it.isNotBlank() }
+                                            .joinToString(" · "),
+                                        Modifier.weight(1f, fill = false),
+                                    )
+                                    if (row.overdue) {
+                                        StatusChip("Overdue", ChipTone.Warning, Modifier.padding(start = 8.dp))
+                                    }
+                                }
                             },
                             trailingContent = {
                                 if (row.outstanding.isPositive) {

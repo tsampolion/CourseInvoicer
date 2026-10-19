@@ -8,6 +8,7 @@ import gr.edusuite.invoicer.core.model.InvoiceDocument
 import gr.edusuite.invoicer.core.model.InvoicePayment
 import gr.edusuite.invoicer.core.model.Lesson
 import gr.edusuite.invoicer.core.model.Money
+import gr.edusuite.invoicer.core.model.OverdueSummary
 import gr.edusuite.invoicer.core.model.Student
 import gr.edusuite.invoicer.core.model.StudentGroup
 import gr.edusuite.invoicer.core.report.StudentBalance
@@ -235,6 +236,16 @@ class SqlInvoiceRepository(private val db: InvoicerDatabase) : InvoiceRepository
             "SELECT COUNT(*) FROM invoices i WHERE i.voided_on IS NULL AND EXISTS " +
                 "(SELECT 1 FROM lessons l WHERE l.invoice_id = i.id AND l.paid_on IS NULL AND $CHARGED_LESSON)",
         )
+    }
+
+    // Same rule as isOverdue (R16): unpaid as in observeUnpaidCount, and issued before this month began.
+    override fun observeOverdue(today: LocalDate): Flow<OverdueSummary> = db.observe(Table.INVOICES, Table.LESSONS) { d ->
+        val students = d.select(
+            "SELECT i.student_id FROM invoices i WHERE i.voided_on IS NULL AND i.issue_date < ? AND EXISTS " +
+                "(SELECT 1 FROM lessons l WHERE l.invoice_id = i.id AND l.paid_on IS NULL AND $CHARGED_LESSON)",
+            today.withDayOfMonth(1).toString(),
+        ).readAll { it.long("student_id") }
+        OverdueSummary(students.size, students.toSet())
     }
 
     override fun observeInvoiceCount(): Flow<Int> =

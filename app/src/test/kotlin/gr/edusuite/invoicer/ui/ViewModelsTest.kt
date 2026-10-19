@@ -228,7 +228,7 @@ class ViewModelsTest {
                 throw IllegalStateException("disk")
             }
         }
-        val vm = StudentsViewModel(broken, repos)
+        val vm = StudentsViewModel(broken, repos, repos)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         assertEquals(1, vm.state.value.rows.size)
         failure.complete(Unit)
@@ -330,6 +330,35 @@ class ViewModelsTest {
 
         repos.setPaid(listOf(a, b), LocalDate.parse("2026-04-01"))
         assertEquals(0, viewModel.state.value.unpaidStatements)
+    }
+
+    @Test
+    fun `home counts overdue statements`() = runTest {
+        val maria = addStudent("Maria")
+        val a = repos.saveLesson(lesson(maria, "2026-02-10", 2000))
+        createInvoice(maria, listOf(a), LocalDate.parse("2026-02-28"))
+        repos.saveLesson(lesson(maria, "2026-03-10", 2000)).let { createInvoice(maria, listOf(it), LocalDate.parse("2026-03-14")) }
+        val viewModel = homeViewModel(today = "2026-03-15")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        assertEquals("February's is overdue, March's is not due yet", 1, viewModel.state.value.overdueStatements)
+        assertEquals(2, viewModel.state.value.unpaidStatements)
+
+        repos.setPaid(listOf(a), LocalDate.parse("2026-03-15"))
+        assertEquals(0, viewModel.state.value.overdueStatements)
+    }
+
+    @Test
+    fun `students flag overdue rows`() = runTest {
+        val maria = addStudent("Maria")
+        addStudent("Nikos")
+        createInvoice(maria, listOf(repos.saveLesson(lesson(maria, "2026-02-10", 2000))), LocalDate.parse("2026-02-28"))
+        val viewModel = StudentsViewModel(repos, repos, repos) { LocalDate.parse("2026-03-15") }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+        val rows = viewModel.state.value.rows.associate { it.student.firstName to it.overdue }
+        assertEquals(mapOf("Maria" to true, "Nikos" to false), rows)
+        assertEquals(1, viewModel.state.value.overdueStudents)
     }
 
     private val reminderState = InMemoryReminderStateRepository()
@@ -662,7 +691,7 @@ class ViewModelsTest {
         val maria = addStudent("Maria")
         addStudent("Nikos")
         repos.saveLesson(lesson(maria, "2026-03-10", 2000))
-        val viewModel = StudentsViewModel(repos, repos)
+        val viewModel = StudentsViewModel(repos, repos, repos)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
         assertEquals(listOf("Maria", "Nikos"), viewModel.state.value.rows.map { it.student.firstName })

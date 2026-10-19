@@ -33,6 +33,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.edusuite.invoicer.ui.common.AppIcons
+import gr.edusuite.invoicer.ui.common.ChipTone
+import gr.edusuite.invoicer.ui.common.StatusChip
+import gr.edusuite.invoicer.ui.common.WarningBanner
 import gr.edusuite.invoicer.ui.common.LocalFormats
 import gr.edusuite.invoicer.ui.common.Logo
 import gr.edusuite.invoicer.ui.common.Tile
@@ -153,9 +156,17 @@ fun HomeScreen(
             subtitle = subtitle {
                 when {
                     state.statementsEmpty -> "Bill a student's lessons"
+                    state.overdueStatements > 0 -> "${state.overdueStatements} overdue"
                     state.unpaidStatements == 0 -> "All paid"
                     else -> "${state.unpaidStatements} unpaid"
                 }
+            },
+            // Overdue figures are in the suite red (R16).
+            subtitleColor = if (state.overdueStatements > 0) colors.warn else null,
+            chip = if (state.overdueStatements > 0) {
+                { StatusChip("Overdue", ChipTone.Warning, onTile = true) }
+            } else {
+                null
             },
             icon = AppIcons.Invoice,
             onClick = onOpenStatements,
@@ -193,6 +204,14 @@ fun HomeScreen(
             if (state.databaseDamaged) DamagedDatabaseBanner(onOpenSettings, viewModel::acknowledgeDamagedDatabase)
             HomeHeader(onOpenSettings)
             Spacer(Modifier.height(Space.xl))
+            if (state.overdueStatements > 0) {
+                WarningBanner(
+                    "${plural(state.overdueStatements, "statement")} overdue",
+                    Modifier.padding(bottom = Space.l),
+                    actionLabel = "View",
+                    onAction = onOpenStatements,
+                )
+            }
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 // As many 160dp columns as the width fits; one at 200% font scale or under 360dp (guide §6).
                 val columns = homeColumns(maxWidth.value, LocalDensity.current.fontScale, tiles = 5)

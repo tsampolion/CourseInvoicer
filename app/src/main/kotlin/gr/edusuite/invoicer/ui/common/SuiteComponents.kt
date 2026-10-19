@@ -426,6 +426,8 @@ fun Tile(
     icon: ImageVector? = null,
     empty: Boolean = false,
     chip: (@Composable () -> Unit)? = null,
+    /** Overrides the muted subtitle colour, for a figure that needs attention (warn). */
+    subtitleColor: Color? = null,
     figure: (@Composable () -> Unit)? = null,
 ) {
     val colors = Invoicer.colors
@@ -465,7 +467,7 @@ fun Tile(
                     Text(
                         subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colors.onTileMuted.copy(alpha = alpha),
+                        color = (subtitleColor ?: colors.onTileMuted).copy(alpha = alpha),
                     )
                 }
                 if (figure != null) figure()
