@@ -122,6 +122,9 @@ fun StudentsScreen(
                                     if (row.overdue) {
                                         StatusChip("Overdue", ChipTone.Warning, Modifier.padding(start = 8.dp))
                                     }
+                                    if (row.dueForErasure) {
+                                        StatusChip("Due for erasure", ChipTone.Neutral, Modifier.padding(start = 8.dp))
+                                    }
                                 }
                             },
                             trailingContent = {

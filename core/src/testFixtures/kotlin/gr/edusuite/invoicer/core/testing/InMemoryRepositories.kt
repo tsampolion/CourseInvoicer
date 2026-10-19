@@ -82,6 +82,27 @@ class InMemoryRepositories :
         return id
     }
 
+    override suspend fun rewriteStudentData(student: Student, lessons: List<Lesson>, invoices: List<Invoice>) {
+        data.update { d ->
+            check(student.id in d.students) { "Student ${student.id} no longer exists" }
+            val newLessons = lessons.associate { lesson ->
+                val stored = d.lessons[lesson.id]
+                check(stored != null && stored.studentId == student.id) { "Lesson ${lesson.id} no longer exists" }
+                lesson.id to stored.copy(notes = lesson.notes, absenceNote = lesson.absenceNote)
+            }
+            val newInvoices = invoices.associate { invoice ->
+                val stored = d.invoices[invoice.id]
+                check(stored != null && stored.studentId == student.id) { "Invoice ${invoice.id} no longer exists" }
+                invoice.id to stored.copy(notes = invoice.notes, document = invoice.document)
+            }
+            d.copy(
+                students = d.students + (student.id to student),
+                lessons = d.lessons + newLessons,
+                invoices = d.invoices + newInvoices,
+            )
+        }
+    }
+
     override suspend fun deleteStudent(id: Long) {
         // invoices.student_id is ON DELETE RESTRICT.
         check(data.value.invoices.values.none { it.studentId == id }) { "FOREIGN KEY constraint failed" }
@@ -141,6 +162,10 @@ class InMemoryRepositories :
     override fun observeLessonCount(): Flow<Int> = data.map { it.lessons.size }
 
     override fun observeUninvoicedCount(): Flow<Int> = data.map { d -> d.lessons.values.count { !it.isInvoiced } }
+
+    override fun observeLastLessonDates(): Flow<Map<Long, LocalDate>> = data.map { d ->
+        d.lessons.values.groupBy { it.studentId }.mapValues { (_, lessons) -> lessons.maxOf { it.date } }
+    }
 
     override fun observeUninvoicedSummary(from: LocalDate, to: LocalDate): Flow<UninvoicedSummary> = data.map { d ->
         val open = d.lessons.values.filter { !it.isInvoiced && it.date in from..to }

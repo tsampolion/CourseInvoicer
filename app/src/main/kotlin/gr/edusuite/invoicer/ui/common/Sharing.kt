@@ -73,3 +73,42 @@ fun shareText(context: Context, title: String, text: String): Boolean {
         false
     }
 }
+
+/**
+ * Returns a function that writes one student's data export (JSON) and opens the share sheet for it.
+ * [json] is built by the caller (StudentDetailViewModel.exportData); taps while one is being written are
+ * ignored.
+ */
+@Composable
+fun rememberStudentDataSharer(onError: (String) -> Unit): (fileStem: String, json: String) -> Unit {
+    val context = LocalContext.current
+    val files = LocalAppContainer.current.studentDataFiles
+    val scope = rememberCoroutineScope()
+    val reportError by rememberUpdatedState(onError)
+    val exporting = remember { AtomicBoolean(false) }
+    return remember(context, files, scope) {
+        { fileStem, json ->
+            if (exporting.compareAndSet(false, true)) {
+                scope.launch {
+                    try {
+                        val uri = files.write(fileStem, json)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Share student data"))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: ActivityNotFoundException) {
+                        reportError("No app can share this file")
+                    } catch (e: Exception) {
+                        reportError("Could not export the data: ${e.message ?: e.javaClass.simpleName}")
+                    } finally {
+                        exporting.set(false)
+                    }
+                }
+            }
+        }
+    }
+}

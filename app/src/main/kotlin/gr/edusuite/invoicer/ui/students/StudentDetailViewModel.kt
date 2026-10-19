@@ -15,12 +15,15 @@ import gr.edusuite.invoicer.core.repository.SettingsRepository
 import gr.edusuite.invoicer.core.repository.StudentRepository
 import gr.edusuite.invoicer.core.usecase.ArchiveStudent
 import gr.edusuite.invoicer.core.usecase.DeleteStudent
+import gr.edusuite.invoicer.core.usecase.EraseStudentData
+import gr.edusuite.invoicer.core.privacy.studentDataJson
 import gr.edusuite.invoicer.core.usecase.MarkPaid
 import gr.edusuite.invoicer.core.usecase.RecordPayment
 import gr.edusuite.invoicer.ui.common.Messages
 import gr.edusuite.invoicer.ui.common.launchCatching
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.stateInCatching
+import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +52,7 @@ class StudentDetailViewModel(
     invoices: InvoiceRepository,
     private val settings: SettingsRepository,
     private val today: () -> LocalDate = LocalDate::now,
+    private val now: () -> Instant = Instant::now,
     private val messages: Messages = Messages(),
 ) : ViewModel() {
     private data class Events(val message: String? = null, val deleted: Boolean = false)
@@ -58,6 +62,7 @@ class StudentDetailViewModel(
     private val archiveStudent = ArchiveStudent(students)
     private val recordPaymentUseCase = RecordPayment(lessons)
     private val deleteStudent = DeleteStudent(students, lessons, invoices)
+    private val eraseStudentData = EraseStudentData(students, lessons, invoices)
 
     private val observedState: StateFlow<StudentDetailUiState> = combine(
         students.observeStudent(studentId),
@@ -106,6 +111,23 @@ class StudentDetailViewModel(
     fun delete() = launchCatching(::showMessage) {
         deleteStudent(studentId)
         events.update { it.copy(deleted = true) }
+    }
+
+    /** Anonymises the student (R17). Undo is offered for 5 seconds, like archiving. */
+    fun eraseData() = launchCatching(::showMessage) {
+        val action = eraseStudentData(studentId)
+        messages.postUndo("Student data erased", action)
+    }
+
+    /**
+     * The student's data as JSON for a parent's access or portability request (Art. 15, 20), with the
+     * file name stem, or null before the student has loaded.
+     */
+    fun exportData(): Pair<String, String>? {
+        val current = state.value
+        val student = current.student ?: return null
+        val json = studentDataJson(student, current.lessons, current.invoices, now().toString())
+        return student.fullName to json
     }
 
     fun messageShown() = events.update { it.copy(message = null) }

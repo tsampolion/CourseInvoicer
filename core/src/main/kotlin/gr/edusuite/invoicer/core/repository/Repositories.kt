@@ -27,6 +27,14 @@ interface StudentRepository {
     suspend fun saveStudent(student: Student): Long
 
     suspend fun deleteStudent(id: Long)
+
+    /**
+     * Erasure and its undo (R17), in one transaction: writes [student]; for each of [lessons], its `notes`
+     * and `absenceNote`; for each of [invoices], its `notes` and frozen `document`. Nothing else changes.
+     * Every lesson and invoice must exist and belong to [student]. The one write allowed to change an
+     * issued document.
+     */
+    suspend fun rewriteStudentData(student: Student, lessons: List<Lesson>, invoices: List<Invoice>)
 }
 
 interface GroupRepository {
@@ -61,6 +69,9 @@ interface LessonRepository {
 
     /** How many lessons are on no invoice yet, absences included. */
     fun observeUninvoicedCount(): Flow<Int>
+
+    /** Each student's latest lesson date, absences included; students with no lessons are absent (R17). */
+    fun observeLastLessonDates(): Flow<Map<Long, LocalDate>>
 
     /**
      * How many lessons dated [from]..[to] (inclusive) are on no invoice yet, absences included, and for how

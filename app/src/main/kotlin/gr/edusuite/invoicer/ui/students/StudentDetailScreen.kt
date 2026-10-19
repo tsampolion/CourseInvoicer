@@ -48,9 +48,11 @@ import gr.edusuite.invoicer.ui.common.SectionHeader
 import gr.edusuite.invoicer.ui.common.appViewModel
 import gr.edusuite.invoicer.ui.common.plural
 import gr.edusuite.invoicer.ui.common.rememberInvoiceSharer
+import gr.edusuite.invoicer.ui.common.rememberStudentDataSharer
+import gr.edusuite.invoicer.core.privacy.isErased
 import gr.edusuite.invoicer.ui.lessons.LessonRow
 
-private enum class PendingAction { Delete }
+private enum class PendingAction { Delete, Erase }
 
 @Composable
 fun StudentDetailScreen(
@@ -79,6 +81,7 @@ fun StudentDetailScreen(
     var pending by rememberSaveable { mutableStateOf<PendingAction?>(null) }
     var shareError by remember { mutableStateOf<String?>(null) }
     val shareInvoice = rememberInvoiceSharer { shareError = it }
+    val shareData = rememberStudentDataSharer { shareError = it }
     val student = state.student
 
     MessageEffect(state.message, snackbar, viewModel::messageShown)
@@ -107,6 +110,22 @@ fun StudentDetailScreen(
                             viewModel.setArchived(!student.archived)
                         },
                     )
+                    DropdownMenuItem(
+                        text = { Text("Export this student's data") },
+                        onClick = {
+                            menuOpen = false
+                            viewModel.exportData()?.let { (name, json) -> shareData(name, json) }
+                        },
+                    )
+                    if (!student.isErased) {
+                        DropdownMenuItem(
+                            text = { Text("Erase student data") },
+                            onClick = {
+                                menuOpen = false
+                                pending = PendingAction.Erase
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Delete") },
                         onClick = {
@@ -203,6 +222,14 @@ fun StudentDetailScreen(
             text = "This cannot be undone. Students with lessons cannot be deleted; archive them instead.",
             confirmLabel = "Delete",
             onConfirm = viewModel::delete,
+            onDismiss = { pending = null },
+        )
+        PendingAction.Erase -> ConfirmDialog(
+            title = "Erase student data",
+            text = "Removes this student's name and details from the app. Their statements keep only number, " +
+                "dates and amounts. Use this when lessons have ended and everything is paid.",
+            confirmLabel = "Erase",
+            onConfirm = viewModel::eraseData,
             onDismiss = { pending = null },
         )
         null -> Unit

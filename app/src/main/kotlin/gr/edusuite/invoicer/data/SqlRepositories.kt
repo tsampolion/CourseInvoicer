@@ -1,5 +1,6 @@
 package gr.edusuite.invoicer.data
 
+import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import gr.edusuite.invoicer.core.invoice.InvoiceDocumentCodec
 import gr.edusuite.invoicer.core.model.DomainException
@@ -33,6 +34,31 @@ class SqlStudentRepository(private val db: InvoicerDatabase) : StudentRepository
         } else {
             d.update("students", student.toValues(), "id = ?", arrayOf(student.id.toString()))
             student.id
+        }
+    }
+
+    override suspend fun rewriteStudentData(student: Student, lessons: List<Lesson>, invoices: List<Invoice>) {
+        db.write(Table.STUDENTS, Table.LESSONS, Table.INVOICES) { d ->
+            val owner = student.id.toString()
+            check(d.update("students", student.toValues(), "id = ?", arrayOf(owner)) == 1) {
+                "Student ${student.id} no longer exists"
+            }
+            lessons.forEach { lesson ->
+                val values = ContentValues().apply {
+                    put("notes", lesson.notes)
+                    put("absence_note", lesson.absenceNote)
+                }
+                val updated = d.update("lessons", values, "id = ? AND student_id = ?", arrayOf(lesson.id.toString(), owner))
+                check(updated == 1) { "Lesson ${lesson.id} no longer exists" }
+            }
+            invoices.forEach { invoice ->
+                val values = ContentValues().apply {
+                    put("notes", invoice.notes)
+                    put("document", invoice.document?.let(InvoiceDocumentCodec::encode))
+                }
+                val updated = d.update("invoices", values, "id = ? AND student_id = ?", arrayOf(invoice.id.toString(), owner))
+                check(updated == 1) { "Invoice ${invoice.id} no longer exists" }
+            }
         }
     }
 
@@ -126,6 +152,12 @@ class SqlLessonRepository(private val db: InvoicerDatabase) : LessonRepository {
 
     override fun observeUninvoicedCount(): Flow<Int> =
         db.observe(Table.LESSONS) { it.count("SELECT COUNT(*) FROM lessons WHERE invoice_id IS NULL") }
+
+    override fun observeLastLessonDates(): Flow<Map<Long, LocalDate>> = db.observe(Table.LESSONS) { d ->
+        d.select("SELECT student_id, MAX(date) AS last FROM lessons GROUP BY student_id")
+            .readAll { it.long("student_id") to LocalDate.parse(it.string("last")) }
+            .toMap()
+    }
 
     override fun observeUninvoicedSummary(from: LocalDate, to: LocalDate): Flow<UninvoicedSummary> =
         db.observe(Table.LESSONS) { d ->

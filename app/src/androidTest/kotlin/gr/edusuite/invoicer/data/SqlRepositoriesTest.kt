@@ -21,6 +21,7 @@ import gr.edusuite.invoicer.core.report.Reports
 import gr.edusuite.invoicer.core.report.UninvoicedSummary
 import gr.edusuite.invoicer.core.testing.InMemorySettingsRepository
 import gr.edusuite.invoicer.core.usecase.CreateInvoice
+import gr.edusuite.invoicer.core.usecase.EraseStudentData
 import gr.edusuite.invoicer.core.usecase.DeleteGroup
 import gr.edusuite.invoicer.core.usecase.DeleteLesson
 import gr.edusuite.invoicer.core.usecase.DeleteStudent
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -383,6 +385,46 @@ class SqlRepositoriesTest {
         val late = lessons.saveLesson(lateCancel(maria, fee = 2500))
         createInvoice(maria, listOf(late), march31)
         assertEquals(1, invoices.observeUnpaidCount().first())
+    }
+
+    @Test
+    fun eraseRewritesOneStudentsDataInOneTransaction() = runTest {
+        val maria = student()
+        val nikos = student("Nikos")
+        val held = lessons.saveLesson(lesson(maria).copy(notes = "Unit 4"))
+        val theirs = lessons.saveLesson(lesson(nikos).copy(notes = "keep"))
+        val invoice = createInvoice(maria, listOf(held), march31)
+
+        val erase = EraseStudentData(students, lessons, invoices)(maria)
+
+        assertEquals("Erased student", students.getStudent(maria)!!.fullName)
+        assertEquals("", lessons.getLesson(held)!!.notes)
+        assertEquals("keep", lessons.getLesson(theirs)!!.notes)
+        val erased = invoices.getInvoice(invoice.id)!!
+        assertEquals(listOf("Erased student"), erased.document!!.billTo)
+        assertEquals(invoice.number, erased.number)
+        assertEquals(invoice.total, erased.total)
+
+        erase.undo()
+        assertEquals("Maria", students.getStudent(maria)!!.firstName)
+        assertEquals("Unit 4", lessons.getLesson(held)!!.notes)
+        assertEquals(invoice.document, invoices.getInvoice(invoice.id)!!.document)
+
+        // Another student's rows are refused and nothing is written.
+        try {
+            students.rewriteStudentData(students.getStudent(maria)!!.copy(notes = "x"), listOf(lessons.getLesson(theirs)!!), emptyList())
+            fail("another student's lesson must be refused")
+        } catch (expected: IllegalStateException) {
+        }
+        assertEquals("", students.getStudent(maria)!!.notes)
+    }
+
+    @Test
+    fun lastLessonDatesTakeEachStudentsLatest() = runTest {
+        val maria = student()
+        lessons.saveLesson(lesson(maria, date = "2026-03-02"))
+        lessons.saveLesson(lesson(maria, date = "2026-05-02"))
+        assertEquals(mapOf(maria to LocalDate.parse("2026-05-02")), lessons.observeLastLessonDates().first())
     }
 
     @Test

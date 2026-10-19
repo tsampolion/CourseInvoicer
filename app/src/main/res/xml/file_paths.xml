@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="invoices" path="invoices/" />
+    <!-- One student's data export (Art. 15, 20), deleted after a day. -->
+    <cache-path name="exports" path="exports/" />
 </paths>
